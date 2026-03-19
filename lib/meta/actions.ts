@@ -138,6 +138,7 @@ export async function getAdSetMetrics(
     ]);
 
     console.log("[getAdSetMetrics] Raw adset response:", JSON.stringify(adsetRes, null, 2));
+    console.log("[getAdSetMetrics] adset name:", adsetRes.name);
     console.log("[getAdSetMetrics] Raw insights response:", JSON.stringify(insightsRes, null, 2));
 
     const insight: RawInsight | undefined = insightsRes.data[0];
