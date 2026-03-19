@@ -4,6 +4,8 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useActiveClient } from "@/lib/context/client-context";
+import { METRIC_GROUPS, METRIC_BY_KEY, LEADS_DEFAULT_COLUMNS, ECOMM_DEFAULT_COLUMNS } from "@/lib/meta/metric-definitions";
+import type { MetricDef } from "@/lib/meta/metric-definitions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,32 +37,15 @@ interface AdSetMetric {
   frequency: number;
   impressions: number;
   date_recorded: string;
+  raw_metrics: Record<string, unknown>;
 }
 
-interface TrendPoint {
-  day: string;
-  spend: number;
-  leads: number;
-  cpl: number;
-}
-
+interface TrendPoint { day: string; spend: number; leads: number; cpl: number; }
 type SortKey = "cpl" | "spend" | "leads" | "frequency" | "ctr" | "impressions";
 type SortDir = "asc" | "desc";
 type HealthFilter = "all" | "Scaling" | "Stable" | "Fatigued" | "CPL High";
 
-const ALL_COLUMNS = ["spend", "leads", "cpl", "ctr", "frequency", "impressions", "trend", "health"] as const;
-type Column = typeof ALL_COLUMNS[number];
-
-const COLUMN_LABELS: Record<Column, string> = {
-  spend: "Spend",
-  leads: "Leads",
-  cpl: "CPL",
-  ctr: "CTR",
-  frequency: "Freq",
-  impressions: "Impressions",
-  trend: "CPL Trend",
-  health: "Health",
-};
+interface Preset { id: string; name: string; columns: string[]; is_default: boolean; }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -68,11 +53,6 @@ function trendCalc(current: number, previous: number) {
   if (!previous || previous === 0) return { dir: "flat" as const, pct: 0 };
   const pct = ((current - previous) / previous) * 100;
   return { dir: pct > 1 ? "up" as const : pct < -1 ? "down" as const : "flat" as const, pct: Math.abs(pct) };
-}
-
-function fmt(n: number | null | undefined, prefix = "", decimals = 0): string {
-  if (n === undefined || n === null) return "—";
-  return `${prefix}${Number(n).toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
 }
 
 function healthColor(adSet: AdSetMetric): string {
@@ -89,20 +69,37 @@ function healthLabel(adSet: AdSetMetric): HealthFilter {
   return "Stable";
 }
 
+function formatMetricValue(key: string, adSet: AdSetMetric): string {
+  const def: MetricDef | undefined = METRIC_BY_KEY[key];
+  if (!def) return "—";
+
+  const direct: Record<string, number | string | null> = {
+    spend: adSet.spend, leads: adSet.leads, cpl: adSet.cpl,
+    ctr: adSet.ctr, frequency: adSet.frequency, impressions: adSet.impressions,
+  };
+
+  const val: unknown = direct[key] ?? adSet.raw_metrics?.[key];
+  if (val === undefined || val === null) return "—";
+
+  const n = Number(val);
+  if (isNaN(n)) return String(val);
+
+  switch (def.format) {
+    case "currency": return n === 0 ? "$—" : `$${n.toFixed(2)}`;
+    case "percent": return `${(n * 100).toFixed(2)}%`;
+    case "roas": return `${n.toFixed(2)}x`;
+    case "number": return n.toLocaleString();
+    case "text": return String(val);
+    default: return String(val);
+  }
+}
+
 function Sparkline({ points, color }: { points: number[]; color: string }) {
   if (!points.length) return <span style={{ color: "#2a4a4a", fontSize: 11 }}>—</span>;
-  const max = Math.max(...points, 1);
-  const min = Math.min(...points);
+  const max = Math.max(...points, 1), min = Math.min(...points);
   const range = max - min || 1;
-  const w = 80;
-  const h = 28;
-  const pts = points
-    .map((v, i) => {
-      const x = (i / Math.max(points.length - 1, 1)) * w;
-      const y = h - ((v - min) / range) * h;
-      return `${x},${y}`;
-    })
-    .join(" ");
+  const w = 80, h = 28;
+  const pts = points.map((v, i) => `${(i / Math.max(points.length - 1, 1)) * w},${h - ((v - min) / range) * h}`).join(" ");
   return (
     <svg width={w} height={h} style={{ overflow: "visible" }}>
       <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
@@ -139,56 +136,205 @@ const btnStyle = (active: boolean) => ({
   cursor: "pointer" as const, fontFamily: "'DM Mono', monospace", transition: "all 0.15s",
 });
 
+// ─── Column Picker Modal ──────────────────────────────────────────────────────
+
+function ColumnPickerModal({
+  visibleCols, onChange, onClose, onSavePreset, presets, onLoadPreset, onDeletePreset
+}: {
+  visibleCols: Set<string>;
+  onChange: (cols: Set<string>) => void;
+  onClose: () => void;
+  onSavePreset: (name: string) => void;
+  presets: Preset[];
+  onLoadPreset: (preset: Preset) => void;
+  onDeletePreset: (id: string) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [presetName, setPresetName] = useState("");
+  const [showPresetInput, setShowPresetInput] = useState(false);
+  const [activeGroup, setActiveGroup] = useState(METRIC_GROUPS[0].group);
+
+  function toggle(key: string) {
+    const next = new Set(visibleCols);
+    if (next.has(key)) { if (next.size > 1) next.delete(key); }
+    else next.add(key);
+    onChange(next);
+  }
+
+  const filteredGroups = METRIC_GROUPS.map(g => ({
+    ...g,
+    subgroups: g.subgroups.map(s => ({
+      ...s,
+      metrics: s.metrics.filter(m => !search || m.label.toLowerCase().includes(search.toLowerCase()))
+    })).filter(s => s.metrics.length > 0)
+  })).filter(g => g.subgroups.length > 0);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ background: "#0d1818", border: "1px solid #1a2f2f", borderRadius: 12, width: 780, maxHeight: "85vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+        {/* Header */}
+        <div style={{ padding: "20px 24px", borderBottom: "1px solid #1a2f2f", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#2A8C8A" }}>Customize Columns</div>
+            <div style={{ fontSize: 12, color: "#4a7a7a", marginTop: 4 }}>{visibleCols.size} columns selected</div>
+          </div>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#4a7a7a", cursor: "pointer", fontSize: 18 }}>✕</button>
+        </div>
+
+        {/* Saved Presets */}
+        {presets.length > 0 && (
+          <div style={{ padding: "12px 24px", borderBottom: "1px solid #0f1f1f", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ fontSize: 11, color: "#2a4a4a", textTransform: "uppercase", letterSpacing: "0.08em" }}>Presets:</span>
+            {presets.map(p => (
+              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <button onClick={() => onLoadPreset(p)} style={{ ...btnStyle(false), padding: "3px 10px", fontSize: 11 }}>
+                  {p.name} {p.is_default ? "★" : ""}
+                </button>
+                <button onClick={() => onDeletePreset(p.id)} style={{ background: "transparent", border: "none", color: "#E8705A", cursor: "pointer", fontSize: 12, padding: "2px 4px" }}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Search */}
+        <div style={{ padding: "12px 24px", borderBottom: "1px solid #0f1f1f" }}>
+          <input
+            type="text" placeholder="Search metrics..."
+            value={search} onChange={e => setSearch(e.target.value)}
+            style={{ width: "100%", background: "#0a0f0f", border: "1px solid #1a2f2f", borderRadius: 6, color: "#e8f4f4", fontSize: 13, fontFamily: "'DM Mono', monospace", padding: "7px 12px", outline: "none", boxSizing: "border-box" as const }}
+          />
+        </div>
+
+        {/* Body — group tabs + metrics */}
+        <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+
+          {/* Group tabs */}
+          <div style={{ width: 160, borderRight: "1px solid #0f1f1f", padding: "12px 0", overflowY: "auto", flexShrink: 0 }}>
+            {filteredGroups.map(g => (
+              <div
+                key={g.group}
+                onClick={() => setActiveGroup(g.group)}
+                style={{
+                  padding: "8px 16px", fontSize: 12, cursor: "pointer",
+                  color: activeGroup === g.group ? "#2A8C8A" : "#4a7a7a",
+                  background: activeGroup === g.group ? "#0f2020" : "transparent",
+                  borderLeft: activeGroup === g.group ? "2px solid #2A8C8A" : "2px solid transparent",
+                }}
+              >
+                {g.group}
+              </div>
+            ))}
+          </div>
+
+          {/* Metrics */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px" }}>
+            {filteredGroups.map(g =>
+              (search ? true : g.group === activeGroup) && (
+                <div key={g.group}>
+                  {g.subgroups.map(sub => (
+                    <div key={sub.name} style={{ marginBottom: 20 }}>
+                      <div style={{ fontSize: 11, color: "#2a4a4a", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>{sub.name}</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        {sub.metrics.map(m => (
+                          <label key={m.key} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, color: visibleCols.has(m.key) ? "#e8f4f4" : "#4a7a7a" }}>
+                            <input
+                              type="checkbox"
+                              checked={visibleCols.has(m.key)}
+                              onChange={() => toggle(m.key)}
+                              style={{ accentColor: "#2A8C8A", cursor: "pointer" }}
+                            />
+                            {m.label}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: "16px 24px", borderTop: "1px solid #1a2f2f", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {showPresetInput ? (
+              <>
+                <input
+                  type="text" placeholder="Preset name..."
+                  value={presetName} onChange={e => setPresetName(e.target.value)}
+                  style={{ background: "#0a0f0f", border: "1px solid #1a2f2f", borderRadius: 6, color: "#e8f4f4", fontSize: 12, fontFamily: "'DM Mono', monospace", padding: "6px 10px", outline: "none", width: 160 }}
+                />
+                <button
+                  onClick={() => { if (presetName) { onSavePreset(presetName); setPresetName(""); setShowPresetInput(false); } }}
+                  style={{ ...btnStyle(true), padding: "6px 12px" }}
+                >Save</button>
+                <button onClick={() => setShowPresetInput(false)} style={{ ...btnStyle(false), padding: "6px 12px" }}>Cancel</button>
+              </>
+            ) : (
+              <button onClick={() => setShowPresetInput(true)} style={{ ...btnStyle(false), padding: "6px 12px" }}>
+                Save as preset
+              </button>
+            )}
+          </div>
+          <button onClick={onClose} style={{ ...btnStyle(true), padding: "8px 20px" }}>Apply</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CampaignsPage() {
+  const router = useRouter();
   const { activeClient } = useActiveClient();
+
   const [summary, setSummary] = useState<SummaryResponse | null>(null);
   const [adSets, setAdSets] = useState<AdSetMetric[]>([]);
   const [trends, setTrends] = useState<Record<string, TrendPoint[]>>({});
   const [loading, setLoading] = useState(true);
   const [selectedAdSet, setSelectedAdSet] = useState<string | null>(null);
+  const [presets, setPresets] = useState<Preset[]>([]);
+  const [showColModal, setShowColModal] = useState(false);
 
-  // Date range
   const today = new Date().toISOString().split("T")[0];
   const sevenAgo = new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0];
   const [startDate, setStartDate] = useState(sevenAgo);
   const [endDate, setEndDate] = useState(today);
   const [datePreset, setDatePreset] = useState<"today" | "7d" | "30d" | "max" | "custom">("7d");
 
-  // Table controls
   const [sortKey, setSortKey] = useState<SortKey>("cpl");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [healthFilter, setHealthFilter] = useState<HealthFilter>("all");
   const [search, setSearch] = useState("");
-  const [visibleCols, setVisibleCols] = useState<Set<Column>>(new Set(ALL_COLUMNS));
-  const [showColPicker, setShowColPicker] = useState(false);
-  const colPickerRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
   const [selectedAdSets, setSelectedAdSets] = useState<Set<string>>(new Set());
   const [showAdSetPicker, setShowAdSetPicker] = useState(false);
   const adSetPickerRef = useRef<HTMLDivElement>(null);
 
-  // Compute days from date range for API
-  const computedDays = Math.max(
-    1,
-    Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000)
-  );
+  const defaultCols = activeClient?.vertical === "ecomm" ? ECOMM_DEFAULT_COLUMNS : LEADS_DEFAULT_COLUMNS;
+  const [visibleCols, setVisibleCols] = useState<Set<string>>(new Set(defaultCols));
+
+  const computedDays = Math.max(1, Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000));
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const acct = activeClient?.meta_ad_account_id;
-    const acctParam = acct ? `&ad_account_id=${encodeURIComponent(acct)}` : "";
+    const adAccountParam = activeClient?.meta_ad_account_id ? `&ad_account_id=${activeClient.meta_ad_account_id}` : "";
     try {
-      const [sumRes, metricsRes] = await Promise.all([
-        fetch(`/api/agent/metrics/summary?days=7${acctParam}`),
-        fetch(`/api/agent/metrics?days=${computedDays}${acctParam}`),
+      const [sumRes, metricsRes, presetsRes] = await Promise.all([
+        fetch(`/api/agent/metrics/summary?${adAccountParam}`),
+        fetch(`/api/agent/metrics?days=${computedDays}${adAccountParam}`),
+        fetch("/api/agent/presets"),
       ]);
-      const sumData = await sumRes.json();
-      const metricsData = await metricsRes.json();
+      const [sumData, metricsData, presetsData] = await Promise.all([sumRes.json(), metricsRes.json(), presetsRes.json()]);
       setSummary(sumData);
       setAdSets(metricsData.ad_sets ?? []);
       setTrends(metricsData.trends ?? {});
+      setPresets(presetsData.presets ?? []);
+
+      const defaultPreset = (presetsData.presets ?? []).find((p: Preset) => p.is_default);
+      if (defaultPreset) setVisibleCols(new Set(defaultPreset.columns));
     } catch {
       setSummary(null);
     } finally {
@@ -198,35 +344,43 @@ export default function CampaignsPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Close col picker on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (colPickerRef.current && !colPickerRef.current.contains(e.target as Node)) setShowColPicker(false);
       if (adSetPickerRef.current && !adSetPickerRef.current.contains(e.target as Node)) setShowAdSetPicker(false);
     }
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  async function savePreset(name: string) {
+    const res = await fetch("/api/agent/presets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, columns: Array.from(visibleCols), is_default: false }),
+    });
+    const data = await res.json();
+    setPresets(p => [...p, data.preset]);
+  }
+
+  async function deletePreset(id: string) {
+    await fetch(`/api/agent/presets/${id}`, { method: "DELETE" });
+    setPresets(p => p.filter(x => x.id !== id));
+  }
+
+  function loadPreset(preset: Preset) {
+    setVisibleCols(new Set(preset.columns));
+    setShowColModal(false);
+  }
+
   function toggleSort(key: SortKey) {
-    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
     else { setSortKey(key); setSortDir("asc"); }
   }
 
-  function toggleCol(col: Column) {
-    setVisibleCols((prev) => {
-      const next = new Set(prev);
-      if (next.has(col)) { if (next.size > 2) next.delete(col); }
-      else next.add(col);
-      return next;
-    });
-  }
-
-  // Filter + sort
   const filtered = adSets
-    .filter((a) => {
+    .filter(a => {
       if (selectedAdSets.size > 0 && !selectedAdSets.has(a.ad_set_id)) return false;
-      if (search && !a.ad_set_id.toLowerCase().includes(search.toLowerCase())) return false;
+      if (search && !(a.ad_set_name ?? a.ad_set_id).toLowerCase().includes(search.toLowerCase())) return false;
       if (healthFilter !== "all" && healthLabel(a) !== healthFilter) return false;
       return true;
     })
@@ -242,12 +396,23 @@ export default function CampaignsPage() {
   const cplTrend = cur && prev ? trendCalc(cur.avg_cpl, prev.avg_cpl) : null;
   const leadsTrend = cur && prev ? trendCalc(cur.total_leads, prev.total_leads) : null;
 
-  // Dynamic grid based on visible cols
-  const gridCols = `1.5fr ${Array.from(visibleCols).map(() => "80px").join(" ")}`;
+  const visibleColsArray = Array.from(visibleCols);
 
   return (
     <div style={{ minHeight: "100vh", background: "#0a0f0f", fontFamily: "'DM Mono', 'Fira Mono', monospace", color: "#e8f4f4", padding: "40px 24px" }}>
-      <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+      {showColModal && (
+        <ColumnPickerModal
+          visibleCols={visibleCols}
+          onChange={setVisibleCols}
+          onClose={() => setShowColModal(false)}
+          onSavePreset={savePreset}
+          presets={presets}
+          onLoadPreset={loadPreset}
+          onDeletePreset={deletePreset}
+        />
+      )}
+
+      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 32, flexWrap: "wrap", gap: 16 }}>
@@ -259,52 +424,24 @@ export default function CampaignsPage() {
           {/* Date range */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
             <div style={{ display: "flex", gap: 6 }}>
-              {([
-                { key: "today", label: "Today" },
-                { key: "7d", label: "7D" },
-                { key: "30d", label: "30D" },
-                { key: "max", label: "MAX" },
-                { key: "custom", label: "Custom" },
-              ] as { key: typeof datePreset; label: string }[]).map(({ key, label }) => (
-                <button
-                  key={key}
-                  style={btnStyle(datePreset === key)}
-                  onClick={() => {
-                    setDatePreset(key);
-                    if (key === "today") { setStartDate(today); setEndDate(today); }
-                    if (key === "7d") { setStartDate(new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0]); setEndDate(today); }
-                    if (key === "30d") { setStartDate(new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0]); setEndDate(today); }
-                    if (key === "max") { setStartDate("2024-01-01"); setEndDate(today); }
-                  }}
-                >
-                  {label}
-                </button>
+              {([{ key: "today", label: "Today" }, { key: "7d", label: "7D" }, { key: "30d", label: "30D" }, { key: "max", label: "MAX" }, { key: "custom", label: "Custom" }] as { key: typeof datePreset; label: string }[]).map(({ key, label }) => (
+                <button key={key} style={btnStyle(datePreset === key)} onClick={() => {
+                  setDatePreset(key);
+                  if (key === "today") { setStartDate(today); setEndDate(today); }
+                  if (key === "7d") { setStartDate(new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0]); setEndDate(today); }
+                  if (key === "30d") { setStartDate(new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0]); setEndDate(today); }
+                  if (key === "max") { setStartDate("2024-01-01"); setEndDate(today); }
+                }}>{label}</button>
               ))}
             </div>
-
             {datePreset === "custom" && (
               <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#0d1818", border: "1px solid #1a2f2f", borderRadius: 8, padding: "8px 14px" }}>
                 <span style={{ fontSize: 11, color: "#4a7a7a" }}>FROM</span>
-                <input
-                  type="date"
-                  value={startDate}
-                  max={endDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  style={{ background: "transparent", border: "none", color: "#e8f4f4", fontSize: 12, fontFamily: "'DM Mono', monospace", outline: "none", cursor: "pointer" }}
-                />
+                <input type="date" value={startDate} max={endDate} onChange={e => setStartDate(e.target.value)} style={{ background: "transparent", border: "none", color: "#e8f4f4", fontSize: 12, fontFamily: "'DM Mono', monospace", outline: "none" }} />
                 <span style={{ fontSize: 11, color: "#2a4a4a" }}>—</span>
                 <span style={{ fontSize: 11, color: "#4a7a7a" }}>TO</span>
-                <input
-                  type="date"
-                  value={endDate}
-                  min={startDate}
-                  max={today}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  style={{ background: "transparent", border: "none", color: "#e8f4f4", fontSize: 12, fontFamily: "'DM Mono', monospace", outline: "none", cursor: "pointer" }}
-                />
-                <button onClick={fetchData} style={{ ...btnStyle(false), padding: "3px 10px", marginLeft: 4 }}>
-                  Apply
-                </button>
+                <input type="date" value={endDate} min={startDate} max={today} onChange={e => setEndDate(e.target.value)} style={{ background: "transparent", border: "none", color: "#e8f4f4", fontSize: 12, fontFamily: "'DM Mono', monospace", outline: "none" }} />
+                <button onClick={fetchData} style={{ ...btnStyle(false), padding: "3px 10px" }}>Apply</button>
               </div>
             )}
           </div>
@@ -321,90 +458,61 @@ export default function CampaignsPage() {
         ) : (
           <>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12, marginBottom: 32 }}>
-              <StatCard label="Total Spend" value={fmt(cur.total_spend, "$")} sub={`${computedDays}d window`} trendDir={spendTrend?.dir} trendPct={spendTrend?.pct} />
-              <StatCard label="Total Leads" value={fmt(cur.total_leads)} trendDir={leadsTrend?.dir} trendPct={leadsTrend?.pct} />
-              <StatCard label="Avg CPL" value={fmt(cur.avg_cpl, "$", 2)} trendDir={cplTrend?.dir} trendPct={cplTrend?.pct} invertTrend />
+              <StatCard label="Total Spend" value={`$${Number(cur.total_spend).toLocaleString()}`} sub={`${computedDays}d window`} trendDir={spendTrend?.dir} trendPct={spendTrend?.pct} />
+              <StatCard label="Total Leads" value={String(cur.total_leads)} trendDir={leadsTrend?.dir} trendPct={leadsTrend?.pct} />
+              <StatCard label="Avg CPL" value={`$${Number(cur.avg_cpl).toFixed(2)}`} trendDir={cplTrend?.dir} trendPct={cplTrend?.pct} invertTrend />
               <StatCard label="Avg CTR" value={`${(Number(cur.avg_ctr) * 100).toFixed(2)}%`} />
-              <StatCard label="Avg Frequency" value={fmt(cur.avg_frequency, "", 2)} sub={cur.avg_frequency > 3 ? "⚠ high" : "ok"} />
+              <StatCard label="Avg Frequency" value={Number(cur.avg_frequency).toFixed(2)} sub={Number(cur.avg_frequency) > 3 ? "⚠ high" : "ok"} />
               <StatCard label="Impressions" value={Number(cur.total_impressions).toLocaleString()} />
-              <StatCard label="Active Ad Sets" value={String(cur.active_ad_sets)} sub={`${summary?.active_briefs ?? 0} briefs pending`} />
+              <StatCard label="Ad Sets" value={String(cur.active_ad_sets)} sub={`${summary?.active_briefs ?? 0} briefs pending`} />
             </div>
 
             {/* Table controls */}
-            <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
-              {/* Ad set multi-select */}
+            <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+
+              {/* Ad set picker */}
               <div ref={adSetPickerRef} style={{ position: "relative" }}>
-                <button style={btnStyle(selectedAdSets.size > 0)} onClick={() => setShowAdSetPicker((v) => !v)}>
+                <button style={btnStyle(selectedAdSets.size > 0)} onClick={() => setShowAdSetPicker(v => !v)}>
                   Ad Sets {selectedAdSets.size > 0 ? `(${selectedAdSets.size})` : "▾"}
                 </button>
                 {showAdSetPicker && (
-                  <div style={{ position: "absolute", left: 0, top: "calc(100% + 6px)", zIndex: 50, background: "#0d1818", border: "1px solid #1a2f2f", borderRadius: 8, padding: "10px 14px", display: "flex", flexDirection: "column", gap: 6, minWidth: 220, maxHeight: 240, overflowY: "auto" }}>
+                  <div style={{ position: "absolute", left: 0, top: "calc(100% + 6px)", zIndex: 50, background: "#0d1818", border: "1px solid #1a2f2f", borderRadius: 8, padding: "10px 14px", minWidth: 260, maxHeight: 260, overflowY: "auto" }}>
                     {selectedAdSets.size > 0 && (
-                      <button
-                        onClick={() => setSelectedAdSets(new Set())}
-                        style={{ ...btnStyle(false), fontSize: 11, marginBottom: 4, textAlign: "left" as const }}
-                      >
-                        Clear selection
-                      </button>
+                      <button onClick={() => setSelectedAdSets(new Set())} style={{ ...btnStyle(false), fontSize: 11, marginBottom: 8, width: "100%", textAlign: "left" as const }}>Clear selection</button>
                     )}
-                    {adSets.length === 0 ? (
-                      <span style={{ fontSize: 12, color: "#4a7a7a" }}>No ad sets yet</span>
-                    ) : (
-                      adSets.map((a) => (
-                        <label key={a.ad_set_id} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 11, color: selectedAdSets.has(a.ad_set_id) ? "#e8f4f4" : "#4a7a7a", fontFamily: "monospace" }}>
-                          <input
-                            type="checkbox"
-                            checked={selectedAdSets.has(a.ad_set_id)}
-                            onChange={() => {
-                              setSelectedAdSets((prev) => {
-                                const next = new Set(prev);
-                                if (next.has(a.ad_set_id)) next.delete(a.ad_set_id);
-                                else next.add(a.ad_set_id);
-                                return next;
-                              });
-                            }}
-                            style={{ accentColor: "#2A8C8A", cursor: "pointer" }}
-                          />
-                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {a.ad_set_id}
-                          </span>
-                          <span style={{ marginLeft: "auto", color: healthColor(a), fontSize: 10, fontWeight: 600 }}>
-                            {healthLabel(a)}
-                          </span>
-                        </label>
-                      ))
-                    )}
+                    {adSets.map(a => (
+                      <label key={a.ad_set_id} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, color: selectedAdSets.has(a.ad_set_id) ? "#e8f4f4" : "#4a7a7a", marginBottom: 6 }}>
+                        <input type="checkbox" checked={selectedAdSets.has(a.ad_set_id)}
+                          onChange={() => setSelectedAdSets(prev => {
+                            const next = new Set(prev);
+                            if (next.has(a.ad_set_id)) next.delete(a.ad_set_id); else next.add(a.ad_set_id);
+                            return next;
+                          })}
+                          style={{ accentColor: "#2A8C8A" }} />
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{a.ad_set_name ?? a.ad_set_id}</span>
+                        <span style={{ color: healthColor(a), fontSize: 10, fontWeight: 600 }}>{healthLabel(a)}</span>
+                      </label>
+                    ))}
                   </div>
                 )}
               </div>
 
               {/* Search */}
-              <input
-                type="text"
-                placeholder="Search ad set ID..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{
-                  background: "#0d1818", border: "1px solid #1a2f2f", borderRadius: 6,
-                  color: "#e8f4f4", fontSize: 12, fontFamily: "'DM Mono', monospace",
-                  padding: "6px 12px", outline: "none", width: 200,
-                }}
-              />
+              <input type="text" placeholder="Search ad sets..." value={search} onChange={e => setSearch(e.target.value)}
+                style={{ background: "#0d1818", border: "1px solid #1a2f2f", borderRadius: 6, color: "#e8f4f4", fontSize: 12, fontFamily: "'DM Mono', monospace", padding: "6px 12px", outline: "none", width: 200 }} />
 
               {/* Health filter */}
               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 <span style={{ fontSize: 11, color: "#2a4a4a" }}>HEALTH</span>
-                {(["all", "Scaling", "Stable", "Fatigued", "CPL High"] as HealthFilter[]).map((h) => (
-                  <button key={h} style={btnStyle(healthFilter === h)} onClick={() => setHealthFilter(h)}>
-                    {h === "all" ? "All" : h}
-                  </button>
+                {(["all", "Scaling", "Stable", "Fatigued", "CPL High"] as HealthFilter[]).map(h => (
+                  <button key={h} style={btnStyle(healthFilter === h)} onClick={() => setHealthFilter(h)}>{h === "all" ? "All" : h}</button>
                 ))}
               </div>
 
               {/* Sort */}
               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 <span style={{ fontSize: 11, color: "#2a4a4a" }}>SORT</span>
-                {(["cpl", "spend", "leads", "frequency"] as SortKey[]).map((k) => (
+                {(["cpl", "spend", "leads", "frequency"] as SortKey[]).map(k => (
                   <button key={k} style={btnStyle(sortKey === k)} onClick={() => toggleSort(k)}>
                     {k.toUpperCase()} {sortKey === k ? (sortDir === "asc" ? "↑" : "↓") : ""}
                   </button>
@@ -412,51 +520,32 @@ export default function CampaignsPage() {
               </div>
 
               {/* Column picker */}
-              <div ref={colPickerRef} style={{ position: "relative", marginLeft: "auto" }}>
-                <button style={btnStyle(showColPicker)} onClick={() => setShowColPicker((v) => !v)}>
-                  Columns ▾
-                </button>
-                {showColPicker && (
-                  <div style={{
-                    position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 50,
-                    background: "#0d1818", border: "1px solid #1a2f2f", borderRadius: 8,
-                    padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8, minWidth: 160,
-                  }}>
-                    {ALL_COLUMNS.map((col) => (
-                      <label key={col} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, color: visibleCols.has(col) ? "#e8f4f4" : "#4a7a7a" }}>
-                        <input
-                          type="checkbox"
-                          checked={visibleCols.has(col)}
-                          onChange={() => toggleCol(col)}
-                          style={{ accentColor: "#2A8C8A", cursor: "pointer" }}
-                        />
-                        {COLUMN_LABELS[col]}
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <button style={{ ...btnStyle(false), marginLeft: "auto" }} onClick={() => setShowColModal(true)}>
+                Columns ({visibleCols.size}) ▾
+              </button>
             </div>
 
             {/* Results count */}
             <div style={{ fontSize: 11, color: "#2a4a4a", marginBottom: 10 }}>
-              {filtered.length} ad set{filtered.length !== 1 ? "s" : ""} {healthFilter !== "all" || search ? "matching filters" : "total"}
+              {filtered.length} ad set{filtered.length !== 1 ? "s" : ""} {healthFilter !== "all" || search || selectedAdSets.size > 0 ? "matching filters" : "total"}
             </div>
 
             {/* Table */}
-            <div style={{ border: "1px solid #1a2f2f", borderRadius: 10, overflow: "hidden" }}>
+            <div style={{ border: "1px solid #1a2f2f", borderRadius: 10, overflow: "auto" }}>
               {/* Header */}
-              <div style={{ display: "grid", gridTemplateColumns: gridCols, padding: "10px 18px", background: "#0d1818", borderBottom: "1px solid #1a2f2f", fontSize: 11, color: "#2a4a4a", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              <div style={{ display: "grid", gridTemplateColumns: `2fr ${visibleColsArray.map(() => "100px").join(" ")}`, padding: "10px 18px", background: "#0d1818", borderBottom: "1px solid #1a2f2f", fontSize: 11, color: "#2a4a4a", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: 600 }}>
                 <span>Ad Set</span>
-                {Array.from(visibleCols).map((col) => (
-                  <span
-                    key={col}
-                    onClick={() => ["spend", "leads", "cpl", "ctr", "frequency", "impressions"].includes(col) ? toggleSort(col as SortKey) : null}
-                    style={{ cursor: ["spend", "leads", "cpl", "ctr", "frequency"].includes(col) ? "pointer" : "default", color: sortKey === col ? "#2A8C8A" : "#2a4a4a" }}
-                  >
-                    {COLUMN_LABELS[col]} {sortKey === col ? (sortDir === "asc" ? "↑" : "↓") : ""}
-                  </span>
-                ))}
+                {visibleColsArray.map(col => {
+                  const def = METRIC_BY_KEY[col];
+                  const sortable = ["spend", "leads", "cpl", "ctr", "frequency", "impressions"].includes(col);
+                  return (
+                    <span key={col}
+                      onClick={() => sortable ? toggleSort(col as SortKey) : undefined}
+                      style={{ cursor: sortable ? "pointer" : "default", color: sortKey === col ? "#2A8C8A" : "#2a4a4a" }}>
+                      {def?.label ?? col} {sortKey === col ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                    </span>
+                  );
+                })}
               </div>
 
               {/* Rows */}
@@ -467,53 +556,46 @@ export default function CampaignsPage() {
               ) : (
                 filtered.map((adSet, i) => {
                   const adTrends = trends[adSet.ad_set_id] ?? [];
-                  const cplPoints = adTrends.map((t) => Number(t.cpl));
-                  const spendPoints = adTrends.map((t) => Number(t.spend));
+                  const cplPoints = adTrends.map(t => Number(t.cpl));
+                  const spendPoints = adTrends.map(t => Number(t.spend));
                   const isSelected = selectedAdSet === adSet.ad_set_id;
                   const hColor = healthColor(adSet);
+                  const isActive = adSet.ad_status === "ACTIVE";
 
                   return (
                     <div key={adSet.ad_set_id}>
                       <div
                         onClick={() => setSelectedAdSet(isSelected ? null : adSet.ad_set_id)}
                         onDoubleClick={() => router.push(`/dashboard/campaigns/${encodeURIComponent(adSet.ad_set_id)}`)}
-                        title="Click to expand · Double-click to open detail page"
-                        style={{ display: "grid", gridTemplateColumns: gridCols, padding: "13px 18px", borderBottom: "1px solid #0f1f1f", fontSize: 12, alignItems: "center", background: isSelected ? "#0f1f1f" : i % 2 === 0 ? "#0a0f0f" : "#0c1515", cursor: "pointer" }}
+                        title="Click to expand · Double-click for detail page"
+                        style={{ display: "grid", gridTemplateColumns: `2fr ${visibleColsArray.map(() => "100px").join(" ")}`, padding: "13px 18px", borderBottom: "1px solid #0f1f1f", fontSize: 12, alignItems: "center", background: isSelected ? "#0f1f1f" : i % 2 === 0 ? "#0a0f0f" : "#0c1515", cursor: "pointer", minWidth: 600 }}
                       >
-                        <div style={{ overflow: "hidden" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
-                            <span style={{ color: "#e8f4f4", fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {/* Ad Set name + status */}
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: isActive ? "#2A8C8A" : "#2a4a4a", flexShrink: 0, display: "inline-block" }} />
+                            <span style={{ color: "#e8f4f4", fontFamily: "sans-serif", fontSize: 12, fontWeight: 500 }}>
                               {adSet.ad_set_name ?? adSet.ad_set_id}
                             </span>
-                            <span style={{ display: "flex", alignItems: "center", gap: 3, flexShrink: 0 }}>
-                              <span style={{
-                                width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
-                                background: adSet.ad_status === "ACTIVE" ? "#2A8C8A" : "#3a5a5a",
-                              }} />
-                              <span style={{ fontSize: 10, color: adSet.ad_status === "ACTIVE" ? "#2A8C8A" : "#4a7a7a", fontWeight: 600, letterSpacing: "0.04em" }}>
-                                {adSet.ad_status ?? "—"}
-                              </span>
+                            <span style={{ fontSize: 10, color: isActive ? "#2A8C8A" : "#4a7a7a", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                              {isActive ? "Active" : (adSet.ad_status ?? "—")}
                             </span>
                           </div>
-                          {adSet.ad_set_name && (
-                            <div style={{ color: "#2A8C8A", fontFamily: "monospace", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
-                              {adSet.ad_set_id}
-                            </div>
-                          )}
+                          <div style={{ fontSize: 10, color: "#2A8C8A", fontFamily: "monospace", paddingLeft: 14 }}>{adSet.ad_set_id}</div>
                         </div>
-                        {Array.from(visibleCols).map((col) => {
-                          if (col === "spend") return <span key={col} style={{ color: "#8ab8b8" }}>${fmt(adSet.spend)}</span>;
-                          if (col === "leads") return <span key={col} style={{ color: "#8ab8b8" }}>{adSet.leads}</span>;
-                          if (col === "cpl") return <span key={col} style={{ color: adSet.cpl > 30 ? "#E8705A" : adSet.cpl < 20 ? "#2A8C8A" : "#8ab8b8", fontWeight: adSet.cpl > 30 ? 600 : 400 }}>${fmt(adSet.cpl, "", 2)}</span>;
-                          if (col === "ctr") return <span key={col} style={{ color: "#8ab8b8" }}>{(Number(adSet.ctr) * 100).toFixed(2)}%</span>;
-                          if (col === "frequency") return <span key={col} style={{ color: adSet.frequency > 3 ? "#F5A623" : "#8ab8b8", fontWeight: adSet.frequency > 3 ? 600 : 400 }}>{fmt(adSet.frequency, "", 2)}</span>;
-                          if (col === "impressions") return <span key={col} style={{ color: "#8ab8b8" }}>{Number(adSet.impressions).toLocaleString()}</span>;
+
+                        {/* Metric columns */}
+                        {visibleColsArray.map(col => {
                           if (col === "trend") return <div key={col}><Sparkline points={cplPoints} color={hColor} /></div>;
                           if (col === "health") return <span key={col} style={{ fontSize: 11, fontWeight: 600, color: hColor, textTransform: "uppercase", letterSpacing: "0.06em" }}>{healthLabel(adSet)}</span>;
-                          return null;
+                          const val = formatMetricValue(col, adSet);
+                          const isBad = col === "cpl" && adSet.cpl > 30;
+                          const isGood = col === "cpl" && adSet.cpl < 20 && adSet.leads >= 5;
+                          return <span key={col} style={{ color: isBad ? "#E8705A" : isGood ? "#2A8C8A" : "#8ab8b8", fontWeight: isBad ? 600 : 400 }}>{val}</span>;
                         })}
                       </div>
 
+                      {/* Expanded row */}
                       {isSelected && (
                         <div style={{ padding: "16px 18px", background: "#0d1818", borderBottom: "1px solid #1a2f2f", display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 24, alignItems: "end" }}>
                           <div>
@@ -524,10 +606,8 @@ export default function CampaignsPage() {
                             <div style={{ fontSize: 11, color: "#2a4a4a", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.08em" }}>Daily Spend</div>
                             <Sparkline points={spendPoints} color="#2A8C8A" />
                           </div>
-                          <button
-                            onClick={() => router.push(`/dashboard/campaigns/${encodeURIComponent(adSet.ad_set_id)}`)}
-                            style={{ padding: "8px 14px", fontSize: 12, borderRadius: 6, border: "1px solid #2A8C8A44", background: "#0B5C5C", color: "#e8f4f4", cursor: "pointer", fontFamily: "'DM Mono', monospace", whiteSpace: "nowrap" as const }}
-                          >
+                          <button onClick={() => router.push(`/dashboard/campaigns/${encodeURIComponent(adSet.ad_set_id)}`)}
+                            style={{ padding: "8px 14px", fontSize: 12, borderRadius: 6, border: "1px solid #2A8C8A44", background: "#0B5C5C", color: "#e8f4f4", cursor: "pointer", fontFamily: "'DM Mono', monospace", whiteSpace: "nowrap" as const }}>
                             Full Detail →
                           </button>
                         </div>

@@ -1,3 +1,5 @@
+import { ALL_API_FIELDS } from "@/lib/meta/metric-definitions";
+
 const META_BASE_URL = "https://graph.facebook.com/v21.0";
 
 function getAccessToken(): string {
@@ -85,6 +87,7 @@ export interface AdSetMetrics {
   hook_rate: number | null;    // 3-sec video views / impressions (null if no video data)
   date_start: string;
   date_stop: string;
+  raw_metrics: Record<string, unknown>;
 }
 
 // Raw shapes from the Graph API
@@ -95,7 +98,7 @@ interface RawAdSet {
   daily_budget?: string;
 }
 
-interface RawInsight {
+interface RawInsight extends Record<string, unknown> {
   adset_id: string;
   adset_name: string;
   impressions: string;
@@ -130,8 +133,7 @@ export async function getAdSetMetrics(
         fields: "id,name,status,daily_budget",
       }),
       metaGet<MetaPaged<RawInsight>>(`/${adsetId}/insights`, {
-        fields:
-          "adset_id,adset_name,impressions,clicks,spend,actions,ctr,frequency",
+        fields: ["adset_id", "adset_name", ...ALL_API_FIELDS].join(","),
         time_range: JSON.stringify({ since: "2024-01-01", until: "2026-12-31" }),
         level: "adset",
       }),
@@ -187,6 +189,7 @@ export async function getAdSetMetrics(
       hook_rate,
       date_start: insight?.date_start ?? "",
       date_stop: insight?.date_stop ?? "",
+      raw_metrics: insight ?? {},
     });
   } catch (err) {
     console.error("[getAdSetMetrics] Error for adset", adsetId, ":", err instanceof Error ? err.message : err);

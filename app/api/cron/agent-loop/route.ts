@@ -126,6 +126,7 @@ export async function GET(req: Request) {
               ctr,
               frequency,
               ad_status,
+              raw_metrics,
               fetched_at
             ) VALUES (
               ${brief.id},
@@ -142,6 +143,7 @@ export async function GET(req: Request) {
               ${m.ctr ?? null},
               ${m.frequency ?? null},
               ${m.status ?? null},
+              ${JSON.stringify(m.raw_metrics ?? {})},
               NOW()
             )
             ON CONFLICT DO NOTHING
