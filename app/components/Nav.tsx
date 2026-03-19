@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs';
+import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs';
 import { useState } from 'react';
 import clsx from 'clsx';
 
@@ -22,14 +22,10 @@ export default function Nav() {
         {/* Brand */}
         <div className="flex items-center gap-3">
           <Link href="/" className="flex items-center gap-2">
-            {/* replace with your logo img if you have one */}
             <span className="inline-block h-8 w-8 rounded-full bg-emerald-600" />
             <span className="sr-only">Buena Onda AI</span>
           </Link>
-          <Link
-            href="/"
-            className="hidden text-lg font-semibold text-slate-900 sm:inline"
-          >
+          <Link href="/" className="hidden text-lg font-semibold text-slate-900 sm:inline">
             Buena Onda AI
           </Link>
         </div>
@@ -42,9 +38,7 @@ export default function Nav() {
               href={l.href}
               className={clsx(
                 'text-sm font-medium transition-colors',
-                pathname === l.href
-                  ? 'text-slate-900'
-                  : 'text-slate-500 hover:text-slate-900'
+                pathname === l.href ? 'text-slate-900' : 'text-slate-500 hover:text-slate-900'
               )}
             >
               {l.label}
@@ -52,21 +46,21 @@ export default function Nav() {
           ))}
 
           {/* Auth actions */}
-<SignedOut>
-  <SignInButton mode="redirect" afterSignInUrl="/dashboard" afterSignUpUrl="/dashboard">
-    <button className="rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white">
-      Start free
-    </button>
-  </SignInButton>
-</SignedOut>
-
-
+          <SignedOut>
+            <SignInButton mode="redirect" forceRedirectUrl="/dashboard">
+              <button className="rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">
+                Start free
+              </button>
+            </SignInButton>
+            <SignUpButton mode="redirect" forceRedirectUrl="/dashboard">
+              <button className="rounded-full border border-emerald-700 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50">
+                Create account
+              </button>
+            </SignUpButton>
+          </SignedOut>
 
           <SignedIn>
-            <Link
-              href="/dashboard"
-              className="text-sm font-medium text-slate-600 hover:text-slate-900"
-            >
+            <Link href="/dashboard" className="text-sm font-medium text-slate-600 hover:text-slate-900">
               Dashboard
             </Link>
             <UserButton afterSignOutUrl="/" />
@@ -97,9 +91,7 @@ export default function Nav() {
                   onClick={() => setOpen(false)}
                   className={clsx(
                     'text-base font-medium',
-                    pathname === l.href
-                      ? 'text-slate-900'
-                      : 'text-slate-600 hover:text-slate-900'
+                    pathname === l.href ? 'text-slate-900' : 'text-slate-600 hover:text-slate-900'
                   )}
                 >
                   {l.label}
@@ -107,13 +99,17 @@ export default function Nav() {
               ))}
 
               <SignedOut>
-  <SignInButton mode="redirect" afterSignInUrl="/dashboard" afterSignUpUrl="/dashboard">
-    <button className="mt-1 w-full rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">
-      Start free
-    </button>
-  </SignInButton>
-</SignedOut>
-
+                <SignInButton mode="redirect" forceRedirectUrl="/dashboard">
+                  <button className="mt-1 w-full rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">
+                    Start free
+                  </button>
+                </SignInButton>
+                <SignUpButton mode="redirect" forceRedirectUrl="/dashboard">
+                  <button className="mt-1 w-full rounded-xl border border-emerald-700 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50">
+                    Create account
+                  </button>
+                </SignUpButton>
+              </SignedOut>
 
               <SignedIn>
                 <Link

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export const metadata = { title: "Guided Setup" };
 
 export default function Start() {
@@ -5,7 +7,7 @@ export default function Start() {
     <main className="container py-20 max-w-2xl">
       <h1 className="text-3xl font-bold">Guided Setup</h1>
       <p className="mt-3 text-onda-slate/80">
-        Tell us your goal and we’ll route you to the right tool in the AI Business Stack.
+        Tell us your goal and we'll route you to the right tool in the AI Business Stack.
       </p>
 
       <form className="mt-8 grid gap-4">
@@ -21,16 +23,12 @@ export default function Start() {
           </select>
         </label>
 
-        <button
-          type="button"
-          onClick={() => {
-            // v1: simple route to products; v2: server action can route by selection
-            window.location.href = "/products";
-          }}
-          className="rounded-xl bg-onda-teal px-5 py-3 text-white"
+        <Link
+          href="/products"
+          className="rounded-xl bg-onda-teal px-5 py-3 text-white text-center"
         >
           Continue
-        </button>
+        </Link>
       </form>
     </main>
   );

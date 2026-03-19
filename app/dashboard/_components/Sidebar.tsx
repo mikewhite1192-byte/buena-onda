@@ -8,10 +8,10 @@ import UpgradeCTA from './UpgradeCTA';
 
 const navItems = [
   { href: '/dashboard', label: 'Overview' },
+  { href: '/dashboard/new-brief', label: 'New Campaign Brief' },
   { href: '/dashboard/tools/marketing', label: 'Marketing' },
   { href: '/dashboard/tools/ads', label: 'Ads' },
   { href: '/dashboard/tools/seo', label: 'SEO' },
-  { href: '/dashboard/tools/ghl', label: 'GHL Workflows' },
   { href: '/dashboard/tools/finance', label: 'Finance' },
   { href: '/dashboard/tools/custom', label: 'Custom' },
   { href: '/pricing', label: 'Pricing' },

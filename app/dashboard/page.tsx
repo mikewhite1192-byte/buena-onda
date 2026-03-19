@@ -1,16 +1,13 @@
-// app/dashboard/page.tsx
-import { auth } from '@clerk/nextjs/server';
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 
-export default async function Page() {
-  const { userId, sessionId } = await auth();
-
+export default async function DashboardPage() {
+  const { userId } = await auth();
+  if (!userId) redirect("/sign-in");
   return (
-    <main style={{ padding: 24 }}>
-      <h1>Dashboard</h1>
-      <pre>
-{`userId:    ${userId ?? 'null'}
-sessionId: ${sessionId ?? 'null'}`}
-      </pre>
+    <main className="p-6 space-y-2">
+      <h1 className="text-2xl font-semibold">Dashboard</h1>
+      <p>Signed in as: {userId}</p>
     </main>
   );
 }

@@ -3,8 +3,8 @@ import { SignIn } from "@clerk/nextjs";
 
 export default function Page() {
   return (
-    <div className="mx-auto max-w-md py-12">
-      <SignIn afterSignInUrl="/app" />
+    <div className="flex min-h-screen items-center justify-center p-6">
+      <SignIn />
     </div>
   );
 }
