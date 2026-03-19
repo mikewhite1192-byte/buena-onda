@@ -25,6 +25,7 @@ interface SummaryResponse {
 
 interface AdSetMetric {
   ad_set_id: string;
+  ad_set_name: string | null;
   campaign_id: string;
   spend: number;
   leads: number;
@@ -478,9 +479,16 @@ export default function CampaignsPage() {
                         title="Click to expand · Double-click to open detail page"
                         style={{ display: "grid", gridTemplateColumns: gridCols, padding: "13px 18px", borderBottom: "1px solid #0f1f1f", fontSize: 12, alignItems: "center", background: isSelected ? "#0f1f1f" : i % 2 === 0 ? "#0a0f0f" : "#0c1515", cursor: "pointer" }}
                       >
-                        <span style={{ color: "#2A8C8A", fontFamily: "monospace", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {adSet.ad_set_id}
-                        </span>
+                        <div style={{ overflow: "hidden" }}>
+                          <div style={{ color: "#e8f4f4", fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {adSet.ad_set_name ?? adSet.ad_set_id}
+                          </div>
+                          {adSet.ad_set_name && (
+                            <div style={{ color: "#2A8C8A", fontFamily: "monospace", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
+                              {adSet.ad_set_id}
+                            </div>
+                          )}
+                        </div>
                         {Array.from(visibleCols).map((col) => {
                           if (col === "spend") return <span key={col} style={{ color: "#8ab8b8" }}>${fmt(adSet.spend)}</span>;
                           if (col === "leads") return <span key={col} style={{ color: "#8ab8b8" }}>{adSet.leads}</span>;
