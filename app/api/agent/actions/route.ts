@@ -20,7 +20,8 @@ export async function GET() {
       aa.created_at,
       c.vertical
     FROM agent_actions aa
-    LEFT JOIN clients c ON c.meta_ad_account_id = aa.ad_account_id
+    LEFT JOIN clients c ON aa.ad_account_id IS NOT NULL
+      AND c.meta_ad_account_id = aa.ad_account_id
     WHERE aa.status = 'flag_review'
     ORDER BY aa.created_at DESC
     LIMIT 50

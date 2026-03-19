@@ -121,7 +121,7 @@ export async function getAdSetMetrics(
   try {
     // Build URLs manually for logging (metaGet adds the token, so log without it)
     const adsetUrl = `${META_BASE_URL}/${adsetId}?fields=id,name,status,daily_budget`;
-    const insightsUrl = `${META_BASE_URL}/${adsetId}/insights?fields=adset_id,adset_name,impressions,clicks,spend,actions,ctr,frequency&date_preset=last_7d&level=adset`;
+    const insightsUrl = `${META_BASE_URL}/${adsetId}/insights?fields=adset_id,adset_name,impressions,clicks,spend,actions,ctr,frequency&time_range={"since":"2024-01-01","until":"2026-12-31"}&level=adset`;
     console.log("[getAdSetMetrics] Calling adset URL:", adsetUrl);
     console.log("[getAdSetMetrics] Calling insights URL:", insightsUrl);
 
@@ -132,7 +132,7 @@ export async function getAdSetMetrics(
       metaGet<MetaPaged<RawInsight>>(`/${adsetId}/insights`, {
         fields:
           "adset_id,adset_name,impressions,clicks,spend,actions,ctr,frequency",
-        date_preset: "last_7d",
+        time_range: JSON.stringify({ since: "2024-01-01", until: "2026-12-31" }),
         level: "adset",
       }),
     ]);
