@@ -3,12 +3,13 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from "next/server";
 import getDb from "@/lib/db";
 import { getAdSetMetrics } from "@/lib/meta/actions";
-import { pauseAdSet, scaleAdSet, duplicateAdSet } from "@/lib/meta/actions";
-import { runDecisionEngine } from "@/lib/agent/decision-engine";
+import { pauseAdSet, scaleAdSet } from "@/lib/meta/actions";
+import { makeDecisions } from "@/lib/agent/decision-engine";
+import type { Decision, AdSetSnapshot } from "@/lib/agent/decision-engine";
+import { runLearningEngine } from "@/lib/agent/learning-engine";
 import { fetchAdInsightsForFatigue } from "@/lib/meta/insights";
 import { runFatigueDetection } from "@/lib/agent/fatigue-detector";
 import type { CampaignBrief } from "@/lib/db/schema";
-import type { AgentAction, AdSetMetricSnapshot, RecentAction } from "@/lib/agent/decision-engine";
 
 // Vercel cron jobs call with a secret in the Authorization header.
 // Set CRON_SECRET in env to secure this endpoint.
@@ -81,25 +82,8 @@ export async function GET(req: Request) {
     };
 
     try {
-      // 2a. Fetch recent agent actions for this brief (last 7 days)
-      const recentRows = await sql<{ action_type: string; details: Record<string, unknown>; created_at: Date }[]>`
-        SELECT action_type, details, created_at
-        FROM agent_actions
-        WHERE campaign_brief_id = ${brief.id}
-          AND created_at > now() - interval '7 days'
-        ORDER BY created_at DESC
-        LIMIT 50
-      `;
-
-      const recentActions: RecentAction[] = recentRows.map((r) => ({
-        action: r.action_type,
-        adset_id: String(r.details.adset_id ?? ""),
-        reason: String(r.details.reason ?? ""),
-        taken_at: r.created_at.toISOString(),
-      }));
-
-      // 2b. Fetch metrics for each creative asset (ad set) in the brief
-      const metricSnapshots: AdSetMetricSnapshot[] = [];
+      // 2a. Fetch metrics for each creative asset (ad set) in the brief
+      const adSetSnapshots: AdSetSnapshot[] = [];
 
       for (const adsetId of brief.creative_asset_ids) {
         const result = await getAdSetMetrics(adsetId);
@@ -109,57 +93,48 @@ export async function GET(req: Request) {
         }
 
         const m = result.data;
-        metricSnapshots.push({
-          adset_id: m.adset_id,
-          adset_name: m.adset_name,
-          impressions: m.impressions,
-          clicks: m.clicks,
+        adSetSnapshots.push({
+          ad_set_id: m.adset_id,
+          ad_account_id: brief.ad_account_id ?? process.env.META_AD_ACCOUNT_ID ?? '',
+          campaign_id: '',
           spend: m.spend,
           leads: m.leads,
-          cpl: m.cpl,
+          cpl: m.cpl ?? 0,
           ctr: m.ctr,
-          hook_rate: m.hook_rate ?? 0,
           frequency: m.frequency,
-          date: m.date_stop || new Date().toISOString().slice(0, 10),
+          impressions: m.impressions,
+          current_budget: parseFloat(brief.daily_budget),
+          status: 'ACTIVE',
         });
       }
 
-      briefSummary.adsets_evaluated = metricSnapshots.length;
+      briefSummary.adsets_evaluated = adSetSnapshots.length;
 
-      if (metricSnapshots.length === 0) {
+      if (adSetSnapshots.length === 0) {
         briefSummary.error = "No ad set metrics returned from Meta";
         summary.push(briefSummary);
         continue;
       }
 
-      // 2c. Run the decision engine
-      const decisionResult = await runDecisionEngine({
-        brief,
-        metrics: metricSnapshots,
-        recent_actions: recentActions,
-        scale_cpl: brief.scale_cpl ?? parseFloat(brief.cpl_cap) * 0.6,
-        scale_days: brief.scale_days ?? 3,
-        scale_budget: brief.scale_budget ?? parseFloat(brief.daily_budget) * 1.3,
-      });
+      // 2b. Run the decision engine
+      const decisions = await makeDecisions(adSetSnapshots, brief.client_id ?? '');
 
-      // 2d. Execute each action + log to DB
-      // Resolve the ad account ID — brief's value takes priority over env var
-      const adAccountId = brief.ad_account_id ?? process.env.META_AD_ACCOUNT_ID;
+      // 2c. Execute each action + log to DB
+      for (const decision of decisions) {
+        if (decision.action === 'none') continue;
 
-      for (const agentAction of decisionResult.actions) {
-        const metaResult = await executeAction(agentAction, brief, adAccountId);
+        const metaResult = await executeAction(decision, brief);
 
         // Log to agent_actions table regardless of meta result
         await sql`
           INSERT INTO agent_actions (campaign_brief_id, action_type, details, triggered_by)
           VALUES (
             ${brief.id},
-            ${agentAction.action},
+            ${decision.action},
             ${JSON.stringify({
-              adset_id: agentAction.adset_id,
-              reason: agentAction.reason,
-              urgency: agentAction.urgency,
-              new_budget: agentAction.new_budget ?? null,
+              adset_id: decision.ad_set_id,
+              reason: decision.reason,
+              new_budget: decision.params?.new_budget ?? null,
               meta_result: metaResult,
             })},
             'agent'
@@ -167,9 +142,9 @@ export async function GET(req: Request) {
         `;
 
         briefSummary.actions_taken.push({
-          adset_id: agentAction.adset_id,
-          action: agentAction.action,
-          reason: agentAction.reason,
+          adset_id: decision.ad_set_id,
+          action: decision.action,
+          reason: decision.reason,
           meta_result: metaResult,
         });
       }
@@ -206,6 +181,16 @@ export async function GET(req: Request) {
   }
   // ── End Fatigue Detection ──────────────────────────────────────────────────
 
+  // ── Learning Engine ────────────────────────────────────────────────────────
+  try {
+    await runLearningEngine();
+    console.log('[AgentLoop] Learning engine complete.');
+  } catch (err) {
+    // Non-fatal — schema may not be migrated yet
+    console.error('[agent-loop] Learning engine error:', err);
+  }
+  // ── End Learning Engine ────────────────────────────────────────────────────
+
   return NextResponse.json({
     ok: true,
     startedAt,
@@ -218,13 +203,9 @@ export async function GET(req: Request) {
 
 // ── Action executor ───────────────────────────────────────────────────────────
 
-async function executeAction(action: AgentAction, brief: CampaignBrief, adAccountId?: string): Promise<string> {
-  const { action: type, adset_id, new_budget, urgency } = action;
-
-  // Deferred actions are logged but not executed yet
-  if (urgency === "48hrs" || urgency === "monitoring") {
-    return `deferred (${urgency})`;
-  }
+async function executeAction(decision: Decision, brief: CampaignBrief): Promise<string> {
+  const { action: type, ad_set_id: adset_id, params } = decision;
+  const new_budget = params?.new_budget as number | undefined;
 
   switch (type) {
     case "pause": {
@@ -244,15 +225,7 @@ async function executeAction(action: AgentAction, brief: CampaignBrief, adAccoun
       return res.ok ? `scaled to $${(safeCents / 100).toFixed(2)}/day` : `scale failed: ${res.error}`;
     }
 
-    case "duplicate": {
-      const budgetCents = new_budget
-        ? Math.round(new_budget * 100)
-        : Math.round(parseFloat(brief.daily_budget) * 100);
-      const res = await duplicateAdSet(adset_id, budgetCents, adAccountId);
-      return res.ok ? `duplicated → ${res.data.new_adset_id}` : `duplicate failed: ${res.error}`;
-    }
-
-    case "flag_fatigue":
+    case "creative_brief":
     case "flag_review":
       // No Meta API call — these are informational flags logged to DB only
       return `flagged (${type})`;
