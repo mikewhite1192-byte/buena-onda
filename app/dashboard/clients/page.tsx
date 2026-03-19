@@ -74,6 +74,9 @@ export default function ClientsPage() {
 
   async function handleSave() {
     if (!form.name.trim()) { setError("Name is required"); return; }
+    const raw = form.meta_ad_account_id.trim();
+    const normalized = raw && !raw.startsWith("act_") ? `act_${raw}` : raw;
+    const payload = { ...form, meta_ad_account_id: normalized };
     setSaving(true);
     setError("");
     try {
@@ -81,12 +84,12 @@ export default function ClientsPage() {
         ? await fetch(`/api/clients/${editingId}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(form),
+            body: JSON.stringify(payload),
           })
         : await fetch("/api/clients", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(form),
+            body: JSON.stringify(payload),
           });
 
       if (!res.ok) {
@@ -329,7 +332,7 @@ export default function ClientsPage() {
                 <input
                   value={form.meta_ad_account_id}
                   onChange={(e) => setForm({ ...form, meta_ad_account_id: e.target.value })}
-                  placeholder="act_123456789"
+                  placeholder="123456789"
                   style={inputStyle}
                 />
               </Field>
