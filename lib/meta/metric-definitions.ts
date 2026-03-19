@@ -104,7 +104,7 @@ export const METRIC_GROUPS: MetricGroup[] = [
         name: "Media",
         metrics: [
           { key: "video_plays", label: "Video Plays", apiField: "actions:video_view", format: "number" },
-          { key: "video_3sec", label: "3-Second Video Plays", apiField: "video_3_sec_watched_actions", format: "number" },
+          { key: "video_3sec", label: "3-Second Video Plays", apiField: "video_play_actions", format: "number" },
           { key: "video_thruplay", label: "ThruPlays", apiField: "video_thruplay_watched_actions", format: "number" },
           { key: "hook_rate", label: "Hook Rate (3-sec / Impressions)", apiField: "computed:hook_rate", format: "percent" },
           { key: "cost_per_thruplay", label: "Cost per ThruPlay", apiField: "cost_per_thruplay", format: "currency" },
@@ -194,6 +194,6 @@ export const ALL_API_FIELDS = [
   "purchase_roas",
   "actions", "unique_actions", "action_values", "cost_per_action_type",
   "cost_per_unique_action_type",
-  "video_3_sec_watched_actions", "video_thruplay_watched_actions",
+  "video_play_actions", "video_thruplay_watched_actions",
   "cost_per_thruplay",
 ];
