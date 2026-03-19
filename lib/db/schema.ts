@@ -43,6 +43,14 @@ CREATE TABLE IF NOT EXISTS clients (
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Extend clients table with agency fields (safe to re-run)
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS owner_id TEXT;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS meta_ad_account_id TEXT;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS vertical TEXT NOT NULL DEFAULT 'leads';
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS whatsapp_number TEXT;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
+
 CREATE TABLE IF NOT EXISTS campaign_briefs (
   id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   client_id          UUID        REFERENCES clients(id) ON DELETE SET NULL,
@@ -88,6 +96,12 @@ export interface Client {
   id: string;
   clerk_user_id: string;
   name: string | null;
+  owner_id: string | null;
+  meta_ad_account_id: string | null;
+  vertical: "leads" | "ecomm";
+  whatsapp_number: string | null;
+  notes: string | null;
+  status: string;
   created_at: Date;
 }
 
