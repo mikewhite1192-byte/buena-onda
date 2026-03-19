@@ -25,6 +25,17 @@ CREATE INDEX IF NOT EXISTS idx_fatigue_ad_id ON creative_fatigue_log(ad_id);
 CREATE INDEX IF NOT EXISTS idx_fatigue_status ON creative_fatigue_log(status);
 CREATE INDEX IF NOT EXISTS idx_fatigue_detected_at ON creative_fatigue_log(detected_at);
 
+CREATE TABLE IF NOT EXISTS knowledge_base (
+  id          SERIAL      PRIMARY KEY,
+  content     TEXT        NOT NULL,
+  category    TEXT        NOT NULL DEFAULT 'general',
+  source      TEXT        NOT NULL DEFAULT 'whatsapp',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_kb_category ON knowledge_base(category);
+CREATE INDEX IF NOT EXISTS idx_kb_created_at ON knowledge_base(created_at);
+
 CREATE TABLE IF NOT EXISTS clients (
   id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   clerk_user_id    TEXT        UNIQUE NOT NULL,
