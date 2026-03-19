@@ -128,6 +128,17 @@ export async function getAdSetMetrics(
     console.log("[getAdSetMetrics] Calling adset URL:", adsetUrl);
     console.log("[getAdSetMetrics] Calling insights URL:", insightsUrl);
 
+    // Log raw insights response (status + body) before metaGet parses it
+    const rawInsightsUrl = new URL(`${META_BASE_URL}/${adsetId}/insights`);
+    rawInsightsUrl.searchParams.set("access_token", getAccessToken());
+    rawInsightsUrl.searchParams.set("fields", ["adset_id", "adset_name", ...ALL_API_FIELDS].join(","));
+    rawInsightsUrl.searchParams.set("time_range", JSON.stringify({ since: "2024-01-01", until: "2026-12-31" }));
+    rawInsightsUrl.searchParams.set("level", "adset");
+    const rawInsightsRes = await fetch(rawInsightsUrl.toString(), { cache: "no-store" });
+    const rawInsightsBody = await rawInsightsRes.text();
+    console.log("[getAdSetMetrics] insights raw status:", rawInsightsRes.status);
+    console.log("[getAdSetMetrics] insights raw body:", rawInsightsBody);
+
     const [adsetRes, insightsRes] = await Promise.all([
       metaGet<RawAdSet>(`/${adsetId}`, {
         fields: "id,name,status,daily_budget",
