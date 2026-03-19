@@ -114,6 +114,7 @@ export async function GET(req: Request) {
             INSERT INTO ad_metrics (
               campaign_brief_id,
               ad_set_id,
+              ad_set_name,
               ad_account_id,
               date,
               date_recorded,
@@ -129,6 +130,7 @@ export async function GET(req: Request) {
             ) VALUES (
               ${brief.id},
               ${m.adset_id},
+              ${m.adset_name ?? null},
               ${brief.ad_account_id ?? process.env.META_AD_ACCOUNT_ID ?? null},
               NOW()::date,
               NOW(),
