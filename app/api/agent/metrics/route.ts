@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
     SELECT DISTINCT ON (ad_set_id)
       ad_set_id,
       ad_set_name,
+      ad_status,
       campaign_id,
       spend::numeric(10,2),
       leads,

@@ -26,6 +26,7 @@ interface SummaryResponse {
 interface AdSetMetric {
   ad_set_id: string;
   ad_set_name: string | null;
+  ad_status: string | null;
   campaign_id: string;
   spend: number;
   leads: number;
@@ -480,8 +481,19 @@ export default function CampaignsPage() {
                         style={{ display: "grid", gridTemplateColumns: gridCols, padding: "13px 18px", borderBottom: "1px solid #0f1f1f", fontSize: 12, alignItems: "center", background: isSelected ? "#0f1f1f" : i % 2 === 0 ? "#0a0f0f" : "#0c1515", cursor: "pointer" }}
                       >
                         <div style={{ overflow: "hidden" }}>
-                          <div style={{ color: "#e8f4f4", fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {adSet.ad_set_name ?? adSet.ad_set_id}
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+                            <span style={{ color: "#e8f4f4", fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {adSet.ad_set_name ?? adSet.ad_set_id}
+                            </span>
+                            <span style={{ display: "flex", alignItems: "center", gap: 3, flexShrink: 0 }}>
+                              <span style={{
+                                width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
+                                background: adSet.ad_status === "ACTIVE" ? "#2A8C8A" : "#3a5a5a",
+                              }} />
+                              <span style={{ fontSize: 10, color: adSet.ad_status === "ACTIVE" ? "#2A8C8A" : "#4a7a7a", fontWeight: 600, letterSpacing: "0.04em" }}>
+                                {adSet.ad_status ?? "—"}
+                              </span>
+                            </span>
                           </div>
                           {adSet.ad_set_name && (
                             <div style={{ color: "#2A8C8A", fontFamily: "monospace", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
