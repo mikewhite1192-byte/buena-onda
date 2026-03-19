@@ -108,36 +108,44 @@ export async function GET(req: Request) {
         });
 
         // Persist snapshot to ad_metrics for history + dashboard queries
-        await sql`
-          INSERT INTO ad_metrics (
-            campaign_brief_id,
-            ad_set_id,
-            ad_account_id,
-            date,
-            impressions,
-            clicks,
-            spend,
-            leads,
-            cpl,
-            ctr,
-            frequency,
-            fetched_at
-          ) VALUES (
-            ${brief.id},
-            ${m.adset_id},
-            ${brief.ad_account_id ?? process.env.META_AD_ACCOUNT_ID ?? null},
-            ${m.date_stop ?? new Date().toISOString().slice(0, 10)},
-            ${m.impressions},
-            ${m.clicks ?? 0},
-            ${m.spend},
-            ${m.leads},
-            ${m.cpl ?? null},
-            ${m.ctr ?? null},
-            ${m.frequency ?? null},
-            NOW()
-          )
-          ON CONFLICT DO NOTHING
-        `;
+        try {
+          console.log('[ad_metrics] Attempting INSERT for', m.adset_id);
+          await sql`
+            INSERT INTO ad_metrics (
+              campaign_brief_id,
+              ad_set_id,
+              ad_account_id,
+              date,
+              date_recorded,
+              impressions,
+              clicks,
+              spend,
+              leads,
+              cpl,
+              ctr,
+              frequency,
+              fetched_at
+            ) VALUES (
+              ${brief.id},
+              ${m.adset_id},
+              ${brief.ad_account_id ?? process.env.META_AD_ACCOUNT_ID ?? null},
+              NOW()::date,
+              NOW(),
+              ${m.impressions},
+              ${m.clicks ?? 0},
+              ${m.spend},
+              ${m.leads},
+              ${m.cpl ?? null},
+              ${m.ctr ?? null},
+              ${m.frequency ?? null},
+              NOW()
+            )
+            ON CONFLICT DO NOTHING
+          `;
+          console.log('[ad_metrics] INSERT success for', m.adset_id);
+        } catch (insertErr) {
+          console.error(`[agent-loop] ad_metrics INSERT FAILED for ${m.adset_id}:`, insertErr);
+        }
       }
 
       briefSummary.adsets_evaluated = adSetSnapshots.length;

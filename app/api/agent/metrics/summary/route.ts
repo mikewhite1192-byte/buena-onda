@@ -1,0 +1,47 @@
+// app/api/agent/metrics/summary/route.ts
+import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
+import { neon } from "@neondatabase/serverless";
+
+const sql = neon(process.env.DATABASE_URL!);
+
+export async function GET() {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Last 7 days aggregate
+  const summary = await sql`
+    SELECT
+      COALESCE(SUM(spend), 0)::numeric(10,2)        AS total_spend,
+      COALESCE(SUM(leads), 0)::int                   AS total_leads,
+      COALESCE(AVG(cpl), 0)::numeric(10,2)           AS avg_cpl,
+      COALESCE(AVG(ctr), 0)::numeric(10,4)           AS avg_ctr,
+      COALESCE(AVG(frequency), 0)::numeric(10,2)     AS avg_frequency,
+      COALESCE(SUM(impressions), 0)::int             AS total_impressions,
+      COUNT(DISTINCT ad_set_id)::int                 AS active_ad_sets
+    FROM ad_metrics
+    WHERE date_recorded >= NOW() - INTERVAL '7 days'
+  `;
+
+  // Previous 7 days for trend comparison
+  const prev = await sql`
+    SELECT
+      COALESCE(SUM(spend), 0)::numeric(10,2)    AS total_spend,
+      COALESCE(SUM(leads), 0)::int              AS total_leads,
+      COALESCE(AVG(cpl), 0)::numeric(10,2)      AS avg_cpl
+    FROM ad_metrics
+    WHERE date_recorded >= NOW() - INTERVAL '14 days'
+      AND date_recorded < NOW() - INTERVAL '7 days'
+  `;
+
+  // Active briefs count
+  const briefs = await sql`
+    SELECT COUNT(*)::int AS count FROM campaign_briefs WHERE status = 'active'
+  `;
+
+  return NextResponse.json({
+    current: summary[0],
+    previous: prev[0],
+    active_briefs: (briefs[0] as { count: number }).count,
+  });
+}
