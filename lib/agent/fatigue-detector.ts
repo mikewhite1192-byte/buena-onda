@@ -93,7 +93,8 @@ Return ONLY a JSON object with these fields:
     messages: [{ role: 'user', content: prompt }],
   })
 
-  const text = response.content.find(b => b.type === 'text')?.text ?? '{}'
+  const textBlock = response.content.find(b => b.type === 'text')
+  const text = textBlock && 'text' in textBlock ? textBlock.text : '{}'
   return text.replace(/```json|```/g, '').trim()
 }
 
