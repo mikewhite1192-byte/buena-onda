@@ -3,6 +3,7 @@
 // app/dashboard/campaigns/page.tsx
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useActiveClient } from "@/lib/context/client-context";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -139,6 +140,7 @@ const btnStyle = (active: boolean) => ({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CampaignsPage() {
+  const { activeClient } = useActiveClient();
   const [summary, setSummary] = useState<SummaryResponse | null>(null);
   const [adSets, setAdSets] = useState<AdSetMetric[]>([]);
   const [trends, setTrends] = useState<Record<string, TrendPoint[]>>({});
@@ -173,10 +175,12 @@ export default function CampaignsPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    const acct = activeClient?.meta_ad_account_id;
+    const acctParam = acct ? `&ad_account_id=${encodeURIComponent(acct)}` : "";
     try {
       const [sumRes, metricsRes] = await Promise.all([
-        fetch("/api/agent/metrics/summary"),
-        fetch(`/api/agent/metrics?days=${computedDays}`),
+        fetch(`/api/agent/metrics/summary?days=7${acctParam}`),
+        fetch(`/api/agent/metrics?days=${computedDays}${acctParam}`),
       ]);
       const sumData = await sumRes.json();
       const metricsData = await metricsRes.json();
@@ -188,7 +192,7 @@ export default function CampaignsPage() {
     } finally {
       setLoading(false);
     }
-  }, [computedDays]);
+  }, [computedDays, activeClient]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

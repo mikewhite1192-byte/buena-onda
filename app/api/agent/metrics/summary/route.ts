@@ -1,13 +1,16 @@
 // app/api/agent/metrics/summary/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { neon } from "@neondatabase/serverless";
 
 const sql = neon(process.env.DATABASE_URL!);
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { searchParams } = new URL(req.url);
+  const adAccountId = searchParams.get("ad_account_id");
 
   // Last 7 days aggregate
   const summary = await sql`
@@ -21,6 +24,7 @@ export async function GET() {
       COUNT(DISTINCT ad_set_id)::int                 AS active_ad_sets
     FROM ad_metrics
     WHERE date_recorded >= NOW() - INTERVAL '7 days'
+      AND (${adAccountId}::text IS NULL OR ad_account_id = ${adAccountId})
   `;
 
   // Previous 7 days for trend comparison
@@ -32,6 +36,7 @@ export async function GET() {
     FROM ad_metrics
     WHERE date_recorded >= NOW() - INTERVAL '14 days'
       AND date_recorded < NOW() - INTERVAL '7 days'
+      AND (${adAccountId}::text IS NULL OR ad_account_id = ${adAccountId})
   `;
 
   // Active briefs count

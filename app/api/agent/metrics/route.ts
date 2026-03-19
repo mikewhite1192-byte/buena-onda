@@ -11,6 +11,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const days = parseInt(searchParams.get("days") ?? "7");
+  const adAccountId = searchParams.get("ad_account_id");
 
   // Latest metric snapshot per ad set within the window
   const adSets = await sql`
@@ -26,6 +27,7 @@ export async function GET(req: NextRequest) {
       date_recorded
     FROM ad_metrics
     WHERE date_recorded >= NOW() - INTERVAL '1 day' * ${days}
+      AND (${adAccountId}::text IS NULL OR ad_account_id = ${adAccountId})
     ORDER BY ad_set_id, date_recorded DESC
   `;
 
@@ -39,6 +41,7 @@ export async function GET(req: NextRequest) {
       AVG(cpl)::numeric(10,2) AS cpl
     FROM ad_metrics
     WHERE date_recorded >= NOW() - INTERVAL '1 day' * ${days}
+      AND (${adAccountId}::text IS NULL OR ad_account_id = ${adAccountId})
     GROUP BY ad_set_id, DATE(date_recorded)
     ORDER BY ad_set_id, day ASC
   `;

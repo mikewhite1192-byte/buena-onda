@@ -4,6 +4,7 @@
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
+import { ClientProvider, useActiveClient } from "@/lib/context/client-context";
 
 interface Client {
   id: string;
@@ -22,12 +23,15 @@ const NAV_ITEMS = [
   { label: "Clients", path: "/dashboard/clients" },
 ];
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+// ── Inner nav — consumes ClientContext ────────────────────────────────────────
+
+function DashboardNav({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { setActiveClient } = useActiveClient();
 
   const [clients, setClients] = useState<Client[]>([]);
-  const [activeClient, setActiveClient] = useState<Client | null>(null);
+  const [localActive, setLocalActive] = useState<Client | null>(null);
   const [showSwitcher, setShowSwitcher] = useState(false);
   const switcherRef = useRef<HTMLDivElement>(null);
 
@@ -51,20 +55,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const data = await res.json();
       const list = (data.clients ?? []) as Client[];
       setClients(list);
-      // Auto-select first active client
       const first = list.find((c) => c.status === "active") ?? list[0] ?? null;
-      setActiveClient(first);
+      if (first) selectClient(first, list);
     } catch {
       // silent
     }
   }
 
-  function selectClient(client: Client) {
-    setActiveClient(client);
+  function selectClient(client: Client, _list?: Client[]) {
+    setLocalActive(client);
     setShowSwitcher(false);
-    // Store in sessionStorage so other pages can read it
-    sessionStorage.setItem("activeClientId", client.id);
-    sessionStorage.setItem("activeClient", JSON.stringify(client));
+    setActiveClient({
+      id: client.id,
+      name: client.name,
+      meta_ad_account_id: client.meta_ad_account_id,
+      vertical: client.vertical,
+    });
   }
 
   return (
@@ -105,15 +111,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               transition: "background 0.15s",
             }}
           >
-            {activeClient ? (
+            {localActive ? (
               <>
                 <span style={{
                   width: 8, height: 8, borderRadius: "50%",
-                  background: VERTICAL_COLORS[activeClient.vertical] ?? "#2A8C8A",
+                  background: VERTICAL_COLORS[localActive.vertical] ?? "#2A8C8A",
                   flexShrink: 0,
                 }} />
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-                  {activeClient.name}
+                  {localActive.name}
                 </span>
               </>
             ) : (
@@ -160,8 +166,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         gap: 10,
                         padding: "10px 12px",
                         cursor: "pointer",
-                        background: activeClient?.id === client.id ? "#0f2020" : "transparent",
-                        borderLeft: activeClient?.id === client.id ? "2px solid #2A8C8A" : "2px solid transparent",
+                        background: localActive?.id === client.id ? "#0f2020" : "transparent",
+                        borderLeft: localActive?.id === client.id ? "2px solid #2A8C8A" : "2px solid transparent",
                         transition: "background 0.1s",
                       }}
                     >
@@ -178,7 +184,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                           {client.meta_ad_account_id} · {client.vertical}
                         </div>
                       </div>
-                      {activeClient?.id === client.id && (
+                      {localActive?.id === client.id && (
                         <span style={{ color: "#2A8C8A", fontSize: 12 }}>✓</span>
                       )}
                     </div>
@@ -234,5 +240,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Page content */}
       <main>{children}</main>
     </div>
+  );
+}
+
+// ── Outer layout — provides ClientContext ─────────────────────────────────────
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <ClientProvider>
+      <DashboardNav>{children}</DashboardNav>
+    </ClientProvider>
   );
 }
