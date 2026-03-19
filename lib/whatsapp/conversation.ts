@@ -7,9 +7,9 @@ import { neon } from '@neondatabase/serverless'
 import { sendWhatsAppMessage } from './client'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const sql = neon(process.env.DATABASE_URL!)
 
 export async function handleIncomingMessage(from: string, message: string): Promise<void> {
-  const sql = neon(process.env.DATABASE_URL!)
 
   console.log(`[whatsapp] Incoming from ${from}: ${message}`)
 
@@ -40,7 +40,7 @@ export async function handleIncomingMessage(from: string, message: string): Prom
         FROM knowledge_base
         ORDER BY created_at DESC
         LIMIT 50
-      `
+      ` as { content: string; category: string; created_at: Date }[]
     } catch {
       // Table may not exist yet — non-fatal
       console.log('[whatsapp] knowledge_base table not found, skipping')
@@ -58,7 +58,7 @@ export async function handleIncomingMessage(from: string, message: string): Prom
     const isKnowledgeUpdate = /^(new rule|remember|update rule|add rule|forget|ignore rule)/i.test(message.trim())
 
     if (isKnowledgeUpdate) {
-      await handleKnowledgeUpdate(sql, message, from)
+      await handleKnowledgeUpdate(message, from)
       return
     }
 
@@ -120,7 +120,6 @@ IMPORTANT RULES:
 
 // ── Knowledge base update handler ─────────────────────────────────────────────
 async function handleKnowledgeUpdate(
-  sql: ReturnType<typeof neon>,
   message: string,
   from: string
 ): Promise<void> {
