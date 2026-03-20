@@ -1,6 +1,6 @@
 {
   "functions": {
-    "app/api/chat/route.ts": { "maxDuration": 60 },
+    "app/api/chat/route.ts": { "maxDuration": 120 },
     "app/api/agent/metrics/live/route.ts": { "maxDuration": 30 },
     "app/api/agent/metrics/campaigns/route.ts": { "maxDuration": 30 },
     "app/api/agent/metrics/adsets/route.ts": { "maxDuration": 30 },
