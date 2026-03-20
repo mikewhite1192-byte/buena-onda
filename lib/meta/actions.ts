@@ -409,14 +409,13 @@ export async function createMetaCampaign(
       targeting,
       status: "PAUSED",
     };
-    // Meta requires promoted_object for OUTCOME_LEADS campaigns
-    if (params.objective === "OUTCOME_LEADS") {
-      const promotedObject: Record<string, string> = { page_id: params.pageId };
-      // Pixel required when using a destination URL (non-lead-form) with OUTCOME_LEADS
-      if (params.pixelId && !params.leadFormId) {
-        promotedObject.pixel_id = params.pixelId;
-      }
-      adSetBody.promoted_object = promotedObject;
+    // promoted_object varies by optimization goal
+    if (params.optimizationGoal === "LEAD_GENERATION") {
+      // Instant form leads — page_id only
+      adSetBody.promoted_object = { page_id: params.pageId };
+    } else if (params.optimizationGoal === "OFFSITE_CONVERSIONS" && params.pixelId) {
+      // URL-based leads or sales — pixel + event type
+      adSetBody.promoted_object = { pixel_id: params.pixelId, custom_event_type: "LEAD" };
     }
     const adSet = await metaPost<{ id: string }>(`/${acct}/adsets`, adSetBody);
 
