@@ -10,7 +10,7 @@ export async function GET() {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const rows = await sql`
-    SELECT id, name, meta_ad_account_id, vertical, status,
+    SELECT id, name, meta_ad_account_id, meta_page_id, vertical, status,
            whatsapp_number, notes, created_at
     FROM clients
     WHERE owner_id = ${userId}
@@ -26,24 +26,25 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { name, meta_ad_account_id, vertical, whatsapp_number, notes, status } = body;
+  const { name, meta_ad_account_id, meta_page_id, vertical, whatsapp_number, notes, status } = body;
 
   if (!name?.trim()) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
   }
 
   const rows = await sql`
-    INSERT INTO clients (owner_id, name, meta_ad_account_id, vertical, whatsapp_number, notes, status)
+    INSERT INTO clients (owner_id, name, meta_ad_account_id, meta_page_id, vertical, whatsapp_number, notes, status)
     VALUES (
       ${userId},
       ${name.trim()},
       ${meta_ad_account_id ?? null},
+      ${meta_page_id ?? null},
       ${vertical ?? "leads"},
       ${whatsapp_number ?? null},
       ${notes ?? null},
       ${status ?? "active"}
     )
-    RETURNING id, name, meta_ad_account_id, vertical, status, whatsapp_number, notes, created_at
+    RETURNING id, name, meta_ad_account_id, meta_page_id, vertical, status, whatsapp_number, notes, created_at
   `;
 
   return NextResponse.json({ client: rows[0] }, { status: 201 });

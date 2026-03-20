@@ -7,6 +7,7 @@ interface Client {
   id: string;
   name: string;
   meta_ad_account_id: string;
+  meta_page_id: string;
   vertical: "leads" | "ecomm";
   status: string;
   whatsapp_number: string;
@@ -17,6 +18,7 @@ interface Client {
 const EMPTY_FORM = {
   name: "",
   meta_ad_account_id: "",
+  meta_page_id: "",
   vertical: "leads" as "leads" | "ecomm",
   whatsapp_number: "",
   notes: "",
@@ -62,6 +64,7 @@ export default function ClientsPage() {
     setForm({
       name: c.name ?? "",
       meta_ad_account_id: c.meta_ad_account_id ?? "",
+      meta_page_id: c.meta_page_id ?? "",
       vertical: c.vertical ?? "leads",
       whatsapp_number: c.whatsapp_number ?? "",
       notes: c.notes ?? "",
@@ -233,6 +236,7 @@ export default function ClientsPage() {
                 </div>
                 <div style={{ fontSize: 11, color: "#4a7a7a", marginTop: 3 }}>
                   {c.meta_ad_account_id ? `Act: ${c.meta_ad_account_id}` : "No ad account"}
+                  {c.meta_page_id ? ` · Page: ${c.meta_page_id}` : " · No page ID"}
                   {c.whatsapp_number ? ` · WA: ${c.whatsapp_number}` : ""}
                 </div>
               </div>
@@ -328,11 +332,20 @@ export default function ClientsPage() {
                 />
               </Field>
 
-              <Field label="Meta Ad Account ID">
+              <Field label="Meta Ad Account ID" hint="Found in Meta Business Suite → Ad Accounts">
                 <input
                   value={form.meta_ad_account_id}
                   onChange={(e) => setForm({ ...form, meta_ad_account_id: e.target.value })}
                   placeholder="123456789"
+                  style={inputStyle}
+                />
+              </Field>
+
+              <Field label="Facebook Page ID" hint="Found on your Facebook Page → About (bottom of page)">
+                <input
+                  value={form.meta_page_id}
+                  onChange={(e) => setForm({ ...form, meta_page_id: e.target.value })}
+                  placeholder="123456789012345"
                   style={inputStyle}
                 />
               </Field>
@@ -423,13 +436,14 @@ export default function ClientsPage() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div>
       <label style={{ display: "block", fontSize: 11, color: "#4a7a7a", marginBottom: 5, fontFamily: "'DM Mono', monospace", textTransform: "uppercase", letterSpacing: "0.06em" }}>
         {label}
       </label>
       {children}
+      {hint && <div style={{ fontSize: 10, color: "#2a4a4a", marginTop: 4 }}>{hint}</div>}
     </div>
   );
 }

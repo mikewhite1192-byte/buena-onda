@@ -311,6 +311,7 @@ export interface GeoKey {
 export interface CampaignCreationParams {
   adAccountId: string;
   pageId: string;
+  pixelId?: string;
   campaignName: string;
   adSetName: string;
   adName: string;
@@ -379,6 +380,7 @@ export async function createMetaCampaign(
       objective: params.objective,
       status: "PAUSED",
       special_ad_categories: params.specialAdCategories ?? [],
+      is_adset_budget_sharing_enabled: false,
     });
 
     // 3. Build targeting — special ad categories restrict age/gender targeting
@@ -386,14 +388,18 @@ export async function createMetaCampaign(
     const geoLocations = params.regionKeys?.length
       ? { regions: params.regionKeys.map(r => ({ key: r.key })) }
       : { countries: params.countries ?? ["US"] };
-    const targeting: Record<string, unknown> = { geo_locations: geoLocations };
+    const targeting: Record<string, unknown> = {
+      geo_locations: geoLocations,
+      publisher_platforms: ["facebook"],
+      facebook_positions: ["feed", "right_hand_column", "marketplace"],
+    };
     if (!hasSpecialCategory) {
       targeting.age_min = params.ageMin ?? 25;
       targeting.age_max = params.ageMax ?? 65;
     }
 
     // 3. Create ad set
-    const adSet = await metaPost<{ id: string }>(`/${acct}/adsets`, {
+    const adSetBody: Record<string, unknown> = {
       name: params.adSetName,
       campaign_id: campaign.id,
       daily_budget: params.dailyBudgetCents,
@@ -402,8 +408,17 @@ export async function createMetaCampaign(
       bid_strategy: "LOWEST_COST_WITHOUT_CAP",
       targeting,
       status: "PAUSED",
-      start_time: new Date(Date.now() + 86400000).toISOString(),
-    });
+    };
+    // Meta requires promoted_object for OUTCOME_LEADS campaigns
+    if (params.objective === "OUTCOME_LEADS") {
+      const promotedObject: Record<string, string> = { page_id: params.pageId };
+      // Pixel required when using a destination URL (non-lead-form) with OUTCOME_LEADS
+      if (params.pixelId && !params.leadFormId) {
+        promotedObject.pixel_id = params.pixelId;
+      }
+      adSetBody.promoted_object = promotedObject;
+    }
+    const adSet = await metaPost<{ id: string }>(`/${acct}/adsets`, adSetBody);
 
     // 4. Create ad creative — video vs image, lead form vs. traffic/conversion
     const isLeadAd = !!params.leadFormId;
@@ -430,8 +445,9 @@ export async function createMetaCampaign(
         name: params.headline,
         description: params.description ?? "",
         call_to_action: callToAction,
+        // link is required by Meta even for lead gen ads; use destination URL or page URL as fallback
+        link: params.destinationUrl ?? `https://www.facebook.com/${params.pageId}`,
       };
-      if (!isLeadAd && params.destinationUrl) linkData.link = params.destinationUrl;
       objectStorySpec = { page_id: params.pageId, link_data: linkData };
     }
 

@@ -309,6 +309,10 @@ export default function CampaignsPage() {
         fetch("/api/agent/presets"),
       ]);
       const [campaignsData, presetsData] = await Promise.all([campaignsRes.json(), presetsRes.json()]);
+      if (campaignsData.error) {
+        console.error("[campaigns] API error:", campaignsData.error);
+        alert(`Meta API error: ${campaignsData.error}`);
+      }
       setCampaigns(campaignsData.campaigns ?? []);
       setPresets(presetsData.presets ?? []);
       const defaultPreset = (presetsData.presets ?? []).find((p: Preset) => p.is_default);

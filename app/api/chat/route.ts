@@ -153,7 +153,7 @@ const TOOLS: Anthropic.Tool[] = [
         age_min: { type: "number", description: "Min age. Ignored for special ad category campaigns." },
         age_max: { type: "number", description: "Max age. Ignored for special ad category campaigns." },
       },
-      required: ["industry", "target_avatar", "locations", "daily_budget_usd", "creative_url"],
+      required: ["industry", "target_avatar", "locations", "daily_budget_usd"],
     },
   },
 ];
@@ -161,7 +161,8 @@ const TOOLS: Anthropic.Tool[] = [
 async function executeTool(
   name: string,
   input: Record<string, unknown>,
-  clientInfo?: { meta_ad_account_id?: string }
+  clientInfo?: { meta_ad_account_id?: string; meta_page_id?: string },
+  imageHash?: string | null,
 ): Promise<string> {
 
   // ── Ad set ────────────────────────────────────────────────────────────────
@@ -228,7 +229,7 @@ async function executeTool(
 
   // ── List lead forms ───────────────────────────────────────────────────────
   if (name === "list_lead_forms") {
-    const pageId = (input.page_id as string | undefined) ?? process.env.META_PAGE_ID ?? "";
+    const pageId = ((input.page_id as string | undefined) ?? process.env.META_PAGE_ID ?? "").trim();
     if (!pageId) return "No page ID available. Provide it or set META_PAGE_ID.";
     const r = await listLeadForms(pageId);
     if (!r.ok) return `Failed to fetch lead forms: ${r.error}`;
@@ -240,13 +241,19 @@ async function executeTool(
   if (name === "create_ad_campaign") {
     const {
       industry, target_avatar, locations, daily_budget_usd,
-      creative_url, destination_url, lead_form_id,
+      destination_url, lead_form_id,
       objective = "LEADS", age_min = 25, age_max = 65,
       special_ad_categories,
     } = input;
+    // Use uploaded image hash from request if Claude didn't pass creative_url
+    const creative_url = (input.creative_url as string | undefined) ?? imageHash ?? "";
 
-    const pageId = (input.page_id as string | undefined) ?? process.env.META_PAGE_ID ?? "";
-    if (!pageId) return "I need your Facebook Page ID. Provide it or set META_PAGE_ID in your environment.";
+    if (!creative_url) {
+      return "No creative found. Please upload an image using the 📎 button and try again — keep the preview visible until the campaign is created.";
+    }
+
+    const pageId = ((input.page_id as string | undefined) ?? clientInfo?.meta_page_id ?? process.env.META_PAGE_ID ?? "").trim();
+    if (!pageId) return "I need your Facebook Page ID. You can add it to your client profile under Settings → Clients.";
 
     const adAccountId = clientInfo?.meta_ad_account_id ?? process.env.META_AD_ACCOUNT_ID ?? "";
     if (!adAccountId) return "No Meta Ad Account ID found. Select a client or set META_AD_ACCOUNT_ID.";
@@ -296,6 +303,7 @@ async function executeTool(
     const result = await createMetaCampaign({
       adAccountId,
       pageId,
+      pixelId: process.env.META_PIXEL_ID?.trim(),
       campaignName: `${industry} — ${date}`,
       adSetName: `${target_avatar} · ${locationLabel}`,
       adName: copy.headline || "Ad 1",
@@ -348,7 +356,7 @@ export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { messages, clientId, adAccountId } = await req.json();
+  const { messages, clientId, adAccountId, imageHash } = await req.json();
 
   if (!messages?.length) {
     return NextResponse.json({ error: "No messages provided" }, { status: 400 });
@@ -379,11 +387,11 @@ export async function POST(req: NextRequest) {
       LIMIT 10
     ` : Promise.resolve([]),
     clientId ? sql`
-      SELECT name, vertical, meta_ad_account_id FROM clients WHERE id = ${clientId} LIMIT 1
+      SELECT name, vertical, meta_ad_account_id, meta_page_id FROM clients WHERE id = ${clientId} LIMIT 1
     ` : Promise.resolve([]),
   ]);
 
-  const clientInfo = client?.[0] as { name: string; vertical: string; meta_ad_account_id: string } | undefined;
+  const clientInfo = client?.[0] as { name: string; vertical: string; meta_ad_account_id: string; meta_page_id?: string } | undefined;
 
   const systemPrompt = `You are the Buena Onda AI — an expert Meta ads analyst, strategist, and operator embedded in the Buena Onda dashboard. You help agency owners and media buyers make smart decisions and take direct action on their Meta ad accounts.
 
@@ -434,7 +442,9 @@ ACTIVE LEARNED RULES:
 ${JSON.stringify(recentLearnings, null, 2)}
 ` : ""}
 
-Keep responses concise and actionable. Use numbers when you have them.`;
+Keep responses concise and actionable. Use numbers when you have them.
+
+${imageHash ? `UPLOADED CREATIVE: The user has already uploaded an image. Use this exact image_hash as the creative_url parameter when calling create_ad_campaign: ${imageHash}` : ""}`;
 
   const apiMessages: Anthropic.MessageParam[] = messages.map((m: Message) => ({
     role: m.role,
@@ -449,7 +459,9 @@ Keep responses concise and actionable. Use numbers when you have them.`;
     messages: apiMessages,
   });
 
-  while (response.stop_reason === "tool_use") {
+  let toolLoopCount = 0;
+  while (response.stop_reason === "tool_use" && toolLoopCount < 8) {
+    toolLoopCount++;
     const toolUseBlocks = response.content.filter(
       (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
     );
@@ -459,7 +471,8 @@ Keep responses concise and actionable. Use numbers when you have them.`;
         const result = await executeTool(
           block.name,
           block.input as Record<string, unknown>,
-          clientInfo
+          clientInfo,
+          imageHash as string | null,
         );
         return { type: "tool_result" as const, tool_use_id: block.id, content: result };
       })

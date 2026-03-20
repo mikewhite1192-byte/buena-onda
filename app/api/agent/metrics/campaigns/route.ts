@@ -57,7 +57,12 @@ export async function GET(req: NextRequest) {
 
     const res = await fetch(url.toString(), { cache: "no-store" });
     const data = await res.json();
-    if (res.ok && !data.error) allRows.push(...(data.data ?? []));
+    if (res.ok && !data.error) {
+      allRows.push(...(data.data ?? []));
+    } else {
+      console.error("[campaigns] Meta API error for", accountId, data.error);
+      return NextResponse.json({ campaigns: [], error: data.error?.message ?? `Meta API error ${res.status}` });
+    }
   }
 
   const campaigns = allRows.map((row) => {

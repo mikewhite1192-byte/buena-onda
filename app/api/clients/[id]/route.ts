@@ -14,18 +14,19 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await req.json();
-  const { name, meta_ad_account_id, vertical, whatsapp_number, notes, status } = body;
+  const { name, meta_ad_account_id, meta_page_id, vertical, whatsapp_number, notes, status } = body;
 
   const rows = await sql`
     UPDATE clients SET
       name               = COALESCE(${name ?? null}, name),
       meta_ad_account_id = COALESCE(${meta_ad_account_id ?? null}, meta_ad_account_id),
+      meta_page_id       = COALESCE(${meta_page_id ?? null}, meta_page_id),
       vertical           = COALESCE(${vertical ?? null}, vertical),
       whatsapp_number    = COALESCE(${whatsapp_number ?? null}, whatsapp_number),
       notes              = COALESCE(${notes ?? null}, notes),
       status             = COALESCE(${status ?? null}, status)
     WHERE id = ${id} AND owner_id = ${userId}
-    RETURNING id, name, meta_ad_account_id, vertical, status, whatsapp_number, notes, created_at
+    RETURNING id, name, meta_ad_account_id, meta_page_id, vertical, status, whatsapp_number, notes, created_at
   `;
 
   if (rows.length === 0) {

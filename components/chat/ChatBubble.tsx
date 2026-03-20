@@ -130,45 +130,54 @@ export default function ChatBubble() {
   }
 
   async function sendMessage(content: string) {
-    if (!content.trim() || loading) return;
-
-    // Append creative hash to message if one is pending
-    const fullContent = pendingCreative
-      ? `${content.trim()}\n\n[Creative uploaded — image_hash: ${pendingCreative.imageHash}]`
-      : content.trim();
+    if ((!content.trim() && !pendingCreative) || loading || uploadingCreative) return;
 
     const userMsg: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: fullContent,
+      content: content.trim(),
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
-    setPendingCreative(null);
     setLoading(true);
     setShowSuggestions(false);
 
     try {
       const allMessages = [...messages, userMsg].filter(m => m.id !== "welcome");
 
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: allMessages.map(m => ({ role: m.role, content: m.content })),
-          clientId: activeClient?.id ?? null,
-          adAccountId: activeClient?.meta_ad_account_id ?? null,
-        }),
-      });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 90_000);
+      let res: Response;
+      try {
+        res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: allMessages.map(m => ({ role: m.role, content: m.content })),
+            clientId: activeClient?.id ?? null,
+            adAccountId: activeClient?.meta_ad_account_id ?? null,
+            imageHash: pendingCreative?.imageHash ?? null,
+          }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
 
       const data = await res.json();
+      const reply = data.reply ?? "Something went wrong.";
+
+      // Clear creative once campaign is successfully created
+      if (reply.includes("Campaign created") || reply.includes("Campaign ID:")) {
+        setPendingCreative(null);
+      }
 
       setMessages((prev) => [...prev, {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: data.reply ?? "Something went wrong.",
+        content: reply,
         timestamp: new Date(),
       }]);
     } catch {
