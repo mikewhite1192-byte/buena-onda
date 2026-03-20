@@ -284,9 +284,46 @@ export default function DashboardPage() {
 
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
-  // ── No clients — chat handles onboarding, show blank dark screen ────────────
+  // ── No clients — show empty state with call to action ──────────────────────
   if (!loadingClients && clients.length === 0) {
-    return <div style={{ minHeight: "calc(100vh - 52px)", background: T.bg }} />;
+    return (
+      <div style={{ minHeight: "calc(100vh - 52px)", background: T.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
+        <div style={{ textAlign: "center", maxWidth: 480, padding: "0 24px" }}>
+          {/* Logo */}
+          <div style={{ width: 56, height: 56, borderRadius: 14, background: "linear-gradient(135deg,#f5a623,#f76b1c)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 22, color: "#fff", margin: "0 auto 24px", boxShadow: "0 8px 24px rgba(245,166,35,0.3)" }}>B</div>
+
+          <div style={{ fontSize: 24, fontWeight: 800, color: T.text, letterSpacing: "-0.5px", marginBottom: 10 }}>
+            Welcome to Buena Onda
+          </div>
+          <div style={{ fontSize: 14, color: T.muted, lineHeight: 1.7, marginBottom: 32 }}>
+            Your agency command center. Once you connect a client account, you'll see live spend, leads, CPL, and health status for every account — all in one place.
+          </div>
+
+          {/* Feature preview tiles */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 32, textAlign: "left" }}>
+            {[
+              { icon: "📊", title: "Live Metrics", body: "Campaign → Ad Set → Ad" },
+              { icon: "🤖", title: "AI Campaign Builder", body: "Launch in 60 seconds" },
+              { icon: "⚡", title: "One-Command Actions", body: "Pause, scale, or kill ads" },
+              { icon: "🔍", title: "Diagnostics", body: "Know exactly why CPL rises" },
+            ].map((f, i) => (
+              <div key={i} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "14px 16px" }}>
+                <div style={{ fontSize: 20, marginBottom: 6 }}>{f.icon}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 3 }}>{f.title}</div>
+                <div style={{ fontSize: 11, color: T.muted }}>{f.body}</div>
+              </div>
+            ))}
+          </div>
+
+          <a
+            href="/dashboard/clients"
+            style={{ display: "inline-block", padding: "13px 32px", borderRadius: 10, background: "rgba(245,166,35,0.15)", border: "1px solid rgba(245,166,35,0.4)", color: T.accent, fontSize: 13, fontWeight: 700, textDecoration: "none", fontFamily: "inherit" }}
+          >
+            Add Your First Client →
+          </a>
+        </div>
+      </div>
+    );
   }
 
   // ── Overview dashboard ───────────────────────────────────────────────────────
