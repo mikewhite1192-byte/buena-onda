@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const adAccountId = searchParams.get("ad_account_id");
 
-  // Last 7 days aggregate
+  // Latest snapshot per ad set, then aggregate
   const summary = await sql`
     SELECT
       COALESCE(SUM(spend), 0)::numeric(10,2)        AS total_spend,
@@ -21,10 +21,15 @@ export async function GET(req: NextRequest) {
       COALESCE(AVG(ctr), 0)::numeric(10,4)           AS avg_ctr,
       COALESCE(AVG(frequency), 0)::numeric(10,2)     AS avg_frequency,
       COALESCE(SUM(impressions), 0)::int             AS total_impressions,
-      COUNT(DISTINCT ad_set_id)::int                 AS active_ad_sets
-    FROM ad_metrics
-    WHERE date_recorded >= NOW() - INTERVAL '7 days'
-      AND (${adAccountId}::text IS NULL OR ad_account_id = ${adAccountId})
+      COUNT(*)::int                                  AS active_ad_sets
+    FROM (
+      SELECT DISTINCT ON (ad_set_id)
+        spend, leads, cpl, ctr, frequency, impressions
+      FROM ad_metrics
+      WHERE date_recorded >= NOW() - INTERVAL '7 days'
+        AND (${adAccountId}::text IS NULL OR ad_account_id = ${adAccountId})
+      ORDER BY ad_set_id, date_recorded DESC
+    ) latest
   `;
 
   // Previous 7 days for trend comparison
