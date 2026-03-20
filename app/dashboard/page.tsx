@@ -304,7 +304,7 @@ export default function DashboardPage() {
             {[
               { icon: "📊", title: "Live Metrics", body: "Campaign → Ad Set → Ad" },
               { icon: "🤖", title: "AI Campaign Builder", body: "Launch in 60 seconds" },
-              { icon: "⚡", title: "One-Command Actions", body: "Pause, scale, or kill ads" },
+              { icon: "🎮", title: "One-Command Actions", body: "Pause, scale, or kill ads" },
               { icon: "🔍", title: "Diagnostics", body: "Know exactly why CPL rises" },
             ].map((f, i) => (
               <div key={i} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "14px 16px" }}>
