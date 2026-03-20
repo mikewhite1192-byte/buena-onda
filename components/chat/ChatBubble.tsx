@@ -49,6 +49,17 @@ const ONBOARDING_PROMPTS = [
   "I'm ready to set up my first client",
 ];
 
+const HELP_PROMPTS = [
+  "How do I connect a Facebook account?",
+  "My ad got disapproved — what do I do?",
+  "Why is my CPL so high?",
+  "My campaigns aren't spending — help me diagnose",
+  "How do I find my Meta Ad Account ID?",
+  "What does frequency mean and when is it a problem?",
+  "How do I create a campaign?",
+  "My data isn't showing up in the dashboard",
+];
+
 interface PendingCreative {
   imageHash: string;
   fileName: string;
@@ -59,6 +70,7 @@ export default function ChatBubble() {
   const { activeClient, hasNoClients } = useActiveClient();
   const { tourActive, step, startTour } = useTour();
   const [open, setOpen] = useState(false);
+  const [helpMode, setHelpMode] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -85,7 +97,12 @@ export default function ChatBubble() {
 
   // Open chat when Help button is clicked from the nav
   useEffect(() => {
-    function handler() { setOpen(true); }
+    function handler() {
+      setHelpMode(true);
+      setMessages([]);
+      setShowSuggestions(true);
+      setOpen(true);
+    }
     document.addEventListener("buenaonda:open-chat", handler);
     return () => document.removeEventListener("buenaonda:open-chat", handler);
   }, []);
@@ -447,10 +464,10 @@ export default function ChatBubble() {
             {showSuggestions && messages.length <= 1 && (
               <div style={{ marginTop: 8 }}>
                 <div style={{ fontSize: 10, color: "#5a5e72", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
-                  {isOnboarding ? "Getting started" : "Try asking"}
+                  {isOnboarding ? "Getting started" : helpMode ? "Common help topics" : "Try asking"}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {(isOnboarding ? ONBOARDING_PROMPTS : SUGGESTED_PROMPTS).map((prompt) => (
+                  {(isOnboarding ? ONBOARDING_PROMPTS : helpMode ? HELP_PROMPTS : SUGGESTED_PROMPTS).map((prompt) => (
                     <button
                       key={prompt}
                       onClick={() => sendMessage(prompt)}
@@ -563,7 +580,7 @@ export default function ChatBubble() {
 
       {/* Bubble button */}
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => { setOpen((v) => { if (v) setHelpMode(false); return !v; }); }}
         style={{
           position: "fixed",
           bottom: 24,
