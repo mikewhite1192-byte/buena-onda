@@ -273,6 +273,7 @@ export default function CampaignsPage() {
 
   const [campaigns, setCampaigns] = useState<CampaignMetric[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [presets, setPresets] = useState<Preset[]>([]);
   const [showColModal, setShowColModal] = useState(false);
 
@@ -321,8 +322,16 @@ export default function CampaignsPage() {
       setCampaigns([]);
     } finally {
       setLoading(false);
+      setLastRefreshed(new Date());
     }
   }, [startDate, endDate, activeClient]);
+
+  function handleRefresh() {
+    // Clear all cached expanded data so re-expanding re-fetches fresh from Meta
+    setAdSetLevelData({});
+    setAdLevelData({});
+    fetchData();
+  }
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -422,7 +431,21 @@ export default function CampaignsPage() {
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 32, flexWrap: "wrap", gap: 16 }}>
           <div>
             <h1 style={{ fontSize: 28, fontWeight: 700, color: "#2A8C8A", margin: "0 0 6px", letterSpacing: "-0.5px" }}>Campaigns</h1>
-            <p style={{ color: "#4a7a7a", fontSize: 13, margin: 0 }}>Live performance · Campaign → Ad Set → Ad</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <p style={{ color: "#4a7a7a", fontSize: 13, margin: 0 }}>Live performance · Campaign → Ad Set → Ad</p>
+              <button
+                onClick={handleRefresh}
+                disabled={loading}
+                style={{ ...btnStyle(false), padding: "3px 10px", fontSize: 11, opacity: loading ? 0.5 : 1 }}
+              >
+                {loading ? "↻ Loading..." : "↻ Refresh"}
+              </button>
+              {lastRefreshed && !loading && (
+                <span style={{ fontSize: 11, color: "#2a4a4a" }}>
+                  Updated {lastRefreshed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Date range */}
