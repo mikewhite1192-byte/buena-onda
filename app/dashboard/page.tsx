@@ -284,37 +284,9 @@ export default function DashboardPage() {
 
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
-  // ── No clients welcome screen ────────────────────────────────────────────────
+  // ── No clients — chat handles onboarding, show blank dark screen ────────────
   if (!loadingClients && clients.length === 0) {
-    return (
-      <main style={{ minHeight: "calc(100vh - 52px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, background: T.bg }}>
-        <div style={{ maxWidth: 480, width: "100%", textAlign: "center" }}>
-          <div style={{ fontSize: 32, marginBottom: 16 }}>✦</div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: T.text, margin: "0 0 10px" }}>Welcome to Buena Onda</h1>
-          <p style={{ fontSize: 13, color: T.muted, margin: "0 0 32px", lineHeight: 1.6 }}>
-            Connect your first client account to start managing Meta ad campaigns with AI.
-          </p>
-          <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "24px 28px", textAlign: "left", marginBottom: 28 }}>
-            <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 16 }}>What you&apos;ll need</div>
-            {[
-              ["Meta Ad Account ID", "Found in Meta Business Suite → Ad Accounts. Looks like: 123456789"],
-              ["Facebook Page ID", "Go to your Facebook Page → About → scroll to bottom. Looks like: 123456789012345"],
-            ].map(([title, desc]) => (
-              <div key={title} style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 12 }}>
-                <div style={{ width: 6, height: 6, borderRadius: "50%", background: T.accent, marginTop: 5, flexShrink: 0 }} />
-                <div>
-                  <div style={{ fontSize: 12, color: T.text, fontWeight: 600 }}>{title}</div>
-                  <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>{desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <Link href="/dashboard/clients" style={{ display: "inline-block", background: T.accent, color: "#fff", borderRadius: 8, padding: "11px 28px", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
-            Add your first client →
-          </Link>
-        </div>
-      </main>
-    );
+    return <div style={{ minHeight: "calc(100vh - 52px)", background: T.bg }} />;
   }
 
   // ── Overview dashboard ───────────────────────────────────────────────────────

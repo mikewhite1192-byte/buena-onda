@@ -226,13 +226,35 @@ export default function ChatBubble() {
   return (
     <>
       {/* Chat window */}
+      {open && isOnboarding && (
+        <div
+          onClick={() => {}}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.7)",
+            zIndex: 999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        />
+      )}
       {open && (
         <div style={{
           position: "fixed",
-          bottom: 88,
-          right: 24,
-          width: 380,
-          height: 560,
+          ...(isOnboarding ? {
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: 520,
+            height: 620,
+          } : {
+            bottom: 88,
+            right: 24,
+            width: 380,
+            height: 560,
+          }),
           background: "#161820",
           border: "1px solid rgba(255,255,255,0.06)",
           borderRadius: 16,
