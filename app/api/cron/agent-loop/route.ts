@@ -86,7 +86,7 @@ export async function GET(req: Request) {
       const adSetSnapshots: AdSetSnapshot[] = [];
 
       for (const adsetId of brief.creative_asset_ids) {
-        const result = await getAdSetMetrics(adsetId, 7);
+        const result = await getAdSetMetrics(adsetId, 365);
         if (!result.ok) {
           console.warn(`[agent-loop] getAdSetMetrics failed for ${adsetId}: ${result.error}`);
           continue;

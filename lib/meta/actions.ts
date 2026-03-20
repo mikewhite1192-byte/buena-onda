@@ -163,23 +163,16 @@ export async function getAdSetMetrics(
     console.log("[getAdSetMetrics] adset name:", adsetRes.name);
     console.log("[getAdSetMetrics] Raw insights response:", JSON.stringify(insightsRes, null, 2));
 
-    const insight: RawInsight | undefined = insightsRes.data[0];
-
-    const impressions = insight ? parseInt(insight.impressions, 10) : 0;
-    const clicks = insight ? parseInt(insight.clicks, 10) : 0;
-    const spend = insight ? parseFloat(insight.spend) : 0;
-
-    // Leads = "lead" action type in actions array
-    const leads = insight
-      ? parseInt(
-          insight.actions?.find((a) => a.action_type === "lead")?.value ?? "0",
-          10
-        )
-      : 0;
+    const insights = insightsRes.data ?? [];
+    const spend = insights.reduce((sum, r) => sum + parseFloat(r.spend ?? '0'), 0);
+    const impressions = insights.reduce((sum, r) => sum + parseInt(r.impressions ?? '0', 10), 0);
+    const clicks = insights.reduce((sum, r) => sum + parseInt(r.clicks ?? '0', 10), 0);
+    const leads = insights.reduce((sum, r) => sum + parseInt(r.actions?.find(a => a.action_type === 'lead')?.value ?? '0', 10), 0);
+    const avgCtr = insights.length > 0 ? insights.reduce((sum, r) => sum + parseFloat(r.ctr ?? '0'), 0) / insights.length : 0;
+    const avgFrequency = insights.length > 0 ? insights.reduce((sum, r) => sum + parseFloat(r.frequency ?? '0'), 0) / insights.length : 0;
+    const insight = insights[0];
 
     const cpl = leads > 0 ? spend / leads : null;
-    const ctr = insight ? parseFloat(insight.ctr) / 100 : 0; // Meta returns CTR as percent
-    const frequency = insight ? parseFloat(insight.frequency) : 0;
 
     // Hook rate = 3-sec video views / impressions
     const threeSecViews = insight
@@ -204,8 +197,8 @@ export async function getAdSetMetrics(
       spend,
       leads,
       cpl,
-      ctr,
-      frequency,
+      ctr: avgCtr / 100, // Meta returns CTR as percent
+      frequency: avgFrequency,
       hook_rate,
       date_start: insight?.date_start ?? "",
       date_stop: insight?.date_stop ?? "",
