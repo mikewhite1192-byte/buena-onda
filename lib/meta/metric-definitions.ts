@@ -7,6 +7,7 @@ export interface MetricDef {
   label: string;         // display label
   apiField: string;      // Meta Insights API field name
   format: "currency" | "number" | "percent" | "text" | "roas";
+  rawIsPercent?: boolean; // true when Meta returns value as e.g. "1.5" meaning 1.5% (skip *100)
   description?: string;
 }
 
@@ -79,9 +80,9 @@ export const METRIC_GROUPS: MetricGroup[] = [
           { key: "outbound_clicks", label: "Outbound Clicks", apiField: "outbound_clicks", format: "number" },
           { key: "unique_outbound_clicks", label: "Unique Outbound Clicks", apiField: "unique_outbound_clicks", format: "number" },
           { key: "ctr", label: "CTR (All)", apiField: "ctr", format: "percent" },
-          { key: "link_ctr", label: "CTR (Link Click-Through Rate)", apiField: "inline_link_click_ctr", format: "percent" },
-          { key: "outbound_ctr", label: "Outbound CTR", apiField: "outbound_clicks_ctr", format: "percent" },
-          { key: "unique_ctr", label: "Unique CTR (All)", apiField: "unique_ctr", format: "percent" },
+          { key: "link_ctr", label: "CTR (Link Click-Through Rate)", apiField: "inline_link_click_ctr", format: "percent", rawIsPercent: true },
+          { key: "outbound_ctr", label: "Outbound CTR", apiField: "outbound_clicks_ctr", format: "percent", rawIsPercent: true },
+          { key: "unique_ctr", label: "Unique CTR (All)", apiField: "unique_ctr", format: "percent", rawIsPercent: true },
           { key: "cpc", label: "CPC (All)", apiField: "cpc", format: "currency" },
           { key: "cost_per_link_click", label: "CPC (Cost per Link Click)", apiField: "cost_per_action_type:link_click", format: "currency" },
           { key: "cost_per_unique_click", label: "Cost per Unique Click", apiField: "cost_per_unique_click", format: "currency" },

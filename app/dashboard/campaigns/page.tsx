@@ -69,16 +69,43 @@ function healthLabel(adSet: AdSetMetric): HealthFilter {
   return "Stable";
 }
 
+type MetaActionRow = { action_type: string; value: string };
+
+function extractFromRaw(raw: Record<string, unknown>, apiField: string): unknown {
+  if (apiField.startsWith("computed:")) return undefined; // handled separately
+
+  const [prefix, actionType] = apiField.split(":");
+
+  if (actionType) {
+    // Field is nested in an array (e.g. actions:link_click, cost_per_action_type:lead)
+    const arr = raw[prefix] as MetaActionRow[] | undefined;
+    return arr?.find((r) => r.action_type === actionType)?.value;
+  }
+
+  // Top-level flat field (e.g. cpc, cpm, reach, unique_clicks)
+  return raw[apiField];
+}
+
 function formatMetricValue(key: string, adSet: AdSetMetric): string {
   const def: MetricDef | undefined = METRIC_BY_KEY[key];
   if (!def) return "—";
 
+  // Fields kept as typed properties on AdSetMetric
   const direct: Record<string, number | string | null> = {
     spend: adSet.spend, leads: adSet.leads, cpl: adSet.cpl,
     ctr: adSet.ctr, frequency: adSet.frequency, impressions: adSet.impressions,
   };
 
-  const val: unknown = direct[key] ?? adSet.raw_metrics?.[key];
+  let val: unknown = direct[key] ?? extractFromRaw(adSet.raw_metrics ?? {}, def.apiField);
+
+  // Computed fields
+  if (key === "hook_rate" && val === undefined) {
+    const raw = adSet.raw_metrics ?? {};
+    const plays = (raw["video_play_actions"] as MetaActionRow[] | undefined)?.find(r => r.action_type === "video_view")?.value;
+    const imp = adSet.impressions;
+    if (plays && imp > 0) val = parseFloat(plays) / imp;
+  }
+
   if (val === undefined || val === null) return "—";
 
   const n = Number(val);
@@ -86,7 +113,7 @@ function formatMetricValue(key: string, adSet: AdSetMetric): string {
 
   switch (def.format) {
     case "currency": return n === 0 ? "$—" : `$${n.toFixed(2)}`;
-    case "percent": return `${(n * 100).toFixed(2)}%`;
+    case "percent": return def.rawIsPercent ? `${n.toFixed(2)}%` : `${(n * 100).toFixed(2)}%`;
     case "roas": return `${n.toFixed(2)}x`;
     case "number": return n.toLocaleString();
     case "text": return String(val);
