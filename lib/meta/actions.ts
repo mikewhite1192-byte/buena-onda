@@ -140,6 +140,7 @@ export async function getAdSetMetrics(
     rawInsightsUrl.searchParams.set("access_token", getAccessToken());
     rawInsightsUrl.searchParams.set("fields", ["adset_id", "adset_name", ...ALL_API_FIELDS].join(","));
     rawInsightsUrl.searchParams.set("time_range", timeRange);
+    rawInsightsUrl.searchParams.set("time_increment", "1");
     rawInsightsUrl.searchParams.set("level", "adset");
     const rawInsightsRes = await fetch(rawInsightsUrl.toString(), { cache: "no-store" });
     const rawInsightsBody = await rawInsightsRes.text();
@@ -153,6 +154,7 @@ export async function getAdSetMetrics(
       metaGet<MetaPaged<RawInsight>>(`/${adsetId}/insights`, {
         fields: ["adset_id", "adset_name", ...ALL_API_FIELDS].join(","),
         time_range: timeRange,
+        time_increment: "1",
         level: "adset",
       }),
     ]);
