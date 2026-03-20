@@ -80,14 +80,38 @@ export default function ChatBubble() {
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  // Compress image client-side to stay under Vercel's 4.5MB body limit
+  function compressImage(file: File, maxWidth = 1200, quality = 0.85): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        const ratio = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * ratio);
+        canvas.height = Math.round(img.height * ratio);
+        canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          (blob) => (blob ? resolve(blob) : reject(new Error("Compression failed"))),
+          "image/jpeg", quality
+        );
+      };
+      img.onerror = () => reject(new Error("Failed to load image for compression"));
+      img.src = objectUrl;
+    });
+  }
+
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingCreative(true);
     const previewUrl = URL.createObjectURL(file);
     try {
+      const compressed = await compressImage(file);
+      const compressedFile = new File([compressed], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" });
       const form = new FormData();
-      form.append("file", file);
+      form.append("file", compressedFile);
       if (activeClient?.meta_ad_account_id) form.append("ad_account_id", activeClient.meta_ad_account_id);
       const res = await fetch("/api/agent/creative/upload", { method: "POST", body: form });
       const data = await res.json();
