@@ -113,7 +113,6 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
             boxShadow: `0 3px 10px ${T.accentGlow}`,
           }}>B</div>
           <span style={{ fontWeight: 800, fontSize: 14, color: T.text, letterSpacing: "-0.3px" }}>Buena Onda</span>
-          <span style={{ fontSize: 9, fontWeight: 700, color: T.accent, background: T.accentBg, padding: "1px 6px", borderRadius: 3, letterSpacing: "0.5px" }}>AGENCY</span>
         </div>
 
         {/* Nav Links */}
