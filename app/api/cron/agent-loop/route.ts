@@ -127,6 +127,7 @@ export async function GET(req: Request) {
               frequency,
               ad_status,
               raw_metrics,
+              metric_date,
               fetched_at
             ) VALUES (
               ${brief.id},
@@ -144,6 +145,7 @@ export async function GET(req: Request) {
               ${m.frequency ?? null},
               ${m.status ?? null},
               ${JSON.stringify(m.raw_metrics ?? {})},
+              ${new Date().toISOString().split("T")[0]},
               NOW()
             )
             ON CONFLICT DO NOTHING
