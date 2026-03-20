@@ -96,8 +96,9 @@ export default function ChatBubble() {
       } else {
         setMessages(prev => [...prev, { id: Date.now().toString(), role: "assistant", content: `Creative upload failed: ${data.error ?? "unknown error"}`, timestamp: new Date() }]);
       }
-    } catch {
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: "assistant", content: "Creative upload failed. Try again.", timestamp: new Date() }]);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: "assistant", content: `Creative upload failed: ${msg}`, timestamp: new Date() }]);
     } finally {
       setUploadingCreative(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
