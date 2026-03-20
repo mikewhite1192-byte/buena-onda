@@ -40,7 +40,20 @@ interface AdSetMetric {
   raw_metrics: Record<string, unknown>;
 }
 
-interface TrendPoint { day: string; spend: number; leads: number; cpl: number; }
+interface AdMetric {
+  ad_id: string;
+  ad_name: string | null;
+  ad_status: string | null;
+  spend: number;
+  leads: number;
+  cpl: number;
+  ctr: number;
+  frequency: number;
+  impressions: number;
+  clicks: number;
+  raw_metrics: Record<string, unknown>;
+}
+
 type SortKey = "cpl" | "spend" | "leads" | "frequency" | "ctr" | "impressions";
 type SortDir = "asc" | "desc";
 type HealthFilter = "all" | "Scaling" | "Stable" | "Fatigued" | "CPL High";
@@ -122,18 +135,6 @@ function formatMetricValue(key: string, adSet: AdSetMetric): string {
   }
 }
 
-function Sparkline({ points, color }: { points: number[]; color: string }) {
-  if (!points.length) return <span style={{ color: "#2a4a4a", fontSize: 11 }}>—</span>;
-  const max = Math.max(...points, 1), min = Math.min(...points);
-  const range = max - min || 1;
-  const w = 80, h = 28;
-  const pts = points.map((v, i) => `${(i / Math.max(points.length - 1, 1)) * w},${h - ((v - min) / range) * h}`).join(" ");
-  return (
-    <svg width={w} height={h} style={{ overflow: "visible" }}>
-      <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
-    </svg>
-  );
-}
 
 function StatCard({ label, value, sub, trendDir, trendPct, invertTrend }: {
   label: string; value: string; sub?: string;
@@ -321,9 +322,10 @@ export default function CampaignsPage() {
 
   const [summary, setSummary] = useState<SummaryResponse | null>(null);
   const [adSets, setAdSets] = useState<AdSetMetric[]>([]);
-  const [trends, setTrends] = useState<Record<string, TrendPoint[]>>({});
   const [loading, setLoading] = useState(true);
-  const [selectedAdSet, setSelectedAdSet] = useState<string | null>(null);
+  const [expandedAdSets, setExpandedAdSets] = useState<Set<string>>(new Set());
+  const [adLevelData, setAdLevelData] = useState<Record<string, AdMetric[]>>({});
+  const [adLevelLoading, setAdLevelLoading] = useState<Set<string>>(new Set());
   const [presets, setPresets] = useState<Preset[]>([]);
   const [showColModal, setShowColModal] = useState(false);
 
@@ -357,7 +359,6 @@ export default function CampaignsPage() {
       const [liveData, presetsData] = await Promise.all([liveRes.json(), presetsRes.json()]);
       setSummary({ current: liveData.current, previous: liveData.previous, active_briefs: liveData.active_briefs });
       setAdSets(liveData.ad_sets ?? []);
-      setTrends(liveData.trends ?? {});
       setPresets(presetsData.presets ?? []);
 
       const defaultPreset = (presetsData.presets ?? []).find((p: Preset) => p.is_default);
@@ -378,6 +379,30 @@ export default function CampaignsPage() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  async function toggleAdExpand(adSetId: string) {
+    const next = new Set(expandedAdSets);
+    if (next.has(adSetId)) {
+      next.delete(adSetId);
+      setExpandedAdSets(next);
+      return;
+    }
+    next.add(adSetId);
+    setExpandedAdSets(next);
+    if (adLevelData[adSetId]) return; // already loaded
+    setAdLevelLoading((prev) => new Set(prev).add(adSetId));
+    try {
+      const res = await fetch(
+        `/api/agent/metrics/ads?adSetId=${adSetId}&startDate=${startDate}&endDate=${endDate}`
+      );
+      const data = await res.json();
+      setAdLevelData((prev) => ({ ...prev, [adSetId]: data.ads ?? [] }));
+    } catch {
+      setAdLevelData((prev) => ({ ...prev, [adSetId]: [] }));
+    } finally {
+      setAdLevelLoading((prev) => { const s = new Set(prev); s.delete(adSetId); return s; });
+    }
+  }
 
   async function savePreset(name: string) {
     const res = await fetch("/api/agent/presets", {
@@ -582,24 +607,26 @@ export default function CampaignsPage() {
                 </div>
               ) : (
                 filtered.map((adSet, i) => {
-                  const adTrends = trends[adSet.ad_set_id] ?? [];
-                  const cplPoints = adTrends.map(t => Number(t.cpl));
-                  const spendPoints = adTrends.map(t => Number(t.spend));
-                  const isSelected = selectedAdSet === adSet.ad_set_id;
+                  const isExpanded = expandedAdSets.has(adSet.ad_set_id);
+                  const isLoading = adLevelLoading.has(adSet.ad_set_id);
+                  const ads = adLevelData[adSet.ad_set_id] ?? [];
                   const hColor = healthColor(adSet);
                   const isActive = adSet.ad_status === "ACTIVE";
+                  const colTemplate = `260px ${visibleColsArray.map(() => "120px").join(" ")}`;
+                  const colMin = 260 + visibleColsArray.length * 120;
 
                   return (
                     <div key={adSet.ad_set_id}>
+                      {/* Ad Set row */}
                       <div
-                        onClick={() => setSelectedAdSet(isSelected ? null : adSet.ad_set_id)}
+                        onClick={() => toggleAdExpand(adSet.ad_set_id)}
                         onDoubleClick={() => router.push(`/dashboard/campaigns/${encodeURIComponent(adSet.ad_set_id)}`)}
-                        title="Click to expand · Double-click for detail page"
-                        style={{ display: "grid", gridTemplateColumns: `260px ${visibleColsArray.map(() => "120px").join(" ")}`, padding: "13px 18px", borderBottom: "1px solid #0f1f1f", fontSize: 12, alignItems: "center", background: isSelected ? "#0f1f1f" : i % 2 === 0 ? "#0a0f0f" : "#0c1515", cursor: "pointer", minWidth: 260 + visibleColsArray.length * 120 }}
+                        title="Click to expand ads · Double-click for detail page"
+                        style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "13px 18px", borderBottom: "1px solid #0f1f1f", fontSize: 12, alignItems: "center", background: isExpanded ? "#0f1f1f" : i % 2 === 0 ? "#0a0f0f" : "#0c1515", cursor: "pointer", minWidth: colMin }}
                       >
-                        {/* Ad Set name + status */}
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                            <span style={{ fontSize: 10, color: "#4a7a7a", transition: "transform 0.15s", display: "inline-block", transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
                             <span style={{ width: 6, height: 6, borderRadius: "50%", background: isActive ? "#2A8C8A" : "#2a4a4a", flexShrink: 0, display: "inline-block" }} />
                             <span style={{ color: "#e8f4f4", fontFamily: "sans-serif", fontSize: 12, fontWeight: 500 }}>
                               {adSet.ad_set_name ?? adSet.ad_set_id}
@@ -608,12 +635,10 @@ export default function CampaignsPage() {
                               {isActive ? "Active" : (adSet.ad_status ?? "—")}
                             </span>
                           </div>
-                          <div style={{ fontSize: 10, color: "#2A8C8A", fontFamily: "monospace", paddingLeft: 14 }}>{adSet.ad_set_id}</div>
+                          <div style={{ fontSize: 10, color: "#2A8C8A", fontFamily: "monospace", paddingLeft: 22 }}>{adSet.ad_set_id}</div>
                         </div>
-
-                        {/* Metric columns */}
                         {visibleColsArray.map(col => {
-                          if (col === "trend") return <div key={col}><Sparkline points={cplPoints} color={hColor} /></div>;
+                          if (col === "trend") return <div key={col} />;
                           if (col === "health") return <span key={col} style={{ fontSize: 11, fontWeight: 600, color: hColor, textTransform: "uppercase", letterSpacing: "0.06em" }}>{healthLabel(adSet)}</span>;
                           const val = formatMetricValue(col, adSet);
                           const isBad = col === "cpl" && adSet.cpl > 30;
@@ -622,21 +647,43 @@ export default function CampaignsPage() {
                         })}
                       </div>
 
-                      {/* Expanded row */}
-                      {isSelected && (
-                        <div style={{ padding: "16px 18px", background: "#0d1818", borderBottom: "1px solid #1a2f2f", display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 24, alignItems: "end" }}>
-                          <div>
-                            <div style={{ fontSize: 11, color: "#2a4a4a", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.08em" }}>CPL Trend</div>
-                            <Sparkline points={cplPoints} color={hColor} />
+                      {/* Expanded: individual ads */}
+                      {isExpanded && (
+                        <div style={{ background: "#080d0d", borderBottom: "1px solid #1a2f2f", overflowX: "auto" }}>
+                          {/* Sub-header */}
+                          <div style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "8px 18px 8px 36px", background: "#0a1212", borderBottom: "1px solid #0f1f1f", fontSize: 10, color: "#2a4a4a", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: colMin }}>
+                            <span>Ad</span>
+                            {visibleColsArray.map(col => {
+                              const def = METRIC_BY_KEY[col];
+                              return <span key={col}>{def?.label ?? col}</span>;
+                            })}
                           </div>
-                          <div>
-                            <div style={{ fontSize: 11, color: "#2a4a4a", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.08em" }}>Daily Spend</div>
-                            <Sparkline points={spendPoints} color="#2A8C8A" />
-                          </div>
-                          <button onClick={() => router.push(`/dashboard/campaigns/${encodeURIComponent(adSet.ad_set_id)}`)}
-                            style={{ padding: "8px 14px", fontSize: 12, borderRadius: 6, border: "1px solid #2A8C8A44", background: "#0B5C5C", color: "#e8f4f4", cursor: "pointer", fontFamily: "'DM Mono', monospace", whiteSpace: "nowrap" as const }}>
-                            Full Detail →
-                          </button>
+
+                          {/* Ad rows */}
+                          {isLoading ? (
+                            <div style={{ padding: "16px 36px", fontSize: 12, color: "#4a7a7a" }}>Loading ads...</div>
+                          ) : ads.length === 0 ? (
+                            <div style={{ padding: "16px 36px", fontSize: 12, color: "#4a7a7a" }}>No ad data for this period.</div>
+                          ) : (
+                            ads.map((ad, j) => {
+                              const adAsMetric = { ...ad, ad_set_id: ad.ad_id, ad_set_name: ad.ad_name, campaign_id: "", date_recorded: "", raw_metrics: ad.raw_metrics };
+                              return (
+                                <div key={ad.ad_id} style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "10px 18px 10px 36px", borderBottom: "1px solid #0a1a1a", fontSize: 11, alignItems: "center", background: j % 2 === 0 ? "#080d0d" : "#0a1010", minWidth: colMin }}>
+                                  <div>
+                                    <div style={{ color: "#c8e8e8", fontSize: 11, fontWeight: 500, marginBottom: 2 }}>{ad.ad_name ?? ad.ad_id}</div>
+                                    <div style={{ fontSize: 10, color: "#2A8C8A", fontFamily: "monospace" }}>{ad.ad_id}</div>
+                                  </div>
+                                  {visibleColsArray.map(col => {
+                                    if (col === "trend" || col === "health") return <span key={col} style={{ color: "#2a4a4a" }}>—</span>;
+                                    const val = formatMetricValue(col, adAsMetric as AdSetMetric);
+                                    const isBad = col === "cpl" && ad.cpl > 30;
+                                    const isGood = col === "cpl" && ad.cpl < 20 && ad.leads >= 5;
+                                    return <span key={col} style={{ color: isBad ? "#E8705A" : isGood ? "#2A8C8A" : "#6a9898" }}>{val}</span>;
+                                  })}
+                                </div>
+                              );
+                            })
+                          )}
                         </div>
                       )}
                     </div>
