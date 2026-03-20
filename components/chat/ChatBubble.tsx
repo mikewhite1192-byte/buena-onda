@@ -191,6 +191,7 @@ export default function ChatBubble() {
       content: content.trim(),
       timestamp: new Date(),
     };
+    const streamingId = (Date.now() + 1).toString();
 
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
@@ -220,27 +221,53 @@ export default function ChatBubble() {
         clearTimeout(timeout);
       }
 
-      const data = await res.json();
-      const reply = data.reply ?? "Something went wrong.";
+      if (!res.body) throw new Error("No response body");
+
+      // Add placeholder message immediately
+      setMessages(prev => [...prev, { id: streamingId, role: "assistant", content: "", timestamp: new Date() }]);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let accum = "";
+      let buf = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6).trim();
+          if (data === "[DONE]") break;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.text) {
+              accum += parsed.text;
+              setMessages(prev => prev.map(m => m.id === streamingId ? { ...m, content: accum } : m));
+            }
+            if (parsed.error) {
+              accum = `Error: ${parsed.error}`;
+              setMessages(prev => prev.map(m => m.id === streamingId ? { ...m, content: accum } : m));
+            }
+          } catch { /* incomplete JSON chunk */ }
+        }
+      }
+
+      const reply = accum || "Something went wrong.";
+      if (!accum) {
+        setMessages(prev => prev.map(m => m.id === streamingId ? { ...m, content: reply } : m));
+      }
 
       // Clear creative once campaign is successfully created
       if (reply.includes("Campaign created") || reply.includes("Campaign ID:")) {
         setPendingCreative(null);
       }
-
-      setMessages((prev) => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: reply,
-        timestamp: new Date(),
-      }]);
     } catch {
-      setMessages((prev) => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: "Sorry, I hit an error. Try again.",
-        timestamp: new Date(),
-      }]);
+      setMessages(prev => prev.map(m =>
+        m.id === streamingId ? { ...m, content: "Sorry, I hit an error. Try again." } : m
+      ));
     } finally {
       setLoading(false);
     }
@@ -345,7 +372,8 @@ export default function ChatBubble() {
                 style={{
                   marginBottom: 16,
                   display: "flex",
-                  justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
+                  flexDirection: "column",
+                  alignItems: msg.role === "user" ? "flex-end" : "flex-start",
                 }}
               >
                 <div style={{
@@ -363,14 +391,15 @@ export default function ChatBubble() {
                 </div>
                 {/* Take the Tour button — only on welcome message during onboarding */}
                 {msg.id === "welcome" && hasNoClients && !tourActive && (
-                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16, width: "100%" }}>
                     <button
                       onClick={() => { startTour(); setOpen(false); }}
                       style={{
-                        flex: 1, padding: "9px 0", borderRadius: 8,
-                        border: "1px solid rgba(245,166,35,0.4)",
-                        background: "rgba(245,166,35,0.12)", color: "#f5a623",
-                        fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                        width: "100%", padding: "13px 0", borderRadius: 10,
+                        border: "1px solid rgba(245,166,35,0.5)",
+                        background: "rgba(245,166,35,0.15)", color: "#f5a623",
+                        fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                        letterSpacing: "-0.2px",
                       }}
                     >
                       Take the Tour →
@@ -378,8 +407,8 @@ export default function ChatBubble() {
                     <button
                       onClick={() => setShowSuggestions(true)}
                       style={{
-                        flex: 1, padding: "9px 0", borderRadius: 8,
-                        border: "1px solid rgba(255,255,255,0.06)",
+                        width: "100%", padding: "11px 0", borderRadius: 10,
+                        border: "1px solid rgba(255,255,255,0.08)",
                         background: "transparent", color: "#8b8fa8",
                         fontSize: 12, cursor: "pointer", fontFamily: "inherit",
                       }}

@@ -301,9 +301,10 @@ export default function CampaignsPage() {
   const computedDays = Math.max(1, Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000));
 
   const fetchData = useCallback(async () => {
+    if (!activeClient) return;
     setLoading(true);
-    const adAccountParam = activeClient?.meta_ad_account_id ? `&ad_account_id=${activeClient.meta_ad_account_id}` : "";
-    const clientParam = activeClient?.id ? `&client_id=${activeClient.id}` : "";
+    const adAccountParam = activeClient.meta_ad_account_id ? `&ad_account_id=${activeClient.meta_ad_account_id}` : "";
+    const clientParam = activeClient.id ? `&client_id=${activeClient.id}` : "";
     try {
       const [campaignsRes, presetsRes] = await Promise.all([
         fetch(`/api/agent/metrics/campaigns?startDate=${startDate}&endDate=${endDate}${adAccountParam}${clientParam}`),
@@ -422,6 +423,18 @@ export default function CampaignsPage() {
   const visibleColsArray = Array.from(visibleCols);
   const colTemplate = `280px ${visibleColsArray.map(() => "120px").join(" ")}`;
   const colMin = 280 + visibleColsArray.length * 120;
+
+  if (!activeClient) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#0d0f14", fontFamily: "'DM Mono', 'Fira Mono', monospace", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 40, marginBottom: 16 }}>📊</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#e8eaf0", marginBottom: 8 }}>No client selected</div>
+          <div style={{ fontSize: 13, color: "#8b8fa8" }}>Go to the Overview and select a client to view their campaigns</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: "#0d0f14", fontFamily: "'DM Mono', 'Fira Mono', monospace", color: "#e8eaf0", padding: "40px 24px" }}>

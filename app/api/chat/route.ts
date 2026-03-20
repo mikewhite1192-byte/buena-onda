@@ -349,6 +349,12 @@ async function executeTool(
   return `Unknown tool: ${name}`;
 }
 
+const SSE_HEADERS = {
+  "Content-Type": "text/event-stream",
+  "Cache-Control": "no-cache, no-transform",
+  "X-Accel-Buffering": "no",
+};
+
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -389,6 +395,12 @@ export async function POST(req: NextRequest) {
   ]);
 
   const clientInfo = client?.[0] as { name: string; vertical: string; meta_ad_account_id: string; meta_page_id?: string; meta_access_token?: string } | undefined;
+
+  const encoder = new TextEncoder();
+  function sseChunk(text: string) {
+    return encoder.encode(`data: ${JSON.stringify({ text })}\n\n`);
+  }
+  const DONE_CHUNK = encoder.encode("data: [DONE]\n\n");
 
   if (isOnboarding) {
     const onboardingPrompt = `You are the Buena Onda AI — an expert Meta ads assistant and the first thing new users interact with. Your job is to excite them about what's possible, show them the platform's most powerful features, and then guide them through setup.
@@ -437,15 +449,27 @@ Always end responses with a natural next step or question to keep the conversati
       content: m.content,
     }));
 
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 1024,
-      system: onboardingPrompt,
-      messages: apiMessages,
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          await anthropic.messages.stream({
+            model: "claude-sonnet-4-5",
+            max_tokens: 1024,
+            system: onboardingPrompt,
+            messages: apiMessages,
+          }).on("text", (text) => {
+            controller.enqueue(sseChunk(text));
+          }).finalMessage();
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Unknown error";
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`));
+        }
+        controller.enqueue(DONE_CHUNK);
+        controller.close();
+      },
     });
 
-    const reply = response.content[0]?.type === "text" ? response.content[0].text : "Sorry, I couldn't generate a response.";
-    return NextResponse.json({ reply });
+    return new Response(stream, { headers: SSE_HEADERS });
   }
 
   const systemPrompt = `You are the Buena Onda AI — an expert Meta ads analyst, strategist, and operator embedded in the Buena Onda dashboard. You help agency owners and media buyers make smart decisions and take direct action on their Meta ad accounts.
@@ -501,55 +525,59 @@ Keep responses concise and actionable. Use numbers when you have them.
 
 ${imageHash ? `UPLOADED CREATIVE: The user has already uploaded an image. Use this exact image_hash as the creative_url parameter when calling create_ad_campaign: ${imageHash}` : ""}`;
 
-  const apiMessages: Anthropic.MessageParam[] = messages.map((m: Message) => ({
+  let currentMessages: Anthropic.MessageParam[] = messages.map((m: Message) => ({
     role: m.role,
     content: m.content,
   }));
 
-  let response = await anthropic.messages.create({
-    model: "claude-sonnet-4-5",
-    max_tokens: 1500,
-    system: systemPrompt,
-    tools: TOOLS,
-    messages: apiMessages,
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        let toolLoopCount = 0;
+        while (toolLoopCount <= 8) {
+          const finalMessage = await anthropic.messages.stream({
+            model: "claude-sonnet-4-5",
+            max_tokens: 1500,
+            system: systemPrompt,
+            tools: TOOLS,
+            messages: currentMessages,
+          }).on("text", (text) => {
+            controller.enqueue(sseChunk(text));
+          }).finalMessage();
+
+          if (finalMessage.stop_reason !== "tool_use") break;
+
+          const toolUseBlocks = finalMessage.content.filter(
+            (b: Anthropic.ContentBlock): b is Anthropic.ToolUseBlock => b.type === "tool_use"
+          );
+
+          const toolResults = await Promise.all(
+            toolUseBlocks.map(async (block: Anthropic.ToolUseBlock) => {
+              const result = await executeTool(
+                block.name,
+                block.input as Record<string, unknown>,
+                clientInfo,
+                imageHash as string | null,
+              );
+              return { type: "tool_result" as const, tool_use_id: block.id, content: result };
+            })
+          );
+
+          currentMessages = [
+            ...currentMessages,
+            { role: "assistant", content: finalMessage.content },
+            { role: "user", content: toolResults },
+          ];
+          toolLoopCount++;
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`));
+      }
+      controller.enqueue(DONE_CHUNK);
+      controller.close();
+    },
   });
 
-  let toolLoopCount = 0;
-  while (response.stop_reason === "tool_use" && toolLoopCount < 8) {
-    toolLoopCount++;
-    const toolUseBlocks = response.content.filter(
-      (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
-    );
-
-    const toolResults = await Promise.all(
-      toolUseBlocks.map(async (block) => {
-        const result = await executeTool(
-          block.name,
-          block.input as Record<string, unknown>,
-          clientInfo,
-          imageHash as string | null,
-        );
-        return { type: "tool_result" as const, tool_use_id: block.id, content: result };
-      })
-    );
-
-    response = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 1500,
-      system: systemPrompt,
-      tools: TOOLS,
-      messages: [
-        ...apiMessages,
-        { role: "assistant", content: response.content },
-        { role: "user", content: toolResults },
-      ],
-    });
-  }
-
-  const reply = response.content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("");
-
-  return NextResponse.json({ reply });
+  return new Response(stream, { headers: SSE_HEADERS });
 }
