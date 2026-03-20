@@ -41,11 +41,11 @@ const SUGGESTED_PROMPTS = [
 ];
 
 const ONBOARDING_PROMPTS = [
-  "How do I get started?",
-  "Where do I find my Ad Account ID?",
-  "How do I connect my Facebook account?",
-  "What can Buena Onda do for my agency?",
-  "What's a Facebook Page ID and where do I find it?",
+  "Give me the full tour",
+  "How does the AI campaign builder work?",
+  "How does campaign diagnostics work?",
+  "Tell me about the reporting features",
+  "I'm ready to set up my first client",
 ];
 
 interface PendingCreative {
@@ -85,7 +85,7 @@ export default function ChatBubble() {
         id: "welcome",
         role: "assistant",
         content: isOnboarding
-          ? "Hey, welcome to Buena Onda! 👋 I'm your AI assistant. Let me walk you through getting set up — it only takes a few minutes. What do you need help with first?"
+          ? "Hey, welcome to Buena Onda! 👋\n\nBefore we get you set up, let me show you what this thing can actually do — because it's a lot.\n\nI can build full Meta campaigns from a conversation, diagnose why your CPL is rising, pause or scale anything instantly, generate client reports on demand, and flag issues across all your accounts the moment you log in.\n\nWant the full tour, or are you ready to jump straight into setup?"
           : activeClient
             ? `Hey — I'm your Buena Onda AI. I have live access to ${activeClient.name}'s campaign data. Ask me anything about performance, decisions, or strategy.`
             : "Hey — I'm your Buena Onda AI. Select a client account to get campaign-specific insights, or ask me anything about Meta ads strategy.",
