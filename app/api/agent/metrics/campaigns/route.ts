@@ -18,8 +18,16 @@ export async function GET(req: NextRequest) {
   const startDate = searchParams.get("startDate") ?? new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0];
   const endDate = searchParams.get("endDate") ?? today;
   const adAccountIdParam = searchParams.get("ad_account_id");
+  const clientId = searchParams.get("client_id");
 
-  const token = process.env.META_ACCESS_TOKEN;
+  // Resolve token — use client's stored token if available, fall back to env var
+  let token = process.env.META_ACCESS_TOKEN ?? "";
+  if (clientId) {
+    const { neon } = await import("@neondatabase/serverless");
+    const sql = neon(process.env.DATABASE_URL!);
+    const rows = await sql`SELECT meta_access_token FROM clients WHERE id = ${clientId} LIMIT 1`;
+    if (rows[0]?.meta_access_token) token = rows[0].meta_access_token as string;
+  }
   if (!token) return NextResponse.json({ error: "Missing META_ACCESS_TOKEN" }, { status: 500 });
 
   // Resolve which ad account(s) to query

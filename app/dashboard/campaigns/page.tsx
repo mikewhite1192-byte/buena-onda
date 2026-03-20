@@ -303,9 +303,10 @@ export default function CampaignsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     const adAccountParam = activeClient?.meta_ad_account_id ? `&ad_account_id=${activeClient.meta_ad_account_id}` : "";
+    const clientParam = activeClient?.id ? `&client_id=${activeClient.id}` : "";
     try {
       const [campaignsRes, presetsRes] = await Promise.all([
-        fetch(`/api/agent/metrics/campaigns?startDate=${startDate}&endDate=${endDate}${adAccountParam}`),
+        fetch(`/api/agent/metrics/campaigns?startDate=${startDate}&endDate=${endDate}${adAccountParam}${clientParam}`),
         fetch("/api/agent/presets"),
       ]);
       const [campaignsData, presetsData] = await Promise.all([campaignsRes.json(), presetsRes.json()]);
