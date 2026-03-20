@@ -391,7 +391,7 @@ export default function ChatBubble() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={pendingCreative ? "Now describe the campaign..." : "Ask anything or create a campaign..."}
+                placeholder={pendingCreative ? "Describe the campaign..." : "Ask anything..."}
                 rows={1}
                 style={{
                   flex: 1, background: "#0d1818", border: "1px solid #1a2f2f",
