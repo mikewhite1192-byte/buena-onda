@@ -3,6 +3,7 @@
 // components/chat/ChatBubble.tsx
 import { useState, useRef, useEffect } from "react";
 import { useActiveClient } from "@/lib/context/client-context";
+import { useTour } from "@/lib/context/tour-context";
 
 interface Message {
   id: string;
@@ -56,6 +57,7 @@ interface PendingCreative {
 
 export default function ChatBubble() {
   const { activeClient, hasNoClients } = useActiveClient();
+  const { tourActive, step, startTour } = useTour();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -67,10 +69,12 @@ export default function ChatBubble() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const autoOpenedRef = useRef(false);
+  const hasSentStep3Ref = useRef(false);
+  const hasSentStep4Ref = useRef(false);
 
-  const isOnboarding = hasNoClients === true;
+  const isOnboarding = hasNoClients === true && !tourActive;
 
-  // Auto-open for new users
+  // Auto-open for new users (onboarding modal)
   useEffect(() => {
     if (isOnboarding && !autoOpenedRef.current) {
       autoOpenedRef.current = true;
@@ -78,6 +82,32 @@ export default function ChatBubble() {
       return () => clearTimeout(t);
     }
   }, [isOnboarding]);
+
+  // Tour step 3 — open chat and auto-send optimization question
+  useEffect(() => {
+    if (step === 3 && !hasSentStep3Ref.current) {
+      hasSentStep3Ref.current = true;
+      setOpen(true);
+      setMessages([]);
+      const t = setTimeout(() => {
+        sendMessage("How do you decide which ad sets to scale and which to pause? Walk me through your thinking.");
+      }, 800);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
+  // Tour step 4 — auto-send campaign creation demo
+  useEffect(() => {
+    if (step === 4 && !hasSentStep4Ref.current) {
+      hasSentStep4Ref.current = true;
+      const t = setTimeout(() => {
+        sendMessage("Walk me through building a campaign for a final expense insurance company targeting seniors 65+ in Texas with $50/day. Describe each step — don't create it yet.");
+      }, 400);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
 
   useEffect(() => {
     if (open && messages.length === 0) {
@@ -241,7 +271,7 @@ export default function ChatBubble() {
         />
       )}
       {open && (
-        <div style={{
+        <div data-chat-open="true" style={{
           position: "fixed",
           ...(isOnboarding ? {
             top: "50%",
@@ -331,6 +361,33 @@ export default function ChatBubble() {
                 }}>
                   {msg.role === "assistant" ? renderMarkdown(msg.content) : msg.content}
                 </div>
+                {/* Take the Tour button — only on welcome message during onboarding */}
+                {msg.id === "welcome" && hasNoClients && !tourActive && (
+                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    <button
+                      onClick={() => { startTour(); setOpen(false); }}
+                      style={{
+                        flex: 1, padding: "9px 0", borderRadius: 8,
+                        border: "1px solid rgba(245,166,35,0.4)",
+                        background: "rgba(245,166,35,0.12)", color: "#f5a623",
+                        fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                      }}
+                    >
+                      Take the Tour →
+                    </button>
+                    <button
+                      onClick={() => setShowSuggestions(true)}
+                      style={{
+                        flex: 1, padding: "9px 0", borderRadius: 8,
+                        border: "1px solid rgba(255,255,255,0.06)",
+                        background: "transparent", color: "#8b8fa8",
+                        fontSize: 12, cursor: "pointer", fontFamily: "inherit",
+                      }}
+                    >
+                      Skip, set up now
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
 

@@ -5,7 +5,9 @@ import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import { ClientProvider, useActiveClient } from "@/lib/context/client-context";
+import { TourProvider } from "@/lib/context/tour-context";
 import ChatBubble from "@/components/chat/ChatBubble";
+import TourCard from "@/components/tour/TourCard";
 
 const T = {
   bg: "#0d0f14",
@@ -257,6 +259,7 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
       <main>{children}</main>
 
       <ChatBubble />
+      <TourCard />
     </div>
   );
 }
@@ -264,7 +267,9 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <ClientProvider>
-      <DashboardNav>{children}</DashboardNav>
+      <TourProvider>
+        <DashboardNav>{children}</DashboardNav>
+      </TourProvider>
     </ClientProvider>
   );
 }
