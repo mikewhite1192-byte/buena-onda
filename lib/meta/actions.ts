@@ -119,12 +119,19 @@ interface MetaPaged<T> {
 // ── getAdSetMetrics ──────────────────────────────────────────────────────────
 
 export async function getAdSetMetrics(
-  adsetId: string
+  adsetId: string,
+  days?: number
 ): Promise<MetaResult<AdSetMetrics>> {
   try {
+    const today = new Date().toISOString().split("T")[0];
+    const since = days
+      ? new Date(Date.now() - days * 86400000).toISOString().split("T")[0]
+      : "2024-01-01";
+    const timeRange = JSON.stringify({ since, until: today });
+
     // Build URLs manually for logging (metaGet adds the token, so log without it)
     const adsetUrl = `${META_BASE_URL}/${adsetId}?fields=id,name,status,daily_budget`;
-    const insightsUrl = `${META_BASE_URL}/${adsetId}/insights?fields=adset_id,adset_name,impressions,clicks,spend,actions,ctr,frequency&time_range={"since":"2024-01-01","until":"2026-12-31"}&level=adset`;
+    const insightsUrl = `${META_BASE_URL}/${adsetId}/insights?fields=adset_id,adset_name,impressions,clicks,spend,actions,ctr,frequency&time_range=${timeRange}&level=adset`;
     console.log("[getAdSetMetrics] Calling adset URL:", adsetUrl);
     console.log("[getAdSetMetrics] Calling insights URL:", insightsUrl);
 
@@ -132,7 +139,7 @@ export async function getAdSetMetrics(
     const rawInsightsUrl = new URL(`${META_BASE_URL}/${adsetId}/insights`);
     rawInsightsUrl.searchParams.set("access_token", getAccessToken());
     rawInsightsUrl.searchParams.set("fields", ["adset_id", "adset_name", ...ALL_API_FIELDS].join(","));
-    rawInsightsUrl.searchParams.set("time_range", JSON.stringify({ since: "2024-01-01", until: "2026-12-31" }));
+    rawInsightsUrl.searchParams.set("time_range", timeRange);
     rawInsightsUrl.searchParams.set("level", "adset");
     const rawInsightsRes = await fetch(rawInsightsUrl.toString(), { cache: "no-store" });
     const rawInsightsBody = await rawInsightsRes.text();
@@ -145,7 +152,7 @@ export async function getAdSetMetrics(
       }),
       metaGet<MetaPaged<RawInsight>>(`/${adsetId}/insights`, {
         fields: ["adset_id", "adset_name", ...ALL_API_FIELDS].join(","),
-        time_range: JSON.stringify({ since: "2024-01-01", until: "2026-12-31" }),
+        time_range: timeRange,
         level: "adset",
       }),
     ]);
