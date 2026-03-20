@@ -120,32 +120,17 @@ interface MetaPaged<T> {
 
 export async function getAdSetMetrics(
   adsetId: string,
-  days?: number
+  days?: number,
+  sinceDate?: string,
+  untilDate?: string
 ): Promise<MetaResult<AdSetMetrics>> {
   try {
     const today = new Date().toISOString().split("T")[0];
-    const since = days
+    const until = untilDate ?? today;
+    const since = sinceDate ?? (days
       ? new Date(Date.now() - days * 86400000).toISOString().split("T")[0]
-      : "2024-01-01";
-    const timeRange = JSON.stringify({ since, until: today });
-
-    // Build URLs manually for logging (metaGet adds the token, so log without it)
-    const adsetUrl = `${META_BASE_URL}/${adsetId}?fields=id,name,status,daily_budget`;
-    const insightsUrl = `${META_BASE_URL}/${adsetId}/insights?fields=adset_id,adset_name,impressions,clicks,spend,actions,ctr,frequency&time_range=${timeRange}&level=adset`;
-    console.log("[getAdSetMetrics] Calling adset URL:", adsetUrl);
-    console.log("[getAdSetMetrics] Calling insights URL:", insightsUrl);
-
-    // Log raw insights response (status + body) before metaGet parses it
-    const rawInsightsUrl = new URL(`${META_BASE_URL}/${adsetId}/insights`);
-    rawInsightsUrl.searchParams.set("access_token", getAccessToken());
-    rawInsightsUrl.searchParams.set("fields", ["adset_id", "adset_name", ...ALL_API_FIELDS].join(","));
-    rawInsightsUrl.searchParams.set("time_range", timeRange);
-    rawInsightsUrl.searchParams.set("time_increment", "1");
-    rawInsightsUrl.searchParams.set("level", "adset");
-    const rawInsightsRes = await fetch(rawInsightsUrl.toString(), { cache: "no-store" });
-    const rawInsightsBody = await rawInsightsRes.text();
-    console.log("[getAdSetMetrics] insights raw status:", rawInsightsRes.status);
-    console.log("[getAdSetMetrics] insights raw body:", rawInsightsBody);
+      : "2024-01-01");
+    const timeRange = JSON.stringify({ since, until });
 
     const [adsetRes, insightsRes] = await Promise.all([
       metaGet<RawAdSet>(`/${adsetId}`, {
@@ -154,14 +139,9 @@ export async function getAdSetMetrics(
       metaGet<MetaPaged<RawInsight>>(`/${adsetId}/insights`, {
         fields: ["adset_id", "adset_name", ...ALL_API_FIELDS].join(","),
         time_range: timeRange,
-        time_increment: "1",
         level: "adset",
       }),
     ]);
-
-    console.log("[getAdSetMetrics] Raw adset response:", JSON.stringify(adsetRes, null, 2));
-    console.log("[getAdSetMetrics] adset name:", adsetRes.name);
-    console.log("[getAdSetMetrics] Raw insights response:", JSON.stringify(insightsRes, null, 2));
 
     const insights = insightsRes.data ?? [];
     const spend = insights.reduce((sum, r) => sum + parseFloat(r.spend ?? '0'), 0);

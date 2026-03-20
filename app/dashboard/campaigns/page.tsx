@@ -322,15 +322,14 @@ export default function CampaignsPage() {
     setLoading(true);
     const adAccountParam = activeClient?.meta_ad_account_id ? `&ad_account_id=${activeClient.meta_ad_account_id}` : "";
     try {
-      const [sumRes, metricsRes, presetsRes] = await Promise.all([
-        fetch(`/api/agent/metrics/summary?days=${computedDays}${adAccountParam}`),
-        fetch(`/api/agent/metrics?days=${computedDays}${adAccountParam}`),
+      const [liveRes, presetsRes] = await Promise.all([
+        fetch(`/api/agent/metrics/live?startDate=${startDate}&endDate=${endDate}${adAccountParam}`),
         fetch("/api/agent/presets"),
       ]);
-      const [sumData, metricsData, presetsData] = await Promise.all([sumRes.json(), metricsRes.json(), presetsRes.json()]);
-      setSummary(sumData);
-      setAdSets(metricsData.ad_sets ?? []);
-      setTrends(metricsData.trends ?? {});
+      const [liveData, presetsData] = await Promise.all([liveRes.json(), presetsRes.json()]);
+      setSummary({ current: liveData.current, previous: liveData.previous, active_briefs: liveData.active_briefs });
+      setAdSets(liveData.ad_sets ?? []);
+      setTrends(liveData.trends ?? {});
       setPresets(presetsData.presets ?? []);
 
       const defaultPreset = (presetsData.presets ?? []).find((p: Preset) => p.is_default);
@@ -340,7 +339,7 @@ export default function CampaignsPage() {
     } finally {
       setLoading(false);
     }
-  }, [computedDays, activeClient]);
+  }, [startDate, endDate, activeClient]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
