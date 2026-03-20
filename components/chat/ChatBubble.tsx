@@ -217,7 +217,7 @@ export default function ChatBubble() {
           flexDirection: "column",
           zIndex: 1000,
           boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
-          fontFamily: "'system-ui, -apple-system, sans-serif",
+          fontFamily: "'DM Mono', 'Fira Mono', monospace",
           overflow: "hidden",
         }}>
           {/* Header */}
@@ -325,7 +325,7 @@ export default function ChatBubble() {
                         fontSize: 11,
                         cursor: "pointer",
                         textAlign: "left" as const,
-                        fontFamily: "'system-ui, -apple-system, sans-serif",
+                        fontFamily: "'DM Mono', 'Fira Mono', monospace",
                         transition: "all 0.15s",
                       }}
                     >
@@ -396,7 +396,7 @@ export default function ChatBubble() {
                 style={{
                   flex: 1, background: "#161820", border: "1px solid rgba(255,255,255,0.06)",
                   borderRadius: 8, color: "#e8eaf0", fontSize: 12,
-                  fontFamily: "'system-ui, -apple-system, sans-serif", padding: "8px 12px",
+                  fontFamily: "'DM Mono', 'Fira Mono', monospace", padding: "8px 12px",
                   outline: "none", resize: "none", lineHeight: 1.5, maxHeight: 80,
                 }}
               />

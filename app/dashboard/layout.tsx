@@ -87,7 +87,7 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
   const vertColor = localActive ? (localActive.vertical === "leads" ? T.leads : T.ecomm) : T.muted;
 
   return (
-    <div style={{ minHeight: "100vh", background: T.bg, fontFamily: "system-ui, -apple-system, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: T.bg, fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
 
       {/* Top Nav */}
       <div style={{

@@ -162,7 +162,7 @@ export default function ClientsPage() {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#e8eaf0", fontFamily: "'system-ui, -apple-system, sans-serif" }}>
+          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#e8eaf0", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
             Clients
           </h1>
           <div style={{ fontSize: 12, color: "#8b8fa8", marginTop: 4 }}>
@@ -179,7 +179,7 @@ export default function ClientsPage() {
             padding: "8px 18px",
             fontSize: 13,
             fontWeight: 600,
-            fontFamily: "'system-ui, -apple-system, sans-serif",
+            fontFamily: "'DM Mono', 'Fira Mono', monospace",
             cursor: "pointer",
           }}
         >
@@ -307,7 +307,7 @@ export default function ClientsPage() {
                     fontSize: 11,
                     color: "#8b8fa8",
                     cursor: "pointer",
-                    fontFamily: "'system-ui, -apple-system, sans-serif",
+                    fontFamily: "'DM Mono', 'Fira Mono', monospace",
                   }}
                 >
                   {c.status === "active" ? "Pause" : "Activate"}
@@ -322,7 +322,7 @@ export default function ClientsPage() {
                     fontSize: 11,
                     color: "#8b8fa8",
                     cursor: "pointer",
-                    fontFamily: "'system-ui, -apple-system, sans-serif",
+                    fontFamily: "'DM Mono', 'Fira Mono', monospace",
                   }}
                 >
                   Edit
@@ -337,7 +337,7 @@ export default function ClientsPage() {
                     fontSize: 11,
                     color: "#7a3a3a",
                     cursor: "pointer",
-                    fontFamily: "'system-ui, -apple-system, sans-serif",
+                    fontFamily: "'DM Mono', 'Fira Mono', monospace",
                   }}
                 >
                   Delete
@@ -366,7 +366,7 @@ export default function ClientsPage() {
             width: 480,
             maxWidth: "90vw",
           }}>
-            <h2 style={{ margin: "0 0 20px", fontSize: 16, fontWeight: 700, color: "#e8eaf0", fontFamily: "'system-ui, -apple-system, sans-serif" }}>
+            <h2 style={{ margin: "0 0 20px", fontSize: 16, fontWeight: 700, color: "#e8eaf0", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
               {editingId ? "Edit Client" : "Add Client"}
             </h2>
 
@@ -460,7 +460,7 @@ export default function ClientsPage() {
                   fontSize: 13,
                   color: "#8b8fa8",
                   cursor: "pointer",
-                  fontFamily: "'system-ui, -apple-system, sans-serif",
+                  fontFamily: "'DM Mono', 'Fira Mono', monospace",
                 }}
               >
                 Cancel
@@ -477,7 +477,7 @@ export default function ClientsPage() {
                   fontSize: 13,
                   fontWeight: 600,
                   cursor: saving ? "not-allowed" : "pointer",
-                  fontFamily: "'system-ui, -apple-system, sans-serif",
+                  fontFamily: "'DM Mono', 'Fira Mono', monospace",
                 }}
               >
                 {saving ? "Saving..." : editingId ? "Save Changes" : "Add Client"}
@@ -493,7 +493,7 @@ export default function ClientsPage() {
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div>
-      <label style={{ display: "block", fontSize: 11, color: "#8b8fa8", marginBottom: 5, fontFamily: "'system-ui, -apple-system, sans-serif", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+      <label style={{ display: "block", fontSize: 11, color: "#8b8fa8", marginBottom: 5, fontFamily: "'DM Mono', 'Fira Mono', monospace", textTransform: "uppercase", letterSpacing: "0.06em" }}>
         {label}
       </label>
       {children}
@@ -510,7 +510,7 @@ const inputStyle: React.CSSProperties = {
   padding: "8px 10px",
   fontSize: 13,
   color: "#e8eaf0",
-  fontFamily: "'system-ui, -apple-system, sans-serif",
+  fontFamily: "'DM Mono', 'Fira Mono', monospace",
   outline: "none",
   boxSizing: "border-box",
 };

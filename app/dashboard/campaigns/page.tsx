@@ -143,7 +143,7 @@ const btnStyle = (active: boolean) => ({
   border: active ? "1px solid #f5a623" : "1px solid rgba(255,255,255,0.06)",
   background: active ? "rgba(245,166,35,0.15)" : "transparent",
   color: active ? "#e8eaf0" : "#8b8fa8",
-  cursor: "pointer" as const, fontFamily: "'system-ui, -apple-system, sans-serif", transition: "all 0.15s",
+  cursor: "pointer" as const, fontFamily: "'DM Mono', 'Fira Mono', monospace", transition: "all 0.15s",
 });
 
 // ─── Column Picker Modal ──────────────────────────────────────────────────────
@@ -209,7 +209,7 @@ function ColumnPickerModal({
           <input
             type="text" placeholder="Search metrics..."
             value={search} onChange={e => setSearch(e.target.value)}
-            style={{ width: "100%", background: "#0d0f14", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, color: "#e8eaf0", fontSize: 13, fontFamily: "'system-ui, -apple-system, sans-serif", padding: "7px 12px", outline: "none", boxSizing: "border-box" as const }}
+            style={{ width: "100%", background: "#0d0f14", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, color: "#e8eaf0", fontSize: 13, fontFamily: "'DM Mono', 'Fira Mono', monospace", padding: "7px 12px", outline: "none", boxSizing: "border-box" as const }}
           />
         </div>
 
@@ -251,7 +251,7 @@ function ColumnPickerModal({
             {showPresetInput ? (
               <>
                 <input type="text" placeholder="Preset name..." value={presetName} onChange={e => setPresetName(e.target.value)}
-                  style={{ background: "#0d0f14", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, color: "#e8eaf0", fontSize: 12, fontFamily: "'system-ui, -apple-system, sans-serif", padding: "6px 10px", outline: "none", width: 160 }} />
+                  style={{ background: "#0d0f14", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, color: "#e8eaf0", fontSize: 12, fontFamily: "'DM Mono', 'Fira Mono', monospace", padding: "6px 10px", outline: "none", width: 160 }} />
                 <button onClick={() => { if (presetName) { onSavePreset(presetName); setPresetName(""); setShowPresetInput(false); } }} style={{ ...btnStyle(true), padding: "6px 12px" }}>Save</button>
                 <button onClick={() => setShowPresetInput(false)} style={{ ...btnStyle(false), padding: "6px 12px" }}>Cancel</button>
               </>
@@ -424,7 +424,7 @@ export default function CampaignsPage() {
   const colMin = 280 + visibleColsArray.length * 120;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0d0f14", fontFamily: "'system-ui, -apple-system, sans-serif", color: "#e8eaf0", padding: "40px 24px" }}>
+    <div style={{ minHeight: "100vh", background: "#0d0f14", fontFamily: "'DM Mono', 'Fira Mono', monospace", color: "#e8eaf0", padding: "40px 24px" }}>
       {showColModal && (
         <ColumnPickerModal visibleCols={visibleCols} onChange={setVisibleCols} onClose={() => setShowColModal(false)}
           onSavePreset={savePreset} presets={presets} onLoadPreset={loadPreset} onDeletePreset={deletePreset} />
@@ -469,10 +469,10 @@ export default function CampaignsPage() {
             {datePreset === "custom" && (
               <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, padding: "8px 14px" }}>
                 <span style={{ fontSize: 11, color: "#8b8fa8" }}>FROM</span>
-                <input type="date" value={startDate} max={endDate} onChange={e => setStartDate(e.target.value)} style={{ background: "transparent", border: "none", color: "#e8eaf0", fontSize: 12, fontFamily: "'system-ui, -apple-system, sans-serif", outline: "none" }} />
+                <input type="date" value={startDate} max={endDate} onChange={e => setStartDate(e.target.value)} style={{ background: "transparent", border: "none", color: "#e8eaf0", fontSize: 12, fontFamily: "'DM Mono', 'Fira Mono', monospace", outline: "none" }} />
                 <span style={{ fontSize: 11, color: "#5a5e72" }}>—</span>
                 <span style={{ fontSize: 11, color: "#8b8fa8" }}>TO</span>
-                <input type="date" value={endDate} min={startDate} max={today} onChange={e => setEndDate(e.target.value)} style={{ background: "transparent", border: "none", color: "#e8eaf0", fontSize: 12, fontFamily: "'system-ui, -apple-system, sans-serif", outline: "none" }} />
+                <input type="date" value={endDate} min={startDate} max={today} onChange={e => setEndDate(e.target.value)} style={{ background: "transparent", border: "none", color: "#e8eaf0", fontSize: 12, fontFamily: "'DM Mono', 'Fira Mono', monospace", outline: "none" }} />
                 <button onClick={fetchData} style={{ ...btnStyle(false), padding: "3px 10px" }}>Apply</button>
               </div>
             )}
@@ -501,7 +501,7 @@ export default function CampaignsPage() {
             {/* Table controls */}
             <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
               <input type="text" placeholder="Search campaigns..." value={search} onChange={e => setSearch(e.target.value)}
-                style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, color: "#e8eaf0", fontSize: 12, fontFamily: "'system-ui, -apple-system, sans-serif", padding: "6px 12px", outline: "none", width: 220 }} />
+                style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, color: "#e8eaf0", fontSize: 12, fontFamily: "'DM Mono', 'Fira Mono', monospace", padding: "6px 12px", outline: "none", width: 220 }} />
 
               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 <span style={{ fontSize: 11, color: "#5a5e72" }}>SORT</span>
