@@ -136,7 +136,7 @@ const TOOLS: Anthropic.Tool[] = [
           description: "Countries (2-letter codes like 'US') OR US state/region names like 'Texas', 'Florida'. Mix is fine.",
         },
         daily_budget_usd: { type: "number", description: "Daily budget in USD" },
-        creative_url: { type: "string", description: "Public image URL or image_hash from a prior upload" },
+        creative_url: { type: "string", description: "Image: public URL or image_hash from 📎 upload. Video: public URL ending in .mp4/.mov/.avi (must be publicly accessible)." },
         destination_url: { type: "string", description: "Landing page URL. Required for TRAFFIC/SALES. Omit for lead gen." },
         lead_form_id: { type: "string", description: "Instant form ID for lead gen campaigns. Use list_lead_forms to get available forms." },
         page_id: { type: "string", description: "Facebook Page ID. Optional if META_PAGE_ID env var is set." },
@@ -280,7 +280,10 @@ async function executeTool(
       copy.primary_text = `${target_avatar}. Get your free quote today.`;
     }
 
-    const isHash = /^[a-f0-9]{32}$/i.test(creative_url as string);
+    const creativeStr = creative_url as string;
+    const isHash = /^[a-f0-9]{32}$/i.test(creativeStr);
+    const isVideo = !isHash && /\.(mp4|mov|avi|mkv|webm)(\?|$)/i.test(creativeStr);
+
     const objectiveMap: Record<string, { obj: "OUTCOME_LEADS" | "OUTCOME_TRAFFIC" | "OUTCOME_SALES"; goal: "LEAD_GENERATION" | "LINK_CLICKS" | "OFFSITE_CONVERSIONS" }> = {
       LEADS: { obj: "OUTCOME_LEADS", goal: "LEAD_GENERATION" },
       TRAFFIC: { obj: "OUTCOME_TRAFFIC", goal: "LINK_CLICKS" },
@@ -304,8 +307,9 @@ async function executeTool(
       regionKeys: regionKeys.length ? regionKeys : undefined,
       ageMin: age_min as number,
       ageMax: age_max as number,
-      imageHash: isHash ? (creative_url as string) : undefined,
-      imageUrl: isHash ? undefined : (creative_url as string),
+      imageHash: isHash ? creativeStr : undefined,
+      imageUrl: !isHash && !isVideo ? creativeStr : undefined,
+      videoUrl: isVideo ? creativeStr : undefined,
       primaryText: copy.primary_text,
       headline: copy.headline,
       description: copy.description,
@@ -392,16 +396,21 @@ You have a direct, knowledgeable communication style. No fluff, no filler. Real 
 
 When the user asks you to take an action, confirm the ID you're acting on before executing. For destructive actions (delete_ad), confirm explicitly with the user first.
 
-**CAMPAIGN CREATION:**
-To create a campaign you need: industry, target avatar, locations, daily budget, creative (URL or image_hash), and either a destination URL (traffic/sales) OR a lead_form_id (instant form lead gen).
+**CAMPAIGN CREATION FLOW:**
+When a user wants to create a campaign, walk through these steps conversationally before calling the tool:
 
-For lead gen campaigns: first call list_lead_forms so the user can pick their form ID.
+1. **Special Ad Category** — Always ask first: "Is this ad for a special category? Meta requires this declaration for: credit offers, employment ads, housing ads, financial products or services (including insurance), or political/social issue content. If any apply, Meta will restrict age and gender targeting to ensure fairness — but you must declare it or your ad can be rejected. Does this apply to your campaign?"
+   - If yes, identify the right category: FINANCIAL_PRODUCTS_SERVICES, CREDIT, EMPLOYMENT, HOUSING, or ISSUES_ELECTIONS_POLITICS.
 
-Locations accept country codes ("US") OR state/region names ("Texas", "Florida", "Michigan") — mix is fine.
+2. **Lead form or landing page** — Ask if they want an instant form (lead gen) or a website URL. For lead gen: call list_lead_forms first so they can pick their form.
 
-For regulated industries (insurance, financial, housing, employment) always set special_ad_categories — e.g. ["FINANCIAL_PRODUCTS_SERVICES"]. This removes age/gender targeting restrictions automatically.
+3. **Creative** — For images: they can upload via the 📎 button and you'll get the image_hash. For videos: they must provide a public URL (Google Drive direct link, Dropbox, their CDN, etc.) — video files cannot be uploaded directly due to file size limits.
 
-You generate the ad copy. All campaigns created PAUSED for review before going live.
+4. **Locations** — Accept state names ("Texas", "Florida") or country codes ("US").
+
+5. **Build and confirm** — Summarize what you're about to create, then call create_ad_campaign.
+
+You generate the ad copy. All campaigns are created PAUSED for review before going live.
 
 ${clientInfo ? `
 CURRENT CLIENT:

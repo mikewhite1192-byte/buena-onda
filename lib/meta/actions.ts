@@ -318,19 +318,21 @@ export interface CampaignCreationParams {
   optimizationGoal: "LEAD_GENERATION" | "LINK_CLICKS" | "OFFSITE_CONVERSIONS";
   billingEvent: "IMPRESSIONS" | "LINK_CLICKS";
   dailyBudgetCents: number;
-  countries?: string[];       // ISO 2-letter codes e.g. ["US"]
-  regionKeys?: GeoKey[];      // Meta region keys for state-level targeting
-  ageMin?: number;            // omit for special ad category campaigns
+  countries?: string[];
+  regionKeys?: GeoKey[];
+  ageMin?: number;
   ageMax?: number;
   imageHash?: string;
   imageUrl?: string;
+  videoId?: string;           // pre-uploaded video ID
+  videoUrl?: string;          // public URL — we upload it and get a video_id
   primaryText: string;
   headline: string;
   description?: string;
   ctaType: string;
-  destinationUrl?: string;    // required for traffic/conversion ads
-  leadFormId?: string;        // required for lead gen instant form ads
-  specialAdCategories?: string[];  // e.g. ["FINANCIAL_PRODUCTS_SERVICES"]
+  destinationUrl?: string;
+  leadFormId?: string;
+  specialAdCategories?: string[];
 }
 
 export interface CampaignCreationResult {
@@ -338,7 +340,8 @@ export interface CampaignCreationResult {
   adset_id: string;
   ad_creative_id: string;
   ad_id: string;
-  image_hash: string;
+  image_hash?: string;
+  video_id?: string;
 }
 
 export async function createMetaCampaign(
@@ -347,9 +350,18 @@ export async function createMetaCampaign(
   try {
     const acct = params.adAccountId.startsWith("act_") ? params.adAccountId : `act_${params.adAccountId}`;
 
-    // 1. Upload image if URL provided (no hash supplied)
+    // 1. Resolve creative — image (hash or URL) or video (id or URL)
+    const isVideoCreative = !!(params.videoId || params.videoUrl);
     let imageHash = params.imageHash;
-    if (!imageHash && params.imageUrl) {
+    let videoId = params.videoId;
+
+    if (isVideoCreative && !videoId && params.videoUrl) {
+      const vidRes = await metaPost<{ id: string }>(`/${acct}/advideos`, {
+        file_url: params.videoUrl,
+        name: params.adName,
+      });
+      videoId = vidRes.id;
+    } else if (!imageHash && params.imageUrl) {
       const imgRes = await metaPost<{ images: Record<string, { hash: string }> }>(
         `/${acct}/adimages`,
         { url: params.imageUrl }
@@ -358,7 +370,8 @@ export async function createMetaCampaign(
       if (entries.length === 0) throw new Error("Image upload returned no hash");
       imageHash = entries[0][1].hash;
     }
-    if (!imageHash) throw new Error("No image hash or image URL provided");
+
+    if (!imageHash && !videoId) throw new Error("No image or video creative provided");
 
     // 2. Create campaign
     const campaign = await metaPost<{ id: string }>(`/${acct}/campaigns`, {
@@ -392,25 +405,39 @@ export async function createMetaCampaign(
       start_time: new Date(Date.now() + 86400000).toISOString(),
     });
 
-    // 4. Create ad creative — lead form vs. traffic/conversion
+    // 4. Create ad creative — video vs image, lead form vs. traffic/conversion
     const isLeadAd = !!params.leadFormId;
-    const linkData: Record<string, unknown> = {
-      image_hash: imageHash,
-      message: params.primaryText,
-      name: params.headline,
-      description: params.description ?? "",
-      call_to_action: isLeadAd
-        ? { type: params.ctaType || "SIGN_UP", value: { lead_gen_form_id: params.leadFormId } }
-        : { type: params.ctaType || "LEARN_MORE", value: { link: params.destinationUrl } },
-    };
-    if (!isLeadAd && params.destinationUrl) linkData.link = params.destinationUrl;
+    const ctaValue = isLeadAd
+      ? { lead_gen_form_id: params.leadFormId }
+      : { link: params.destinationUrl };
+    const callToAction = { type: params.ctaType || (isLeadAd ? "SIGN_UP" : "LEARN_MORE"), value: ctaValue };
+
+    let objectStorySpec: Record<string, unknown>;
+    if (videoId) {
+      objectStorySpec = {
+        page_id: params.pageId,
+        video_data: {
+          video_id: videoId,
+          message: params.primaryText,
+          title: params.headline,
+          call_to_action: callToAction,
+        },
+      };
+    } else {
+      const linkData: Record<string, unknown> = {
+        image_hash: imageHash,
+        message: params.primaryText,
+        name: params.headline,
+        description: params.description ?? "",
+        call_to_action: callToAction,
+      };
+      if (!isLeadAd && params.destinationUrl) linkData.link = params.destinationUrl;
+      objectStorySpec = { page_id: params.pageId, link_data: linkData };
+    }
 
     const creative = await metaPost<{ id: string }>(`/${acct}/adcreatives`, {
       name: params.adName,
-      object_story_spec: {
-        page_id: params.pageId,
-        link_data: linkData,
-      },
+      object_story_spec: objectStorySpec,
     });
 
     // 5. Create ad
@@ -427,6 +454,7 @@ export async function createMetaCampaign(
       ad_creative_id: creative.id,
       ad_id: ad.id,
       image_hash: imageHash,
+      video_id: videoId,
     });
   } catch (err) {
     return fail(err);
