@@ -83,6 +83,13 @@ export default function ChatBubble() {
     }
   }, [isOnboarding]);
 
+  // Open chat when Help button is clicked from the nav
+  useEffect(() => {
+    function handler() { setOpen(true); }
+    document.addEventListener("buenaonda:open-chat", handler);
+    return () => document.removeEventListener("buenaonda:open-chat", handler);
+  }, []);
+
   // Tour step 3 — open chat and auto-send optimization question
   useEffect(() => {
     if (step === 3 && !hasSentStep3Ref.current) {

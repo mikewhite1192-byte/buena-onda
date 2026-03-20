@@ -251,6 +251,29 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
           )}
         </div>
 
+        {/* Help button */}
+        <button
+          onClick={() => document.dispatchEvent(new CustomEvent("buenaonda:open-chat"))}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 2,
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            marginRight: 14,
+            padding: "4px 6px",
+            borderRadius: 6,
+            transition: "background 0.15s",
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+        >
+          <span style={{ fontSize: 13, fontWeight: 700, color: T.muted, lineHeight: 1 }}>?</span>
+          <span style={{ fontSize: 9, color: T.faint, letterSpacing: "0.3px" }}>Help</span>
+        </button>
+
         {/* User button */}
         <UserButton afterSignOutUrl="/sign-in" />
       </div>
