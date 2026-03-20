@@ -295,11 +295,7 @@ export const ALL_API_FIELDS = [
   "video_p100_watched_actions",
   "video_avg_time_watched_actions",
   "cost_per_thruplay",
-  // Instant Experience
-  "canvas_avg_view_time",
-  "canvas_avg_view_percent",
-  // Awareness
-  "estimated_ad_recall_lift",
-  "estimated_ad_recall_lift_rate",
-  "cost_per_estimated_ad_recal_lift",
+  // Instant Experience & Awareness — omitted from default fetch;
+  // Meta errors if requested on non-applicable account types.
+  // These columns will show — unless the account supports them.
 ];
