@@ -11,8 +11,14 @@ export async function GET(req: NextRequest) {
   const state = req.nextUrl.searchParams.get("state");
   const error = req.nextUrl.searchParams.get("error");
 
-  if (error) return NextResponse.redirect(`${BASE_URL}/dashboard/clients?error=facebook_denied`);
-  if (!code || !state) return NextResponse.redirect(`${BASE_URL}/dashboard/clients?error=invalid_callback`);
+  if (error) {
+    const desc = req.nextUrl.searchParams.get("error_description") ?? error;
+    return NextResponse.redirect(`${BASE_URL}/dashboard/clients?error=${encodeURIComponent(desc)}`);
+  }
+  if (!code || !state) {
+    const allParams = [...req.nextUrl.searchParams.entries()].map(([k,v]) => `${k}=${v}`).join(" | ");
+    return NextResponse.redirect(`${BASE_URL}/dashboard/clients?error=${encodeURIComponent("no_code: " + (allParams || "no_params"))}`);
+  }
 
   let clientId: string;
   try {
