@@ -217,6 +217,204 @@ export async function scaleAdSet(
   }
 }
 
+// ── pauseCampaign ────────────────────────────────────────────────────────────
+
+export async function pauseCampaign(
+  campaignId: string
+): Promise<MetaResult<{ campaign_id: string; status: "PAUSED" }>> {
+  try {
+    await metaPost(`/${campaignId}`, { status: "PAUSED" });
+    return ok({ campaign_id: campaignId, status: "PAUSED" as const });
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+// ── enableCampaign ───────────────────────────────────────────────────────────
+
+export async function enableCampaign(
+  campaignId: string
+): Promise<MetaResult<{ campaign_id: string; status: "ACTIVE" }>> {
+  try {
+    await metaPost(`/${campaignId}`, { status: "ACTIVE" });
+    return ok({ campaign_id: campaignId, status: "ACTIVE" as const });
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+// ── scaleCampaignBudget ──────────────────────────────────────────────────────
+
+export async function scaleCampaignBudget(
+  campaignId: string,
+  newDailyBudgetCents: number
+): Promise<MetaResult<{ campaign_id: string; daily_budget_cents: number }>> {
+  try {
+    await metaPost(`/${campaignId}`, { daily_budget: newDailyBudgetCents });
+    return ok({ campaign_id: campaignId, daily_budget_cents: newDailyBudgetCents });
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+// ── pauseAd ──────────────────────────────────────────────────────────────────
+
+export async function pauseAd(
+  adId: string
+): Promise<MetaResult<{ ad_id: string; status: "PAUSED" }>> {
+  try {
+    await metaPost(`/${adId}`, { status: "PAUSED" });
+    return ok({ ad_id: adId, status: "PAUSED" as const });
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+// ── enableAd ─────────────────────────────────────────────────────────────────
+
+export async function enableAd(
+  adId: string
+): Promise<MetaResult<{ ad_id: string; status: "ACTIVE" }>> {
+  try {
+    await metaPost(`/${adId}`, { status: "ACTIVE" });
+    return ok({ ad_id: adId, status: "ACTIVE" as const });
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+// ── deleteAd ─────────────────────────────────────────────────────────────────
+
+export async function deleteAd(
+  adId: string
+): Promise<MetaResult<{ ad_id: string; deleted: true }>> {
+  try {
+    const url = new URL(`${META_BASE_URL}/${adId}`);
+    url.searchParams.set("access_token", getAccessToken());
+    const res = await fetch(url.toString(), { method: "DELETE", cache: "no-store" });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error?.message ?? `Meta API error: ${res.status}`);
+    return ok({ ad_id: adId, deleted: true as const });
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+// ── createMetaCampaign ───────────────────────────────────────────────────────
+
+export interface CampaignCreationParams {
+  adAccountId: string;
+  pageId: string;
+  campaignName: string;
+  adSetName: string;
+  adName: string;
+  objective: "OUTCOME_LEADS" | "OUTCOME_TRAFFIC" | "OUTCOME_SALES";
+  optimizationGoal: "LEAD_GENERATION" | "LINK_CLICKS" | "OFFSITE_CONVERSIONS";
+  billingEvent: "IMPRESSIONS" | "LINK_CLICKS";
+  dailyBudgetCents: number;
+  locations: string[];  // ISO 2-letter country codes e.g. ["US"]
+  ageMin: number;
+  ageMax: number;
+  imageHash?: string;
+  imageUrl?: string;
+  primaryText: string;
+  headline: string;
+  description?: string;
+  ctaType: string;
+  destinationUrl: string;
+}
+
+export interface CampaignCreationResult {
+  campaign_id: string;
+  adset_id: string;
+  ad_creative_id: string;
+  ad_id: string;
+  image_hash: string;
+}
+
+export async function createMetaCampaign(
+  params: CampaignCreationParams
+): Promise<MetaResult<CampaignCreationResult>> {
+  try {
+    const acct = params.adAccountId.startsWith("act_") ? params.adAccountId : `act_${params.adAccountId}`;
+
+    // 1. Upload image if URL provided (no hash supplied)
+    let imageHash = params.imageHash;
+    if (!imageHash && params.imageUrl) {
+      const imgRes = await metaPost<{ images: Record<string, { hash: string }> }>(
+        `/${acct}/adimages`,
+        { url: params.imageUrl }
+      );
+      const entries = Object.entries(imgRes.images ?? {});
+      if (entries.length === 0) throw new Error("Image upload returned no hash");
+      imageHash = entries[0][1].hash;
+    }
+    if (!imageHash) throw new Error("No image hash or image URL provided");
+
+    // 2. Create campaign
+    const campaign = await metaPost<{ id: string }>(`/${acct}/campaigns`, {
+      name: params.campaignName,
+      objective: params.objective,
+      status: "PAUSED",
+      special_ad_categories: [],
+    });
+
+    // 3. Create ad set
+    const adSet = await metaPost<{ id: string }>(`/${acct}/adsets`, {
+      name: params.adSetName,
+      campaign_id: campaign.id,
+      daily_budget: params.dailyBudgetCents,
+      billing_event: params.billingEvent,
+      optimization_goal: params.optimizationGoal,
+      bid_strategy: "LOWEST_COST_WITHOUT_CAP",
+      targeting: {
+        geo_locations: { countries: params.locations },
+        age_min: params.ageMin,
+        age_max: params.ageMax,
+      },
+      status: "PAUSED",
+      start_time: new Date(Date.now() + 86400000).toISOString(),
+    });
+
+    // 4. Create ad creative
+    const creative = await metaPost<{ id: string }>(`/${acct}/adcreatives`, {
+      name: params.adName,
+      object_story_spec: {
+        page_id: params.pageId,
+        link_data: {
+          image_hash: imageHash,
+          link: params.destinationUrl,
+          message: params.primaryText,
+          name: params.headline,
+          description: params.description ?? "",
+          call_to_action: {
+            type: params.ctaType,
+            value: { link: params.destinationUrl },
+          },
+        },
+      },
+    });
+
+    // 5. Create ad
+    const ad = await metaPost<{ id: string }>(`/${acct}/ads`, {
+      name: params.adName,
+      adset_id: adSet.id,
+      creative: { creative_id: creative.id },
+      status: "PAUSED",
+    });
+
+    return ok({
+      campaign_id: campaign.id,
+      adset_id: adSet.id,
+      ad_creative_id: creative.id,
+      ad_id: ad.id,
+      image_hash: imageHash,
+    });
+  } catch (err) {
+    return fail(err);
+  }
+}
+
 // ── duplicateAdSet ───────────────────────────────────────────────────────────
 
 export async function duplicateAdSet(

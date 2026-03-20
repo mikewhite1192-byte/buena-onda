@@ -32,13 +32,19 @@ function renderMarkdown(text: string): React.ReactNode[] {
 }
 
 const SUGGESTED_PROMPTS = [
-  "What's my best performing ad set right now?",
-  "Why did the agent pause that ad set?",
-  "What creative angles should I test next?",
+  "Which ad sets should I scale right now?",
+  "Pause my worst performing ad set",
+  "What's my best performing campaign?",
   "How can I lower my CPL?",
-  "Which ad sets should I scale?",
+  "Create a campaign for [industry] targeting [avatar] in the US with $50/day",
   "Analyze my campaign performance",
 ];
+
+interface PendingCreative {
+  imageHash: string;
+  fileName: string;
+  previewUrl: string;
+}
 
 export default function ChatBubble() {
   const { activeClient } = useActiveClient();
@@ -47,8 +53,11 @@ export default function ChatBubble() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [pendingCreative, setPendingCreative] = useState<PendingCreative | null>(null);
+  const [uploadingCreative, setUploadingCreative] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open && messages.length === 0) {
@@ -71,18 +80,48 @@ export default function ChatBubble() {
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingCreative(true);
+    const previewUrl = URL.createObjectURL(file);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      if (activeClient?.meta_ad_account_id) form.append("ad_account_id", activeClient.meta_ad_account_id);
+      const res = await fetch("/api/agent/creative/upload", { method: "POST", body: form });
+      const data = await res.json();
+      if (data.image_hash) {
+        setPendingCreative({ imageHash: data.image_hash, fileName: file.name, previewUrl });
+      } else {
+        setMessages(prev => [...prev, { id: Date.now().toString(), role: "assistant", content: `Creative upload failed: ${data.error ?? "unknown error"}`, timestamp: new Date() }]);
+      }
+    } catch {
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: "assistant", content: "Creative upload failed. Try again.", timestamp: new Date() }]);
+    } finally {
+      setUploadingCreative(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
   async function sendMessage(content: string) {
     if (!content.trim() || loading) return;
+
+    // Append creative hash to message if one is pending
+    const fullContent = pendingCreative
+      ? `${content.trim()}\n\n[Creative uploaded — image_hash: ${pendingCreative.imageHash}]`
+      : content.trim();
 
     const userMsg: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: content.trim(),
+      content: fullContent,
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
+    setPendingCreative(null);
     setLoading(true);
     setShowSuggestions(false);
 
@@ -267,45 +306,75 @@ export default function ChatBubble() {
 
           {/* Input */}
           <div style={{ padding: "12px 14px", borderTop: "1px solid #1a2f2f", background: "#0a0f0f" }}>
+            {/* Creative preview */}
+            {(pendingCreative || uploadingCreative) && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, padding: "6px 10px", background: "#0d1818", border: "1px solid #1a3535", borderRadius: 8 }}>
+                {uploadingCreative ? (
+                  <span style={{ fontSize: 11, color: "#4a7a7a" }}>Uploading creative to Meta...</span>
+                ) : pendingCreative && (
+                  <>
+                    <img src={pendingCreative.previewUrl} alt="creative" style={{ width: 36, height: 36, objectFit: "cover", borderRadius: 4, flexShrink: 0 }} />
+                    <div style={{ flex: 1, overflow: "hidden" }}>
+                      <div style={{ fontSize: 10, color: "#2A8C8A", fontWeight: 600 }}>Creative ready</div>
+                      <div style={{ fontSize: 10, color: "#4a7a7a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pendingCreative.fileName}</div>
+                    </div>
+                    <button onClick={() => setPendingCreative(null)} style={{ background: "transparent", border: "none", color: "#4a7a7a", cursor: "pointer", fontSize: 14, flexShrink: 0 }}>✕</button>
+                  </>
+                )}
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                onChange={handleFileUpload}
+                style={{ display: "none" }}
+              />
+              {/* Upload button */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingCreative || loading}
+                title="Upload ad creative image"
+                style={{
+                  width: 34, height: 34, borderRadius: 8, flexShrink: 0,
+                  background: pendingCreative ? "#0B3C3C" : "transparent",
+                  border: pendingCreative ? "1px solid #2A8C8A" : "1px solid #1a3535",
+                  color: pendingCreative ? "#2A8C8A" : "#4a7a7a",
+                  cursor: uploadingCreative || loading ? "not-allowed" : "pointer",
+                  fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center",
+                  transition: "all 0.15s",
+                }}
+              >
+                {uploadingCreative ? "…" : "📎"}
+              </button>
+
               <textarea
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask anything about your campaigns..."
+                placeholder={pendingCreative ? "Now describe the campaign..." : "Ask anything or create a campaign..."}
                 rows={1}
                 style={{
-                  flex: 1,
-                  background: "#0d1818",
-                  border: "1px solid #1a2f2f",
-                  borderRadius: 8,
-                  color: "#e8f4f4",
-                  fontSize: 12,
-                  fontFamily: "'DM Mono', monospace",
-                  padding: "8px 12px",
-                  outline: "none",
-                  resize: "none",
-                  lineHeight: 1.5,
-                  maxHeight: 80,
+                  flex: 1, background: "#0d1818", border: "1px solid #1a2f2f",
+                  borderRadius: 8, color: "#e8f4f4", fontSize: 12,
+                  fontFamily: "'DM Mono', monospace", padding: "8px 12px",
+                  outline: "none", resize: "none", lineHeight: 1.5, maxHeight: 80,
                 }}
               />
               <button
                 onClick={() => sendMessage(input)}
                 disabled={!input.trim() || loading}
                 style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 8,
+                  width: 34, height: 34, borderRadius: 8, flexShrink: 0,
                   background: input.trim() && !loading ? "#0B5C5C" : "#0f1f1f",
                   border: "1px solid #2A8C8A44",
                   color: input.trim() && !loading ? "#e8f4f4" : "#2a4a4a",
                   cursor: input.trim() && !loading ? "pointer" : "not-allowed",
-                  fontSize: 16,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
+                  fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center",
                   transition: "all 0.15s",
                 }}
               >
@@ -313,7 +382,7 @@ export default function ChatBubble() {
               </button>
             </div>
             <div style={{ fontSize: 10, color: "#2a4a4a", marginTop: 6, textAlign: "center" as const }}>
-              Enter to send · Shift+Enter for new line
+              Enter to send · Shift+Enter for new line · 📎 upload creative
             </div>
           </div>
         </div>
