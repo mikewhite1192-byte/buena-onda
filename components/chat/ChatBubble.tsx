@@ -11,6 +11,26 @@ interface Message {
   timestamp: Date;
 }
 
+function renderMarkdown(text: string): React.ReactNode[] {
+  // Split into lines, then render each with inline bold + em-dash
+  return text.split("\n").map((line, i, arr) => {
+    // Replace **bold** with <strong>
+    const parts = line.split(/(\*\*[^*]+\*\*)/g).map((part, j) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return <strong key={j} style={{ color: "#e8f4f4", fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
+      }
+      // Replace -- with em dash
+      return <span key={j}>{part.replace(/--/g, "—")}</span>;
+    });
+    return (
+      <span key={i}>
+        {parts}
+        {i < arr.length - 1 && <br />}
+      </span>
+    );
+  });
+}
+
 const SUGGESTED_PROMPTS = [
   "What's my best performing ad set right now?",
   "Why did the agent pause that ad set?",
@@ -190,7 +210,7 @@ export default function ChatBubble() {
                   color: msg.role === "user" ? "#e8f4f4" : "#8ab8b8",
                   whiteSpace: "pre-wrap",
                 }}>
-                  {msg.content}
+                  {msg.role === "assistant" ? renderMarkdown(msg.content) : msg.content}
                 </div>
               </div>
             ))}
