@@ -302,6 +302,12 @@ export async function deleteAd(
 
 // ── createMetaCampaign ───────────────────────────────────────────────────────
 
+export interface GeoKey {
+  key: string;  // Meta region/city key
+  name: string;
+  type: "region" | "city" | "country";
+}
+
 export interface CampaignCreationParams {
   adAccountId: string;
   pageId: string;
@@ -312,16 +318,19 @@ export interface CampaignCreationParams {
   optimizationGoal: "LEAD_GENERATION" | "LINK_CLICKS" | "OFFSITE_CONVERSIONS";
   billingEvent: "IMPRESSIONS" | "LINK_CLICKS";
   dailyBudgetCents: number;
-  locations: string[];  // ISO 2-letter country codes e.g. ["US"]
-  ageMin: number;
-  ageMax: number;
+  countries?: string[];       // ISO 2-letter codes e.g. ["US"]
+  regionKeys?: GeoKey[];      // Meta region keys for state-level targeting
+  ageMin?: number;            // omit for special ad category campaigns
+  ageMax?: number;
   imageHash?: string;
   imageUrl?: string;
   primaryText: string;
   headline: string;
   description?: string;
   ctaType: string;
-  destinationUrl: string;
+  destinationUrl?: string;    // required for traffic/conversion ads
+  leadFormId?: string;        // required for lead gen instant form ads
+  specialAdCategories?: string[];  // e.g. ["FINANCIAL_PRODUCTS_SERVICES"]
 }
 
 export interface CampaignCreationResult {
@@ -356,8 +365,19 @@ export async function createMetaCampaign(
       name: params.campaignName,
       objective: params.objective,
       status: "PAUSED",
-      special_ad_categories: [],
+      special_ad_categories: params.specialAdCategories ?? [],
     });
+
+    // 3. Build targeting — special ad categories restrict age/gender targeting
+    const hasSpecialCategory = (params.specialAdCategories ?? []).length > 0;
+    const geoLocations = params.regionKeys?.length
+      ? { regions: params.regionKeys.map(r => ({ key: r.key })) }
+      : { countries: params.countries ?? ["US"] };
+    const targeting: Record<string, unknown> = { geo_locations: geoLocations };
+    if (!hasSpecialCategory) {
+      targeting.age_min = params.ageMin ?? 25;
+      targeting.age_max = params.ageMax ?? 65;
+    }
 
     // 3. Create ad set
     const adSet = await metaPost<{ id: string }>(`/${acct}/adsets`, {
@@ -367,31 +387,29 @@ export async function createMetaCampaign(
       billing_event: params.billingEvent,
       optimization_goal: params.optimizationGoal,
       bid_strategy: "LOWEST_COST_WITHOUT_CAP",
-      targeting: {
-        geo_locations: { countries: params.locations },
-        age_min: params.ageMin,
-        age_max: params.ageMax,
-      },
+      targeting,
       status: "PAUSED",
       start_time: new Date(Date.now() + 86400000).toISOString(),
     });
 
-    // 4. Create ad creative
+    // 4. Create ad creative — lead form vs. traffic/conversion
+    const isLeadAd = !!params.leadFormId;
+    const linkData: Record<string, unknown> = {
+      image_hash: imageHash,
+      message: params.primaryText,
+      name: params.headline,
+      description: params.description ?? "",
+      call_to_action: isLeadAd
+        ? { type: params.ctaType || "SIGN_UP", value: { lead_gen_form_id: params.leadFormId } }
+        : { type: params.ctaType || "LEARN_MORE", value: { link: params.destinationUrl } },
+    };
+    if (!isLeadAd && params.destinationUrl) linkData.link = params.destinationUrl;
+
     const creative = await metaPost<{ id: string }>(`/${acct}/adcreatives`, {
       name: params.adName,
       object_story_spec: {
         page_id: params.pageId,
-        link_data: {
-          image_hash: imageHash,
-          link: params.destinationUrl,
-          message: params.primaryText,
-          name: params.headline,
-          description: params.description ?? "",
-          call_to_action: {
-            type: params.ctaType,
-            value: { link: params.destinationUrl },
-          },
-        },
+        link_data: linkData,
       },
     });
 
@@ -413,6 +431,71 @@ export async function createMetaCampaign(
   } catch (err) {
     return fail(err);
   }
+}
+
+// ── listLeadForms ─────────────────────────────────────────────────────────────
+
+export interface LeadForm {
+  id: string;
+  name: string;
+  status: string;
+}
+
+export async function listLeadForms(
+  pageId: string
+): Promise<MetaResult<LeadForm[]>> {
+  try {
+    const data = await metaGet<{ data: LeadForm[] }>(`/${pageId}/leadgen_forms`, {
+      fields: "id,name,status",
+      limit: "50",
+    });
+    return ok(data.data ?? []);
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+// ── resolveGeoLocations ───────────────────────────────────────────────────────
+// Converts location name strings to Meta geo keys. 2-letter strings → countries;
+// anything longer → searches Meta's geo API for matching regions.
+
+export async function resolveGeoLocations(
+  locations: string[]
+): Promise<{ countries: string[]; regionKeys: GeoKey[] }> {
+  const countries: string[] = [];
+  const regionKeys: GeoKey[] = [];
+
+  await Promise.all(
+    locations.map(async (loc) => {
+      const trimmed = loc.trim();
+      if (trimmed.length === 2) {
+        countries.push(trimmed.toUpperCase());
+        return;
+      }
+      try {
+        const data = await metaGet<{ data: Array<{ key: string; name: string; type: string; country_code: string }> }>(
+          "/search",
+          {
+            type: "adgeolocation",
+            q: trimmed,
+            location_types: JSON.stringify(["region", "city"]),
+            limit: "1",
+          }
+        );
+        const match = data.data?.[0];
+        if (match) {
+          regionKeys.push({ key: match.key, name: match.name, type: match.type as GeoKey["type"] });
+        } else {
+          // Fall back to treating as a country code
+          countries.push(trimmed.toUpperCase());
+        }
+      } catch {
+        countries.push(trimmed.toUpperCase());
+      }
+    })
+  );
+
+  return { countries, regionKeys };
 }
 
 // ── duplicateAdSet ───────────────────────────────────────────────────────────

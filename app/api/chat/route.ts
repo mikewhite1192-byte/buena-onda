@@ -7,7 +7,7 @@ import {
   pauseAdSet, scaleAdSet,
   pauseCampaign, enableCampaign, scaleCampaignBudget,
   pauseAd, enableAd, deleteAd,
-  createMetaCampaign,
+  createMetaCampaign, listLeadForms, resolveGeoLocations,
 } from "@/lib/meta/actions";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -109,33 +109,51 @@ const TOOLS: Anthropic.Tool[] = [
       required: ["ad_id"],
     },
   },
+  // ── Lead forms ────────────────────────────────────────────────────────────
+  {
+    name: "list_lead_forms",
+    description: "List all instant lead forms (lead gen forms) attached to the Facebook Page. Use this before creating a lead gen campaign so the user can pick their form.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        page_id: { type: "string", description: "Facebook Page ID. Optional if META_PAGE_ID env var is set." },
+      },
+      required: [],
+    },
+  },
   // ── Campaign creation ────────────────────────────────────────────────────
   {
     name: "create_ad_campaign",
-    description: "Create a complete Meta ad campaign (campaign + ad set + ad creative + ad) from scratch, all set to PAUSED for review before launch. Use this when the user provides their industry, target audience, location, budget, creative, and landing page.",
+    description: "Create a complete Meta ad campaign (campaign + ad set + ad creative + ad), all PAUSED for review. Supports lead gen (instant forms), traffic, and sales objectives. Supports state/region-level targeting and special ad categories.",
     input_schema: {
       type: "object" as const,
       properties: {
         industry: { type: "string", description: "Industry or offer type, e.g. 'Final expense life insurance'" },
-        target_avatar: { type: "string", description: "Description of the target audience, e.g. 'Seniors 65-80, homeowners concerned about end-of-life expenses'" },
+        target_avatar: { type: "string", description: "Description of the target audience" },
         locations: {
           type: "array",
           items: { type: "string" },
-          description: "ISO 2-letter country codes, e.g. ['US'] or ['US', 'CA']",
+          description: "Countries (2-letter codes like 'US') OR US state/region names like 'Texas', 'Florida'. Mix is fine.",
         },
-        daily_budget_usd: { type: "number", description: "Daily budget in USD, e.g. 50" },
-        creative_url: { type: "string", description: "Public URL to the ad image (jpg/png) or the image_hash from a prior upload" },
-        destination_url: { type: "string", description: "Landing page URL where clicks will go" },
-        page_id: { type: "string", description: "Facebook Page ID to use for the ad. Optional if META_PAGE_ID env var is set." },
+        daily_budget_usd: { type: "number", description: "Daily budget in USD" },
+        creative_url: { type: "string", description: "Public image URL or image_hash from a prior upload" },
+        destination_url: { type: "string", description: "Landing page URL. Required for TRAFFIC/SALES. Omit for lead gen." },
+        lead_form_id: { type: "string", description: "Instant form ID for lead gen campaigns. Use list_lead_forms to get available forms." },
+        page_id: { type: "string", description: "Facebook Page ID. Optional if META_PAGE_ID env var is set." },
         objective: {
           type: "string",
           enum: ["LEADS", "TRAFFIC", "SALES"],
           description: "Campaign objective. Default: LEADS",
         },
-        age_min: { type: "number", description: "Minimum age for targeting. Default: 25" },
-        age_max: { type: "number", description: "Maximum age for targeting. Default: 65" },
+        special_ad_categories: {
+          type: "array",
+          items: { type: "string" },
+          description: "Required for regulated industries. Options: FINANCIAL_PRODUCTS_SERVICES, CREDIT, EMPLOYMENT, HOUSING, ISSUES_ELECTIONS_POLITICS. Age/gender targeting is automatically removed when set.",
+        },
+        age_min: { type: "number", description: "Min age. Ignored for special ad category campaigns." },
+        age_max: { type: "number", description: "Max age. Ignored for special ad category campaigns." },
       },
-      required: ["industry", "target_avatar", "locations", "daily_budget_usd", "creative_url", "destination_url"],
+      required: ["industry", "target_avatar", "locations", "daily_budget_usd", "creative_url"],
     },
   },
 ];
@@ -208,32 +226,43 @@ async function executeTool(
     return r.ok ? `Deleted ad ${input.ad_id}. This cannot be undone.` : `Failed: ${r.error}`;
   }
 
+  // ── List lead forms ───────────────────────────────────────────────────────
+  if (name === "list_lead_forms") {
+    const pageId = (input.page_id as string | undefined) ?? process.env.META_PAGE_ID ?? "";
+    if (!pageId) return "No page ID available. Provide it or set META_PAGE_ID.";
+    const r = await listLeadForms(pageId);
+    if (!r.ok) return `Failed to fetch lead forms: ${r.error}`;
+    if (r.data.length === 0) return "No instant forms found on this page. Create one in Meta Ads Manager under your Page → Instant Forms.";
+    return r.data.map(f => `- **${f.name}** (ID: ${f.id}) — ${f.status}`).join("\n");
+  }
+
   // ── Campaign creation ─────────────────────────────────────────────────────
   if (name === "create_ad_campaign") {
     const {
       industry, target_avatar, locations, daily_budget_usd,
-      creative_url, destination_url, objective = "LEADS",
-      age_min = 25, age_max = 65,
+      creative_url, destination_url, lead_form_id,
+      objective = "LEADS", age_min = 25, age_max = 65,
+      special_ad_categories,
     } = input;
 
-    // Resolve page ID
-    const pageId = (input.page_id as string | undefined)
-      ?? process.env.META_PAGE_ID
-      ?? "";
-    if (!pageId) {
-      return "I need your Facebook Page ID to create the ad creative. Please provide it (e.g. 'My page ID is 123456789') or set META_PAGE_ID in your environment.";
+    const pageId = (input.page_id as string | undefined) ?? process.env.META_PAGE_ID ?? "";
+    if (!pageId) return "I need your Facebook Page ID. Provide it or set META_PAGE_ID in your environment.";
+
+    const adAccountId = clientInfo?.meta_ad_account_id ?? process.env.META_AD_ACCOUNT_ID ?? "";
+    if (!adAccountId) return "No Meta Ad Account ID found. Select a client or set META_AD_ACCOUNT_ID.";
+
+    const isLeadGen = !!lead_form_id;
+    if (!isLeadGen && !destination_url) {
+      return "Please provide either a `lead_form_id` (for instant form campaigns) or a `destination_url` (for traffic/sales campaigns).";
     }
 
-    // Resolve ad account ID
-    const adAccountId = clientInfo?.meta_ad_account_id
-      ?? process.env.META_AD_ACCOUNT_ID
-      ?? "";
-    if (!adAccountId) {
-      return "No Meta Ad Account ID found. Make sure a client is selected or META_AD_ACCOUNT_ID is set.";
-    }
+    // Resolve geo locations — handles country codes AND state/region names
+    const rawLocations = locations as string[];
+    const { countries, regionKeys } = await resolveGeoLocations(rawLocations);
 
-    // Generate ad copy with Claude
-    let copy = { headline: "", primary_text: "", description: "", cta_type: "LEARN_MORE" };
+    // Generate ad copy
+    const specialCats = (special_ad_categories as string[] | undefined) ?? [];
+    let copy = { headline: "", primary_text: "", description: "", cta_type: isLeadGen ? "SIGN_UP" : "LEARN_MORE" };
     try {
       const copyRes = await anthropic.messages.create({
         model: "claude-sonnet-4-5",
@@ -241,17 +270,16 @@ async function executeTool(
         system: "You write concise, high-converting Meta ad copy. Respond ONLY with valid JSON, no markdown.",
         messages: [{
           role: "user",
-          content: `Industry: ${industry}\nTarget avatar: ${target_avatar}\nObjective: ${objective}\n\nGenerate ad copy as JSON:\n{"headline":"<30 chars>","primary_text":"<150 chars>","description":"<30 chars>","cta_type":"LEARN_MORE"|"GET_QUOTE"|"SIGN_UP"|"APPLY_NOW"|"CONTACT_US"|"SHOP_NOW"}`,
+          content: `Industry: ${industry}\nTarget: ${target_avatar}\nObjective: ${objective}${isLeadGen ? " (lead form — no URL)" : ""}\n\nJSON:\n{"headline":"<30 chars>","primary_text":"<150 chars>","description":"<30 chars>","cta_type":"${isLeadGen ? "SIGN_UP" : "LEARN_MORE"}"|"GET_QUOTE"|"APPLY_NOW"|"CONTACT_US"}`,
         }],
       });
       const raw = (copyRes.content.find(b => b.type === "text") as Anthropic.TextBlock | undefined)?.text ?? "{}";
       copy = { ...copy, ...JSON.parse(raw) };
     } catch {
       copy.headline = String(industry).slice(0, 30);
-      copy.primary_text = `Looking for help with ${industry}? ${target_avatar}. Contact us today.`;
+      copy.primary_text = `${target_avatar}. Get your free quote today.`;
     }
 
-    // Determine if creative_url is already a hash (no dots, alphanumeric)
     const isHash = /^[a-f0-9]{32}$/i.test(creative_url as string);
     const objectiveMap: Record<string, { obj: "OUTCOME_LEADS" | "OUTCOME_TRAFFIC" | "OUTCOME_SALES"; goal: "LEAD_GENERATION" | "LINK_CLICKS" | "OFFSITE_CONVERSIONS" }> = {
       LEADS: { obj: "OUTCOME_LEADS", goal: "LEAD_GENERATION" },
@@ -260,18 +288,20 @@ async function executeTool(
     };
     const { obj, goal } = objectiveMap[String(objective).toUpperCase()] ?? objectiveMap.LEADS;
     const date = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const locationLabel = rawLocations.join(", ");
 
     const result = await createMetaCampaign({
       adAccountId,
       pageId,
       campaignName: `${industry} — ${date}`,
-      adSetName: `${target_avatar} · ${(locations as string[]).join(", ")}`,
+      adSetName: `${target_avatar} · ${locationLabel}`,
       adName: copy.headline || "Ad 1",
       objective: obj,
       optimizationGoal: goal,
       billingEvent: "IMPRESSIONS",
       dailyBudgetCents: Math.round((daily_budget_usd as number) * 100),
-      locations: locations as string[],
+      countries: countries.length ? countries : undefined,
+      regionKeys: regionKeys.length ? regionKeys : undefined,
       ageMin: age_min as number,
       ageMax: age_max as number,
       imageHash: isHash ? (creative_url as string) : undefined,
@@ -280,26 +310,31 @@ async function executeTool(
       headline: copy.headline,
       description: copy.description,
       ctaType: copy.cta_type,
-      destinationUrl: destination_url as string,
+      destinationUrl: destination_url as string | undefined,
+      leadFormId: lead_form_id as string | undefined,
+      specialAdCategories: specialCats.length ? specialCats : undefined,
     });
 
     if (!result.ok) return `Failed to create campaign: ${result.error}`;
 
     const d = result.data;
     return [
-      `Campaign created successfully — all set to PAUSED for your review.`,
+      `Campaign created — all PAUSED for your review.`,
       ``,
       `**Campaign ID:** ${d.campaign_id}`,
       `**Ad Set ID:** ${d.adset_id}`,
       `**Ad ID:** ${d.ad_id}`,
+      specialCats.length ? `**Special Category:** ${specialCats.join(", ")}` : "",
+      isLeadGen ? `**Form:** ${lead_form_id}` : `**Destination:** ${destination_url}`,
+      `**Geo:** ${regionKeys.length ? regionKeys.map(r => r.name).join(", ") : countries.join(", ")}`,
       ``,
-      `**Generated Copy:**`,
+      `**Copy:**`,
       `Headline: ${copy.headline}`,
       `Primary text: ${copy.primary_text}`,
       `CTA: ${copy.cta_type}`,
       ``,
       `Review in Meta Ads Manager, then activate when ready.`,
-    ].join("\n");
+    ].filter(Boolean).join("\n");
   }
 
   return `Unknown tool: ${name}`;
@@ -358,16 +393,15 @@ You have a direct, knowledgeable communication style. No fluff, no filler. Real 
 When the user asks you to take an action, confirm the ID you're acting on before executing. For destructive actions (delete_ad), confirm explicitly with the user first.
 
 **CAMPAIGN CREATION:**
-To create a campaign, you need:
-1. Industry / offer type
-2. Target avatar (who they're selling to)
-3. Locations (country codes like "US")
-4. Daily budget ($)
-5. Creative — image URL or image_hash from an upload
-6. Destination URL (landing page)
-7. Objective (LEADS, TRAFFIC, or SALES — default: LEADS)
+To create a campaign you need: industry, target avatar, locations, daily budget, creative (URL or image_hash), and either a destination URL (traffic/sales) OR a lead_form_id (instant form lead gen).
 
-You'll generate the ad copy automatically. All campaigns are created PAUSED so the user reviews before going live.
+For lead gen campaigns: first call list_lead_forms so the user can pick their form ID.
+
+Locations accept country codes ("US") OR state/region names ("Texas", "Florida", "Michigan") — mix is fine.
+
+For regulated industries (insurance, financial, housing, employment) always set special_ad_categories — e.g. ["FINANCIAL_PRODUCTS_SERVICES"]. This removes age/gender targeting restrictions automatically.
+
+You generate the ad copy. All campaigns created PAUSED for review before going live.
 
 ${clientInfo ? `
 CURRENT CLIENT:
