@@ -291,12 +291,15 @@ async function executeTool(
     const isHash = /^[a-f0-9]{32}$/i.test(creativeStr);
     const isVideo = !isHash && /\.(mp4|mov|avi|mkv|webm)(\?|$)/i.test(creativeStr);
 
-    const objectiveMap: Record<string, { obj: "OUTCOME_LEADS" | "OUTCOME_TRAFFIC" | "OUTCOME_SALES"; goal: "LEAD_GENERATION" | "LINK_CLICKS" | "OFFSITE_CONVERSIONS" }> = {
-      LEADS: { obj: "OUTCOME_LEADS", goal: "LEAD_GENERATION" },
-      TRAFFIC: { obj: "OUTCOME_TRAFFIC", goal: "LINK_CLICKS" },
-      SALES: { obj: "OUTCOME_SALES", goal: "OFFSITE_CONVERSIONS" },
-    };
-    const { obj, goal } = objectiveMap[String(objective).toUpperCase()] ?? objectiveMap.LEADS;
+    const objectiveUpper = String(objective).toUpperCase();
+    const obj =
+      objectiveUpper === "TRAFFIC" ? "OUTCOME_TRAFFIC" :
+      objectiveUpper === "SALES"   ? "OUTCOME_SALES"   : "OUTCOME_LEADS";
+    // LEAD_GENERATION optimization requires an instant form; use OFFSITE_CONVERSIONS for URL-based leads
+    const goal =
+      objectiveUpper === "TRAFFIC"  ? "LINK_CLICKS" :
+      objectiveUpper === "SALES"    ? "OFFSITE_CONVERSIONS" :
+      isLeadGen                     ? "LEAD_GENERATION" : "OFFSITE_CONVERSIONS";
     const date = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" });
     const locationLabel = rawLocations.join(", ");
 
