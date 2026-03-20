@@ -117,8 +117,8 @@ function formatRowValue(key: string, row: MetricRow): string {
 function adSetHealthColor(a: AdSetMetric): string {
   if (a.cpl > 30) return "#E8705A";
   if (a.frequency > 3) return "#F5A623";
-  if (a.cpl < 20 && a.leads >= 5) return "#2A8C8A";
-  return "#8ab8b8";
+  if (a.cpl < 20 && a.leads >= 5) return "#f5a623";
+  return "#8b8fa8";
 }
 
 function adSetHealthLabel(a: AdSetMetric): string {
@@ -130,20 +130,20 @@ function adSetHealthLabel(a: AdSetMetric): string {
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div style={{ background: "#0d1818", border: "1px solid #1a2f2f", borderRadius: 10, padding: "18px 20px" }}>
-      <div style={{ fontSize: 11, color: "#2a4a4a", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 700, color: "#e8f4f4", letterSpacing: "-0.5px", marginBottom: 4 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: "#4a7a7a" }}>{sub}</div>}
+    <div style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "18px 20px" }}>
+      <div style={{ fontSize: 11, color: "#5a5e72", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>{label}</div>
+      <div style={{ fontSize: 26, fontWeight: 700, color: "#e8eaf0", letterSpacing: "-0.5px", marginBottom: 4 }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: "#8b8fa8" }}>{sub}</div>}
     </div>
   );
 }
 
 const btnStyle = (active: boolean) => ({
   padding: "5px 12px", fontSize: 12, borderRadius: 5,
-  border: active ? "1px solid #2A8C8A" : "1px solid #1a3535",
-  background: active ? "#0B5C5C" : "transparent",
-  color: active ? "#e8f4f4" : "#4a7a7a",
-  cursor: "pointer" as const, fontFamily: "'DM Mono', monospace", transition: "all 0.15s",
+  border: active ? "1px solid #f5a623" : "1px solid rgba(255,255,255,0.06)",
+  background: active ? "rgba(245,166,35,0.15)" : "transparent",
+  color: active ? "#e8eaf0" : "#8b8fa8",
+  cursor: "pointer" as const, fontFamily: "'system-ui, -apple-system, sans-serif", transition: "all 0.15s",
 });
 
 // ─── Column Picker Modal ──────────────────────────────────────────────────────
@@ -181,19 +181,19 @@ function ColumnPickerModal({
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ background: "#0d1818", border: "1px solid #1a2f2f", borderRadius: 12, width: 780, maxHeight: "85vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, width: 780, maxHeight: "85vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-        <div style={{ padding: "20px 24px", borderBottom: "1px solid #1a2f2f", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ padding: "20px 24px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#2A8C8A" }}>Customize Columns</div>
-            <div style={{ fontSize: 12, color: "#4a7a7a", marginTop: 4 }}>{visibleCols.size} columns selected</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#f5a623" }}>Customize Columns</div>
+            <div style={{ fontSize: 12, color: "#8b8fa8", marginTop: 4 }}>{visibleCols.size} columns selected</div>
           </div>
-          <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#4a7a7a", cursor: "pointer", fontSize: 18 }}>✕</button>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#8b8fa8", cursor: "pointer", fontSize: 18 }}>✕</button>
         </div>
 
         {presets.length > 0 && (
-          <div style={{ padding: "12px 24px", borderBottom: "1px solid #0f1f1f", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ fontSize: 11, color: "#2a4a4a", textTransform: "uppercase", letterSpacing: "0.08em" }}>Presets:</span>
+          <div style={{ padding: "12px 24px", borderBottom: "1px solid #13151d", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ fontSize: 11, color: "#5a5e72", textTransform: "uppercase", letterSpacing: "0.08em" }}>Presets:</span>
             {presets.map(p => (
               <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <button onClick={() => onLoadPreset(p)} style={{ ...btnStyle(false), padding: "3px 10px", fontSize: 11 }}>
@@ -205,19 +205,19 @@ function ColumnPickerModal({
           </div>
         )}
 
-        <div style={{ padding: "12px 24px", borderBottom: "1px solid #0f1f1f" }}>
+        <div style={{ padding: "12px 24px", borderBottom: "1px solid #13151d" }}>
           <input
             type="text" placeholder="Search metrics..."
             value={search} onChange={e => setSearch(e.target.value)}
-            style={{ width: "100%", background: "#0a0f0f", border: "1px solid #1a2f2f", borderRadius: 6, color: "#e8f4f4", fontSize: 13, fontFamily: "'DM Mono', monospace", padding: "7px 12px", outline: "none", boxSizing: "border-box" as const }}
+            style={{ width: "100%", background: "#0d0f14", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, color: "#e8eaf0", fontSize: 13, fontFamily: "'system-ui, -apple-system, sans-serif", padding: "7px 12px", outline: "none", boxSizing: "border-box" as const }}
           />
         </div>
 
         <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-          <div style={{ width: 160, borderRight: "1px solid #0f1f1f", padding: "12px 0", overflowY: "auto", flexShrink: 0 }}>
+          <div style={{ width: 160, borderRight: "1px solid #13151d", padding: "12px 0", overflowY: "auto", flexShrink: 0 }}>
             {filteredGroups.map(g => (
               <div key={g.group} onClick={() => setActiveGroup(g.group)}
-                style={{ padding: "8px 16px", fontSize: 12, cursor: "pointer", color: activeGroup === g.group ? "#2A8C8A" : "#4a7a7a", background: activeGroup === g.group ? "#0f2020" : "transparent", borderLeft: activeGroup === g.group ? "2px solid #2A8C8A" : "2px solid transparent" }}>
+                style={{ padding: "8px 16px", fontSize: 12, cursor: "pointer", color: activeGroup === g.group ? "#f5a623" : "#8b8fa8", background: activeGroup === g.group ? "rgba(245,166,35,0.06)" : "transparent", borderLeft: activeGroup === g.group ? "2px solid #f5a623" : "2px solid transparent" }}>
                 {g.group}
               </div>
             ))}
@@ -229,11 +229,11 @@ function ColumnPickerModal({
                 <div key={g.group}>
                   {g.subgroups.map(sub => (
                     <div key={sub.name} style={{ marginBottom: 20 }}>
-                      <div style={{ fontSize: 11, color: "#2a4a4a", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>{sub.name}</div>
+                      <div style={{ fontSize: 11, color: "#5a5e72", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>{sub.name}</div>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                         {sub.metrics.map(m => (
-                          <label key={m.key} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, color: visibleCols.has(m.key) ? "#e8f4f4" : "#4a7a7a" }}>
-                            <input type="checkbox" checked={visibleCols.has(m.key)} onChange={() => toggle(m.key)} style={{ accentColor: "#2A8C8A", cursor: "pointer" }} />
+                          <label key={m.key} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, color: visibleCols.has(m.key) ? "#e8eaf0" : "#8b8fa8" }}>
+                            <input type="checkbox" checked={visibleCols.has(m.key)} onChange={() => toggle(m.key)} style={{ accentColor: "#f5a623", cursor: "pointer" }} />
                             {m.label}
                           </label>
                         ))}
@@ -246,12 +246,12 @@ function ColumnPickerModal({
           </div>
         </div>
 
-        <div style={{ padding: "16px 24px", borderTop: "1px solid #1a2f2f", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ padding: "16px 24px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {showPresetInput ? (
               <>
                 <input type="text" placeholder="Preset name..." value={presetName} onChange={e => setPresetName(e.target.value)}
-                  style={{ background: "#0a0f0f", border: "1px solid #1a2f2f", borderRadius: 6, color: "#e8f4f4", fontSize: 12, fontFamily: "'DM Mono', monospace", padding: "6px 10px", outline: "none", width: 160 }} />
+                  style={{ background: "#0d0f14", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, color: "#e8eaf0", fontSize: 12, fontFamily: "'system-ui, -apple-system, sans-serif", padding: "6px 10px", outline: "none", width: 160 }} />
                 <button onClick={() => { if (presetName) { onSavePreset(presetName); setPresetName(""); setShowPresetInput(false); } }} style={{ ...btnStyle(true), padding: "6px 12px" }}>Save</button>
                 <button onClick={() => setShowPresetInput(false)} style={{ ...btnStyle(false), padding: "6px 12px" }}>Cancel</button>
               </>
@@ -424,7 +424,7 @@ export default function CampaignsPage() {
   const colMin = 280 + visibleColsArray.length * 120;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0f0f", fontFamily: "'DM Mono', 'Fira Mono', monospace", color: "#e8f4f4", padding: "40px 24px" }}>
+    <div style={{ minHeight: "100vh", background: "#0d0f14", fontFamily: "'system-ui, -apple-system, sans-serif", color: "#e8eaf0", padding: "40px 24px" }}>
       {showColModal && (
         <ColumnPickerModal visibleCols={visibleCols} onChange={setVisibleCols} onClose={() => setShowColModal(false)}
           onSavePreset={savePreset} presets={presets} onLoadPreset={loadPreset} onDeletePreset={deletePreset} />
@@ -435,9 +435,9 @@ export default function CampaignsPage() {
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 32, flexWrap: "wrap", gap: 16 }}>
           <div>
-            <h1 style={{ fontSize: 28, fontWeight: 700, color: "#2A8C8A", margin: "0 0 6px", letterSpacing: "-0.5px" }}>Campaigns</h1>
+            <h1 style={{ fontSize: 28, fontWeight: 700, color: "#f5a623", margin: "0 0 6px", letterSpacing: "-0.5px" }}>Campaigns</h1>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <p style={{ color: "#4a7a7a", fontSize: 13, margin: 0 }}>Live performance · Campaign → Ad Set → Ad</p>
+              <p style={{ color: "#8b8fa8", fontSize: 13, margin: 0 }}>Live performance · Campaign → Ad Set → Ad</p>
               <button
                 onClick={handleRefresh}
                 disabled={loading}
@@ -446,7 +446,7 @@ export default function CampaignsPage() {
                 {loading ? "↻ Loading..." : "↻ Refresh"}
               </button>
               {lastRefreshed && !loading && (
-                <span style={{ fontSize: 11, color: "#2a4a4a" }}>
+                <span style={{ fontSize: 11, color: "#5a5e72" }}>
                   Updated {lastRefreshed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </span>
               )}
@@ -467,12 +467,12 @@ export default function CampaignsPage() {
               ))}
             </div>
             {datePreset === "custom" && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#0d1818", border: "1px solid #1a2f2f", borderRadius: 8, padding: "8px 14px" }}>
-                <span style={{ fontSize: 11, color: "#4a7a7a" }}>FROM</span>
-                <input type="date" value={startDate} max={endDate} onChange={e => setStartDate(e.target.value)} style={{ background: "transparent", border: "none", color: "#e8f4f4", fontSize: 12, fontFamily: "'DM Mono', monospace", outline: "none" }} />
-                <span style={{ fontSize: 11, color: "#2a4a4a" }}>—</span>
-                <span style={{ fontSize: 11, color: "#4a7a7a" }}>TO</span>
-                <input type="date" value={endDate} min={startDate} max={today} onChange={e => setEndDate(e.target.value)} style={{ background: "transparent", border: "none", color: "#e8f4f4", fontSize: 12, fontFamily: "'DM Mono', monospace", outline: "none" }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, padding: "8px 14px" }}>
+                <span style={{ fontSize: 11, color: "#8b8fa8" }}>FROM</span>
+                <input type="date" value={startDate} max={endDate} onChange={e => setStartDate(e.target.value)} style={{ background: "transparent", border: "none", color: "#e8eaf0", fontSize: 12, fontFamily: "'system-ui, -apple-system, sans-serif", outline: "none" }} />
+                <span style={{ fontSize: 11, color: "#5a5e72" }}>—</span>
+                <span style={{ fontSize: 11, color: "#8b8fa8" }}>TO</span>
+                <input type="date" value={endDate} min={startDate} max={today} onChange={e => setEndDate(e.target.value)} style={{ background: "transparent", border: "none", color: "#e8eaf0", fontSize: 12, fontFamily: "'system-ui, -apple-system, sans-serif", outline: "none" }} />
                 <button onClick={fetchData} style={{ ...btnStyle(false), padding: "3px 10px" }}>Apply</button>
               </div>
             )}
@@ -481,9 +481,9 @@ export default function CampaignsPage() {
 
         {/* Stat Cards */}
         {loading ? (
-          <div style={{ color: "#4a7a7a", fontSize: 13, marginBottom: 32 }}>Loading metrics...</div>
+          <div style={{ color: "#8b8fa8", fontSize: 13, marginBottom: 32 }}>Loading metrics...</div>
         ) : campaigns.length === 0 ? (
-          <div style={{ border: "1px dashed #1a3535", borderRadius: 10, padding: "40px 24px", textAlign: "center", color: "#4a7a7a", marginBottom: 32 }}>
+          <div style={{ border: "1px dashed #1a3535", borderRadius: 10, padding: "40px 24px", textAlign: "center", color: "#8b8fa8", marginBottom: 32 }}>
             <div style={{ fontSize: 13 }}>No campaign data for this period.</div>
           </div>
         ) : (
@@ -501,10 +501,10 @@ export default function CampaignsPage() {
             {/* Table controls */}
             <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
               <input type="text" placeholder="Search campaigns..." value={search} onChange={e => setSearch(e.target.value)}
-                style={{ background: "#0d1818", border: "1px solid #1a2f2f", borderRadius: 6, color: "#e8f4f4", fontSize: 12, fontFamily: "'DM Mono', monospace", padding: "6px 12px", outline: "none", width: 220 }} />
+                style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, color: "#e8eaf0", fontSize: 12, fontFamily: "'system-ui, -apple-system, sans-serif", padding: "6px 12px", outline: "none", width: 220 }} />
 
               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                <span style={{ fontSize: 11, color: "#2a4a4a" }}>SORT</span>
+                <span style={{ fontSize: 11, color: "#5a5e72" }}>SORT</span>
                 {(["spend", "leads", "cpl", "ctr", "frequency"] as SortKey[]).map(k => (
                   <button key={k} style={btnStyle(sortKey === k)} onClick={() => toggleSort(k)}>
                     {k.toUpperCase()} {sortKey === k ? (sortDir === "asc" ? "↑" : "↓") : ""}
@@ -517,22 +517,22 @@ export default function CampaignsPage() {
               </button>
             </div>
 
-            <div style={{ fontSize: 11, color: "#2a4a4a", marginBottom: 10 }}>
+            <div style={{ fontSize: 11, color: "#5a5e72", marginBottom: 10 }}>
               {filtered.length} campaign{filtered.length !== 1 ? "s" : ""}
             </div>
 
             {/* Table */}
-            <div style={{ border: "1px solid #1a2f2f", borderRadius: 10, overflow: "auto" }}>
+            <div style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, overflow: "auto" }}>
 
               {/* Header */}
-              <div style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "10px 18px", background: "#0d1818", borderBottom: "1px solid #1a2f2f", fontSize: 11, color: "#2a4a4a", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: colMin }}>
+              <div style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "10px 18px", background: "#161820", borderBottom: "1px solid rgba(255,255,255,0.06)", fontSize: 11, color: "#5a5e72", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: colMin }}>
                 <span>Campaign</span>
                 {visibleColsArray.map(col => {
                   const def = METRIC_BY_KEY[col];
                   const sortable = ["spend", "leads", "cpl", "ctr", "frequency", "impressions"].includes(col);
                   return (
                     <span key={col} onClick={() => sortable ? toggleSort(col as SortKey) : undefined}
-                      style={{ cursor: sortable ? "pointer" : "default", color: sortKey === col ? "#2A8C8A" : "#2a4a4a" }}>
+                      style={{ cursor: sortable ? "pointer" : "default", color: sortKey === col ? "#f5a623" : "#5a5e72" }}>
                       {def?.label ?? col} {sortKey === col ? (sortDir === "asc" ? "↑" : "↓") : ""}
                     </span>
                   );
@@ -540,7 +540,7 @@ export default function CampaignsPage() {
               </div>
 
               {filtered.length === 0 ? (
-                <div style={{ padding: "40px 18px", textAlign: "center", color: "#4a7a7a", fontSize: 13 }}>No campaigns match your search.</div>
+                <div style={{ padding: "40px 18px", textAlign: "center", color: "#8b8fa8", fontSize: 13 }}>No campaigns match your search.</div>
               ) : (
                 filtered.map((campaign, i) => {
                   const isCampaignExpanded = expandedCampaigns.has(campaign.campaign_id);
@@ -553,35 +553,35 @@ export default function CampaignsPage() {
                       <div
                         onClick={() => toggleCampaignExpand(campaign.campaign_id)}
                         title="Click to expand ad sets"
-                        style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "14px 18px", borderBottom: "1px solid #0f1f1f", fontSize: 12, alignItems: "center", background: isCampaignExpanded ? "#0f2020" : i % 2 === 0 ? "#0a0f0f" : "#0c1515", cursor: "pointer", minWidth: colMin }}
+                        style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "14px 18px", borderBottom: "1px solid #13151d", fontSize: 12, alignItems: "center", background: isCampaignExpanded ? "rgba(245,166,35,0.06)" : i % 2 === 0 ? "#0d0f14" : "#0d0f14", cursor: "pointer", minWidth: colMin }}
                       >
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                            <span style={{ fontSize: 10, color: "#2A8C8A", transition: "transform 0.15s", display: "inline-block", transform: isCampaignExpanded ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
-                            <span style={{ color: "#e8f4f4", fontFamily: "sans-serif", fontSize: 13, fontWeight: 600 }}>
+                            <span style={{ fontSize: 10, color: "#f5a623", transition: "transform 0.15s", display: "inline-block", transform: isCampaignExpanded ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
+                            <span style={{ color: "#e8eaf0", fontFamily: "sans-serif", fontSize: 13, fontWeight: 600 }}>
                               {campaign.campaign_name ?? campaign.campaign_id}
                             </span>
                           </div>
-                          <div style={{ fontSize: 10, color: "#2A8C8A", fontFamily: "monospace", paddingLeft: 18 }}>{campaign.campaign_id}</div>
+                          <div style={{ fontSize: 10, color: "#f5a623", fontFamily: "monospace", paddingLeft: 18 }}>{campaign.campaign_id}</div>
                         </div>
                         {visibleColsArray.map(col => {
-                          if (col === "trend" || col === "health") return <span key={col} style={{ color: "#2a4a4a" }}>—</span>;
+                          if (col === "trend" || col === "health") return <span key={col} style={{ color: "#5a5e72" }}>—</span>;
                           const val = formatRowValue(col, campaign);
-                          return <span key={col} style={{ color: "#8ab8b8" }}>{val}</span>;
+                          return <span key={col} style={{ color: "#8b8fa8" }}>{val}</span>;
                         })}
                       </div>
 
                       {/* ── Ad Set rows (expanded under campaign) ── */}
                       {isCampaignExpanded && (
-                        <div style={{ background: "#080d0d", borderBottom: "1px solid #1a2f2f" }}>
+                        <div style={{ background: "#080d0d", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                           {isCampaignLoading ? (
-                            <div style={{ padding: "14px 18px 14px 36px", fontSize: 12, color: "#4a7a7a" }}>Loading ad sets...</div>
+                            <div style={{ padding: "14px 18px 14px 36px", fontSize: 12, color: "#8b8fa8" }}>Loading ad sets...</div>
                           ) : campaignAdSets.length === 0 ? (
-                            <div style={{ padding: "14px 18px 14px 36px", fontSize: 12, color: "#4a7a7a" }}>No ad set data for this period.</div>
+                            <div style={{ padding: "14px 18px 14px 36px", fontSize: 12, color: "#8b8fa8" }}>No ad set data for this period.</div>
                           ) : (
                             <>
                               {/* Ad set sub-header */}
-                              <div style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "8px 18px 8px 36px", background: "#0b1616", borderBottom: "1px solid #0f1f1f", fontSize: 10, color: "#2a4a4a", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: colMin }}>
+                              <div style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "8px 18px 8px 36px", background: "#0b1616", borderBottom: "1px solid #13151d", fontSize: 10, color: "#5a5e72", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: colMin }}>
                                 <span>Ad Set</span>
                                 {visibleColsArray.map(col => <span key={col}>{METRIC_BY_KEY[col]?.label ?? col}</span>)}
                               </div>
@@ -602,14 +602,14 @@ export default function CampaignsPage() {
                                     >
                                       <div>
                                         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                                          <span style={{ fontSize: 9, color: "#4a7a7a", transition: "transform 0.15s", display: "inline-block", transform: isAdSetExpanded ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
-                                          <span style={{ width: 5, height: 5, borderRadius: "50%", background: adSet.ad_status === "ACTIVE" ? "#2A8C8A" : "#2a4a4a", flexShrink: 0, display: "inline-block" }} />
+                                          <span style={{ fontSize: 9, color: "#8b8fa8", transition: "transform 0.15s", display: "inline-block", transform: isAdSetExpanded ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
+                                          <span style={{ width: 5, height: 5, borderRadius: "50%", background: adSet.ad_status === "ACTIVE" ? "#f5a623" : "#5a5e72", flexShrink: 0, display: "inline-block" }} />
                                           <span style={{ color: "#c8e8e8", fontFamily: "sans-serif", fontSize: 12 }}>
                                             {adSet.ad_set_name ?? adSet.ad_set_id}
                                           </span>
                                           <span style={{ fontSize: 9, color: hColor, textTransform: "uppercase", letterSpacing: "0.06em" }}>{adSetHealthLabel(adSet)}</span>
                                         </div>
-                                        <div style={{ fontSize: 9, color: "#2A8C8A", fontFamily: "monospace", paddingLeft: 17 }}>{adSet.ad_set_id}</div>
+                                        <div style={{ fontSize: 9, color: "#f5a623", fontFamily: "monospace", paddingLeft: 17 }}>{adSet.ad_set_id}</div>
                                       </div>
                                       {visibleColsArray.map(col => {
                                         if (col === "trend") return <div key={col} />;
@@ -617,37 +617,37 @@ export default function CampaignsPage() {
                                         const val = formatRowValue(col, adSet);
                                         const isBad = col === "cpl" && adSet.cpl > 30;
                                         const isGood = col === "cpl" && adSet.cpl < 20 && adSet.leads >= 5;
-                                        return <span key={col} style={{ color: isBad ? "#E8705A" : isGood ? "#2A8C8A" : "#6a9898", fontWeight: isBad ? 600 : 400 }}>{val}</span>;
+                                        return <span key={col} style={{ color: isBad ? "#E8705A" : isGood ? "#f5a623" : "#6a9898", fontWeight: isBad ? 600 : 400 }}>{val}</span>;
                                       })}
                                     </div>
 
                                     {/* ── Ad rows (expanded under ad set) ── */}
                                     {isAdSetExpanded && (
-                                      <div style={{ background: "#060b0b", borderBottom: "1px solid #1a2f2f" }}>
+                                      <div style={{ background: "#060b0b", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                                         {/* Ad sub-header */}
-                                        <div style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "7px 18px 7px 56px", background: "#080e0e", borderBottom: "1px solid #0a1515", fontSize: 10, color: "#2a4a4a", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: colMin }}>
+                                        <div style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "7px 18px 7px 56px", background: "#080e0e", borderBottom: "1px solid #0a1515", fontSize: 10, color: "#5a5e72", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: colMin }}>
                                           <span>Ad</span>
                                           {visibleColsArray.map(col => <span key={col}>{METRIC_BY_KEY[col]?.label ?? col}</span>)}
                                         </div>
 
                                         {isAdSetLoading ? (
-                                          <div style={{ padding: "12px 18px 12px 56px", fontSize: 11, color: "#4a7a7a" }}>Loading ads...</div>
+                                          <div style={{ padding: "12px 18px 12px 56px", fontSize: 11, color: "#8b8fa8" }}>Loading ads...</div>
                                         ) : ads.length === 0 ? (
-                                          <div style={{ padding: "12px 18px 12px 56px", fontSize: 11, color: "#4a7a7a" }}>No ad data for this period.</div>
+                                          <div style={{ padding: "12px 18px 12px 56px", fontSize: 11, color: "#8b8fa8" }}>No ad data for this period.</div>
                                         ) : (
                                           ads.map((ad, k) => (
                                             <div key={ad.ad_id} style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "9px 18px 9px 56px", borderBottom: "1px solid #09100f", fontSize: 11, alignItems: "center", background: k % 2 === 0 ? "#060b0b" : "#080d0d", minWidth: colMin }}>
                                               <div>
                                                 <div style={{ color: "#a8d8d8", fontSize: 11, fontWeight: 500, marginBottom: 1 }}>{ad.ad_name ?? ad.ad_id}</div>
-                                                <div style={{ fontSize: 9, color: "#2A8C8A", fontFamily: "monospace" }}>{ad.ad_id}</div>
+                                                <div style={{ fontSize: 9, color: "#f5a623", fontFamily: "monospace" }}>{ad.ad_id}</div>
                                               </div>
                                               {visibleColsArray.map(col => {
-                                                if (col === "trend" || col === "health") return <span key={col} style={{ color: "#2a4a4a" }}>—</span>;
+                                                if (col === "trend" || col === "health") return <span key={col} style={{ color: "#5a5e72" }}>—</span>;
                                                 const adRow: MetricRow = { spend: ad.spend, leads: ad.leads, cpl: ad.cpl, ctr: ad.ctr, frequency: ad.frequency, impressions: ad.impressions, raw_metrics: ad.raw_metrics };
                                                 const val = formatRowValue(col, adRow);
                                                 const isBad = col === "cpl" && ad.cpl > 30;
                                                 const isGood = col === "cpl" && ad.cpl < 20 && ad.leads >= 5;
-                                                return <span key={col} style={{ color: isBad ? "#E8705A" : isGood ? "#2A8C8A" : "#507070" }}>{val}</span>;
+                                                return <span key={col} style={{ color: isBad ? "#E8705A" : isGood ? "#f5a623" : "#507070" }}>{val}</span>;
                                               })}
                                             </div>
                                           ))

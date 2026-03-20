@@ -37,7 +37,7 @@ const EMPTY_FORM = {
   status: "active",
 };
 
-const VERTICAL_COLORS = { leads: "#2A8C8A", ecomm: "#8B6FE8" };
+const VERTICAL_COLORS = { leads: "#f5a623", ecomm: "#8B6FE8" };
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -162,24 +162,24 @@ export default function ClientsPage() {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#e8f4f4", fontFamily: "'DM Mono', monospace" }}>
+          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#e8eaf0", fontFamily: "'system-ui, -apple-system, sans-serif" }}>
             Clients
           </h1>
-          <div style={{ fontSize: 12, color: "#4a7a7a", marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: "#8b8fa8", marginTop: 4 }}>
             {clients.length} client{clients.length !== 1 ? "s" : ""}
           </div>
         </div>
         <button
           onClick={openAdd}
           style={{
-            background: "#2A8C8A",
+            background: "#f5a623",
             color: "#fff",
             border: "none",
             borderRadius: 7,
             padding: "8px 18px",
             fontSize: 13,
             fontWeight: 600,
-            fontFamily: "'DM Mono', monospace",
+            fontFamily: "'system-ui, -apple-system, sans-serif",
             cursor: "pointer",
           }}
         >
@@ -203,14 +203,14 @@ export default function ClientsPage() {
 
       {/* Client list */}
       {loading ? (
-        <div style={{ color: "#4a7a7a", fontSize: 13, padding: "40px 0", textAlign: "center" }}>Loading...</div>
+        <div style={{ color: "#8b8fa8", fontSize: 13, padding: "40px 0", textAlign: "center" }}>Loading...</div>
       ) : clients.length === 0 ? (
         <div style={{
           border: "1px dashed #1a3535",
           borderRadius: 10,
           padding: "60px 0",
           textAlign: "center",
-          color: "#4a7a7a",
+          color: "#8b8fa8",
           fontSize: 13,
         }}>
           No clients yet. Add your first client to get started.
@@ -221,8 +221,8 @@ export default function ClientsPage() {
             <div
               key={c.id}
               style={{
-                background: "#0d1818",
-                border: "1px solid #1a2f2f",
+                background: "#161820",
+                border: "1px solid rgba(255,255,255,0.06)",
                 borderRadius: 10,
                 padding: "14px 18px",
                 display: "flex",
@@ -233,19 +233,19 @@ export default function ClientsPage() {
               {/* Vertical dot */}
               <span style={{
                 width: 10, height: 10, borderRadius: "50%", flexShrink: 0,
-                background: c.status === "active" ? (VERTICAL_COLORS[c.vertical] ?? "#2A8C8A") : "#2a4a4a",
+                background: c.status === "active" ? (VERTICAL_COLORS[c.vertical] ?? "#f5a623") : "#5a5e72",
               }} />
 
               {/* Main info */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: "#e8f4f4" }}>{c.name}</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: "#e8eaf0" }}>{c.name}</span>
                   <span style={{
                     fontSize: 10,
                     padding: "2px 7px",
                     borderRadius: 4,
                     background: c.vertical === "leads" ? "#0f2f2f" : "#1a1030",
-                    color: VERTICAL_COLORS[c.vertical] ?? "#2A8C8A",
+                    color: VERTICAL_COLORS[c.vertical] ?? "#f5a623",
                     fontWeight: 600,
                     textTransform: "uppercase",
                     letterSpacing: "0.06em",
@@ -257,7 +257,7 @@ export default function ClientsPage() {
                     padding: "2px 7px",
                     borderRadius: 4,
                     background: c.status === "active" ? "#0f2f2f" : "#1a2020",
-                    color: c.status === "active" ? "#2A8C8A" : "#4a7a7a",
+                    color: c.status === "active" ? "#f5a623" : "#8b8fa8",
                     fontWeight: 600,
                     textTransform: "uppercase",
                     letterSpacing: "0.06em",
@@ -265,7 +265,7 @@ export default function ClientsPage() {
                     {c.status}
                   </span>
                 </div>
-                <div style={{ fontSize: 11, color: "#4a7a7a", marginTop: 3 }}>
+                <div style={{ fontSize: 11, color: "#8b8fa8", marginTop: 3 }}>
                   {c.meta_ad_account_id ? `Act: ${c.meta_ad_account_id}` : "No ad account"}
                   {c.meta_page_id ? ` · Page: ${c.meta_page_id}` : " · No page ID"}
                   {c.whatsapp_number ? ` · WA: ${c.whatsapp_number}` : ""}
@@ -277,7 +277,7 @@ export default function ClientsPage() {
                       ? { bg: "#0f2f1a", color: "#4ade80", text: "FB Connected" }
                       : status === "expiring"
                       ? { bg: "#2a2000", color: "#facc15", text: "Token expiring" }
-                      : { bg: "#1a1a1a", color: "#4a7a7a", text: "FB Not connected" };
+                      : { bg: "#1a1a1a", color: "#8b8fa8", text: "FB Not connected" };
                     return (
                       <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 4, background: badge.bg, color: badge.color, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>
                         {badge.text}
@@ -287,7 +287,7 @@ export default function ClientsPage() {
                   {getTokenStatus(c) !== "connected" && (
                     <a
                       href={`/api/auth/facebook?clientId=${c.id}`}
-                      style={{ fontSize: 10, color: "#2A8C8A", textDecoration: "none", fontWeight: 600 }}
+                      style={{ fontSize: 10, color: "#f5a623", textDecoration: "none", fontWeight: 600 }}
                     >
                       Connect Facebook →
                     </a>
@@ -301,13 +301,13 @@ export default function ClientsPage() {
                   onClick={() => toggleStatus(c)}
                   style={{
                     background: "transparent",
-                    border: "1px solid #1a3535",
+                    border: "1px solid rgba(255,255,255,0.06)",
                     borderRadius: 6,
                     padding: "5px 10px",
                     fontSize: 11,
-                    color: "#4a7a7a",
+                    color: "#8b8fa8",
                     cursor: "pointer",
-                    fontFamily: "'DM Mono', monospace",
+                    fontFamily: "'system-ui, -apple-system, sans-serif",
                   }}
                 >
                   {c.status === "active" ? "Pause" : "Activate"}
@@ -316,13 +316,13 @@ export default function ClientsPage() {
                   onClick={() => openEdit(c)}
                   style={{
                     background: "transparent",
-                    border: "1px solid #1a3535",
+                    border: "1px solid rgba(255,255,255,0.06)",
                     borderRadius: 6,
                     padding: "5px 10px",
                     fontSize: 11,
-                    color: "#4a7a7a",
+                    color: "#8b8fa8",
                     cursor: "pointer",
-                    fontFamily: "'DM Mono', monospace",
+                    fontFamily: "'system-ui, -apple-system, sans-serif",
                   }}
                 >
                   Edit
@@ -337,7 +337,7 @@ export default function ClientsPage() {
                     fontSize: 11,
                     color: "#7a3a3a",
                     cursor: "pointer",
-                    fontFamily: "'DM Mono', monospace",
+                    fontFamily: "'system-ui, -apple-system, sans-serif",
                   }}
                 >
                   Delete
@@ -359,14 +359,14 @@ export default function ClientsPage() {
           onClick={(e) => { if (e.target === e.currentTarget) setShowForm(false); }}
         >
           <div style={{
-            background: "#0d1818",
-            border: "1px solid #1a2f2f",
+            background: "#161820",
+            border: "1px solid rgba(255,255,255,0.06)",
             borderRadius: 12,
             padding: "28px 32px",
             width: 480,
             maxWidth: "90vw",
           }}>
-            <h2 style={{ margin: "0 0 20px", fontSize: 16, fontWeight: 700, color: "#e8f4f4", fontFamily: "'DM Mono', monospace" }}>
+            <h2 style={{ margin: "0 0 20px", fontSize: 16, fontWeight: 700, color: "#e8eaf0", fontFamily: "'system-ui, -apple-system, sans-serif" }}>
               {editingId ? "Edit Client" : "Add Client"}
             </h2>
 
@@ -454,13 +454,13 @@ export default function ClientsPage() {
                 onClick={() => setShowForm(false)}
                 style={{
                   background: "transparent",
-                  border: "1px solid #1a3535",
+                  border: "1px solid rgba(255,255,255,0.06)",
                   borderRadius: 7,
                   padding: "8px 18px",
                   fontSize: 13,
-                  color: "#4a7a7a",
+                  color: "#8b8fa8",
                   cursor: "pointer",
-                  fontFamily: "'DM Mono', monospace",
+                  fontFamily: "'system-ui, -apple-system, sans-serif",
                 }}
               >
                 Cancel
@@ -469,7 +469,7 @@ export default function ClientsPage() {
                 onClick={handleSave}
                 disabled={saving}
                 style={{
-                  background: saving ? "#1a4a4a" : "#2A8C8A",
+                  background: saving ? "#1a4a4a" : "#f5a623",
                   color: "#fff",
                   border: "none",
                   borderRadius: 7,
@@ -477,7 +477,7 @@ export default function ClientsPage() {
                   fontSize: 13,
                   fontWeight: 600,
                   cursor: saving ? "not-allowed" : "pointer",
-                  fontFamily: "'DM Mono', monospace",
+                  fontFamily: "'system-ui, -apple-system, sans-serif",
                 }}
               >
                 {saving ? "Saving..." : editingId ? "Save Changes" : "Add Client"}
@@ -493,11 +493,11 @@ export default function ClientsPage() {
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div>
-      <label style={{ display: "block", fontSize: 11, color: "#4a7a7a", marginBottom: 5, fontFamily: "'DM Mono', monospace", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+      <label style={{ display: "block", fontSize: 11, color: "#8b8fa8", marginBottom: 5, fontFamily: "'system-ui, -apple-system, sans-serif", textTransform: "uppercase", letterSpacing: "0.06em" }}>
         {label}
       </label>
       {children}
-      {hint && <div style={{ fontSize: 10, color: "#2a4a4a", marginTop: 4 }}>{hint}</div>}
+      {hint && <div style={{ fontSize: 10, color: "#5a5e72", marginTop: 4 }}>{hint}</div>}
     </div>
   );
 }
@@ -505,12 +505,12 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 const inputStyle: React.CSSProperties = {
   width: "100%",
   background: "#0a1212",
-  border: "1px solid #1a3535",
+  border: "1px solid rgba(255,255,255,0.06)",
   borderRadius: 6,
   padding: "8px 10px",
   fontSize: 13,
-  color: "#e8f4f4",
-  fontFamily: "'DM Mono', monospace",
+  color: "#e8eaf0",
+  fontFamily: "'system-ui, -apple-system, sans-serif",
   outline: "none",
   boxSizing: "border-box",
 };

@@ -17,7 +17,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
     // Replace **bold** with <strong>
     const parts = line.split(/(\*\*[^*]+\*\*)/g).map((part, j) => {
       if (part.startsWith("**") && part.endsWith("**")) {
-        return <strong key={j} style={{ color: "#e8f4f4", fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
+        return <strong key={j} style={{ color: "#e8eaf0", fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
       }
       // Replace -- with em dash
       return <span key={j}>{part.replace(/--/g, "—")}</span>;
@@ -210,37 +210,37 @@ export default function ChatBubble() {
           right: 24,
           width: 380,
           height: 560,
-          background: "#0d1818",
-          border: "1px solid #1a2f2f",
+          background: "#161820",
+          border: "1px solid rgba(255,255,255,0.06)",
           borderRadius: 16,
           display: "flex",
           flexDirection: "column",
           zIndex: 1000,
           boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
-          fontFamily: "'DM Mono', 'Fira Mono', monospace",
+          fontFamily: "'system-ui, -apple-system, sans-serif",
           overflow: "hidden",
         }}>
           {/* Header */}
           <div style={{
             padding: "14px 18px",
-            borderBottom: "1px solid #1a2f2f",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            background: "#0a0f0f",
+            background: "#0d0f14",
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{
                 width: 32, height: 32, borderRadius: "50%",
-                background: "linear-gradient(135deg, #2A8C8A, #0B5C5C)",
+                background: "linear-gradient(135deg, #f5a623, #f76b1c)",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 14, fontWeight: 700, color: "#e8f4f4",
+                fontSize: 14, fontWeight: 700, color: "#e8eaf0",
               }}>
                 BO
               </div>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#e8f4f4" }}>Buena Onda AI</div>
-                <div style={{ fontSize: 10, color: "#2A8C8A" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#e8eaf0" }}>Buena Onda AI</div>
+                <div style={{ fontSize: 10, color: "#f5a623" }}>
                   {activeClient ? `● ${activeClient.name}` : "● Select a client"}
                 </div>
               </div>
@@ -249,13 +249,13 @@ export default function ChatBubble() {
               <button
                 onClick={() => { setMessages([]); setShowSuggestions(true); }}
                 title="Clear chat"
-                style={{ background: "transparent", border: "none", color: "#4a7a7a", cursor: "pointer", fontSize: 14 }}
+                style={{ background: "transparent", border: "none", color: "#8b8fa8", cursor: "pointer", fontSize: 14 }}
               >
                 ↺
               </button>
               <button
                 onClick={() => setOpen(false)}
-                style={{ background: "transparent", border: "none", color: "#4a7a7a", cursor: "pointer", fontSize: 18 }}
+                style={{ background: "transparent", border: "none", color: "#8b8fa8", cursor: "pointer", fontSize: 18 }}
               >
                 ✕
               </button>
@@ -277,11 +277,11 @@ export default function ChatBubble() {
                   maxWidth: "85%",
                   padding: "10px 14px",
                   borderRadius: msg.role === "user" ? "12px 12px 2px 12px" : "12px 12px 12px 2px",
-                  background: msg.role === "user" ? "#0B5C5C" : "#0f1f1f",
-                  border: msg.role === "user" ? "1px solid #2A8C8A33" : "1px solid #1a2f2f",
+                  background: msg.role === "user" ? "rgba(245,166,35,0.15)" : "#13151d",
+                  border: msg.role === "user" ? "1px solid rgba(245,166,35,0.2)" : "1px solid rgba(255,255,255,0.06)",
                   fontSize: 12,
                   lineHeight: 1.6,
-                  color: msg.role === "user" ? "#e8f4f4" : "#8ab8b8",
+                  color: msg.role === "user" ? "#e8eaf0" : "#8b8fa8",
                   whiteSpace: "pre-wrap",
                 }}>
                   {msg.role === "assistant" ? renderMarkdown(msg.content) : msg.content}
@@ -295,10 +295,10 @@ export default function ChatBubble() {
                 <div style={{
                   padding: "10px 14px",
                   borderRadius: "12px 12px 12px 2px",
-                  background: "#0f1f1f",
-                  border: "1px solid #1a2f2f",
+                  background: "#13151d",
+                  border: "1px solid rgba(255,255,255,0.06)",
                   fontSize: 12,
-                  color: "#4a7a7a",
+                  color: "#8b8fa8",
                 }}>
                   Thinking...
                 </div>
@@ -308,7 +308,7 @@ export default function ChatBubble() {
             {/* Suggested prompts */}
             {showSuggestions && messages.length <= 1 && (
               <div style={{ marginTop: 8 }}>
-                <div style={{ fontSize: 10, color: "#2a4a4a", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
+                <div style={{ fontSize: 10, color: "#5a5e72", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
                   Try asking
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -318,14 +318,14 @@ export default function ChatBubble() {
                       onClick={() => sendMessage(prompt)}
                       style={{
                         background: "transparent",
-                        border: "1px solid #1a3535",
+                        border: "1px solid rgba(255,255,255,0.06)",
                         borderRadius: 8,
                         padding: "7px 12px",
-                        color: "#4a7a7a",
+                        color: "#8b8fa8",
                         fontSize: 11,
                         cursor: "pointer",
                         textAlign: "left" as const,
-                        fontFamily: "'DM Mono', monospace",
+                        fontFamily: "'system-ui, -apple-system, sans-serif",
                         transition: "all 0.15s",
                       }}
                     >
@@ -340,20 +340,20 @@ export default function ChatBubble() {
           </div>
 
           {/* Input */}
-          <div style={{ padding: "12px 14px", borderTop: "1px solid #1a2f2f", background: "#0a0f0f" }}>
+          <div style={{ padding: "12px 14px", borderTop: "1px solid rgba(255,255,255,0.06)", background: "#0d0f14" }}>
             {/* Creative preview */}
             {(pendingCreative || uploadingCreative) && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, padding: "6px 10px", background: "#0d1818", border: "1px solid #1a3535", borderRadius: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, padding: "6px 10px", background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8 }}>
                 {uploadingCreative ? (
-                  <span style={{ fontSize: 11, color: "#4a7a7a" }}>Uploading creative to Meta...</span>
+                  <span style={{ fontSize: 11, color: "#8b8fa8" }}>Uploading creative to Meta...</span>
                 ) : pendingCreative && (
                   <>
                     <img src={pendingCreative.previewUrl} alt="creative" style={{ width: 36, height: 36, objectFit: "cover", borderRadius: 4, flexShrink: 0 }} />
                     <div style={{ flex: 1, overflow: "hidden" }}>
-                      <div style={{ fontSize: 10, color: "#2A8C8A", fontWeight: 600 }}>Creative ready</div>
-                      <div style={{ fontSize: 10, color: "#4a7a7a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pendingCreative.fileName}</div>
+                      <div style={{ fontSize: 10, color: "#f5a623", fontWeight: 600 }}>Creative ready</div>
+                      <div style={{ fontSize: 10, color: "#8b8fa8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pendingCreative.fileName}</div>
                     </div>
-                    <button onClick={() => setPendingCreative(null)} style={{ background: "transparent", border: "none", color: "#4a7a7a", cursor: "pointer", fontSize: 14, flexShrink: 0 }}>✕</button>
+                    <button onClick={() => setPendingCreative(null)} style={{ background: "transparent", border: "none", color: "#8b8fa8", cursor: "pointer", fontSize: 14, flexShrink: 0 }}>✕</button>
                   </>
                 )}
               </div>
@@ -375,9 +375,9 @@ export default function ChatBubble() {
                 title="Upload ad creative image"
                 style={{
                   width: 34, height: 34, borderRadius: 8, flexShrink: 0,
-                  background: pendingCreative ? "#0B3C3C" : "transparent",
-                  border: pendingCreative ? "1px solid #2A8C8A" : "1px solid #1a3535",
-                  color: pendingCreative ? "#2A8C8A" : "#4a7a7a",
+                  background: pendingCreative ? "rgba(245,166,35,0.1)" : "transparent",
+                  border: pendingCreative ? "1px solid #f5a623" : "1px solid rgba(255,255,255,0.06)",
+                  color: pendingCreative ? "#f5a623" : "#8b8fa8",
                   cursor: uploadingCreative || loading ? "not-allowed" : "pointer",
                   fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center",
                   transition: "all 0.15s",
@@ -394,9 +394,9 @@ export default function ChatBubble() {
                 placeholder={pendingCreative ? "Describe the campaign..." : "Ask anything..."}
                 rows={1}
                 style={{
-                  flex: 1, background: "#0d1818", border: "1px solid #1a2f2f",
-                  borderRadius: 8, color: "#e8f4f4", fontSize: 12,
-                  fontFamily: "'DM Mono', monospace", padding: "8px 12px",
+                  flex: 1, background: "#161820", border: "1px solid rgba(255,255,255,0.06)",
+                  borderRadius: 8, color: "#e8eaf0", fontSize: 12,
+                  fontFamily: "'system-ui, -apple-system, sans-serif", padding: "8px 12px",
                   outline: "none", resize: "none", lineHeight: 1.5, maxHeight: 80,
                 }}
               />
@@ -405,9 +405,9 @@ export default function ChatBubble() {
                 disabled={!input.trim() || loading}
                 style={{
                   width: 34, height: 34, borderRadius: 8, flexShrink: 0,
-                  background: input.trim() && !loading ? "#0B5C5C" : "#0f1f1f",
-                  border: "1px solid #2A8C8A44",
-                  color: input.trim() && !loading ? "#e8f4f4" : "#2a4a4a",
+                  background: input.trim() && !loading ? "rgba(245,166,35,0.15)" : "#13151d",
+                  border: "1px solid rgba(245,166,35,0.27)",
+                  color: input.trim() && !loading ? "#e8eaf0" : "#5a5e72",
                   cursor: input.trim() && !loading ? "pointer" : "not-allowed",
                   fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center",
                   transition: "all 0.15s",
@@ -416,7 +416,7 @@ export default function ChatBubble() {
                 ↑
               </button>
             </div>
-            <div style={{ fontSize: 10, color: "#2a4a4a", marginTop: 6, textAlign: "center" as const }}>
+            <div style={{ fontSize: 10, color: "#5a5e72", marginTop: 6, textAlign: "center" as const }}>
               Enter to send · Shift+Enter for new line · 📎 upload creative
             </div>
           </div>
@@ -443,7 +443,7 @@ export default function ChatBubble() {
           boxShadow: "0 4px 20px rgba(245,166,35,0.35)",
           transition: "all 0.2s",
           fontSize: open ? 20 : 22,
-          color: "#e8f4f4",
+          color: "#e8eaf0",
         }}
         title="Open Buena Onda AI"
       >
