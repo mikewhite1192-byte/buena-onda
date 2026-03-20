@@ -353,7 +353,7 @@ export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { messages, clientId, adAccountId, imageHash } = await req.json();
+  const { messages, clientId, adAccountId, imageHash, isOnboarding } = await req.json();
 
   if (!messages?.length) {
     return NextResponse.json({ error: "No messages provided" }, { status: 400 });
@@ -389,6 +389,40 @@ export async function POST(req: NextRequest) {
   ]);
 
   const clientInfo = client?.[0] as { name: string; vertical: string; meta_ad_account_id: string; meta_page_id?: string; meta_access_token?: string } | undefined;
+
+  if (isOnboarding) {
+    const onboardingPrompt = `You are the Buena Onda AI setup assistant. This user just signed up and has no client accounts yet. Help them get set up quickly and confidently.
+
+Buena Onda is an AI-powered Meta ads management platform for agencies. Here's what it does:
+- Manages Meta (Facebook/Instagram) ad campaigns for multiple clients from one dashboard
+- Analyzes performance and surfaces recommendations automatically
+- Lets you pause, scale, or create campaigns by talking to the AI
+- Tracks CPL, ROAS, spend, leads, and more in real time
+
+TO GET STARTED:
+1. Click "Clients" in the top nav and add a client
+2. You'll need their Meta Ad Account ID — found in Meta Business Suite under "Ad Accounts" (looks like a long number, e.g. 123456789012345)
+3. Facebook Page ID is optional but recommended — found on the Facebook Page under About → scroll to bottom
+4. After adding the client, click "Connect Facebook" on the client card to grant the AI access to the ad account
+5. Once connected, go to Campaigns to see live data, or use this chat to manage ads
+
+Keep answers friendly, short, and actionable. Direct users to the UI — don't ask for credentials directly. Answer any questions about Meta ads, the platform, or how to find account info.`;
+
+    const apiMessages: Anthropic.MessageParam[] = messages.map((m: Message) => ({
+      role: m.role,
+      content: m.content,
+    }));
+
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-5",
+      max_tokens: 1024,
+      system: onboardingPrompt,
+      messages: apiMessages,
+    });
+
+    const reply = response.content[0]?.type === "text" ? response.content[0].text : "Sorry, I couldn't generate a response.";
+    return NextResponse.json({ reply });
+  }
 
   const systemPrompt = `You are the Buena Onda AI — an expert Meta ads analyst, strategist, and operator embedded in the Buena Onda dashboard. You help agency owners and media buyers make smart decisions and take direct action on their Meta ad accounts.
 

@@ -13,15 +13,20 @@ export interface ActiveClient {
 interface ClientContextValue {
   activeClient: ActiveClient | null;
   setActiveClient: (client: ActiveClient | null) => void;
+  hasNoClients: boolean | null; // null = not yet loaded
+  setHasNoClients: (v: boolean) => void;
 }
 
 const ClientContext = createContext<ClientContextValue>({
   activeClient: null,
   setActiveClient: () => {},
+  hasNoClients: null,
+  setHasNoClients: () => {},
 });
 
 export function ClientProvider({ children }: { children: React.ReactNode }) {
   const [activeClient, setActiveClientState] = useState<ActiveClient | null>(null);
+  const [hasNoClients, setHasNoClients] = useState<boolean | null>(null);
 
   const setActiveClient = useCallback((client: ActiveClient | null) => {
     setActiveClientState(client);
@@ -35,7 +40,7 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <ClientContext.Provider value={{ activeClient, setActiveClient }}>
+    <ClientContext.Provider value={{ activeClient, setActiveClient, hasNoClients, setHasNoClients }}>
       {children}
     </ClientContext.Provider>
   );

@@ -40,6 +40,14 @@ const SUGGESTED_PROMPTS = [
   "Analyze my campaign performance",
 ];
 
+const ONBOARDING_PROMPTS = [
+  "How do I get started?",
+  "Where do I find my Ad Account ID?",
+  "How do I connect my Facebook account?",
+  "What can Buena Onda do for my agency?",
+  "What's a Facebook Page ID and where do I find it?",
+];
+
 interface PendingCreative {
   imageHash: string;
   fileName: string;
@@ -47,7 +55,7 @@ interface PendingCreative {
 }
 
 export default function ChatBubble() {
-  const { activeClient } = useActiveClient();
+  const { activeClient, hasNoClients } = useActiveClient();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -58,19 +66,33 @@ export default function ChatBubble() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const autoOpenedRef = useRef(false);
+
+  const isOnboarding = hasNoClients === true;
+
+  // Auto-open for new users
+  useEffect(() => {
+    if (isOnboarding && !autoOpenedRef.current) {
+      autoOpenedRef.current = true;
+      const t = setTimeout(() => setOpen(true), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [isOnboarding]);
 
   useEffect(() => {
     if (open && messages.length === 0) {
       setMessages([{
         id: "welcome",
         role: "assistant",
-        content: activeClient
-          ? `Hey — I'm your Buena Onda AI. I have live access to ${activeClient.name}'s campaign data. Ask me anything about performance, decisions, or strategy.`
-          : "Hey — I'm your Buena Onda AI. Select a client account to get campaign-specific insights, or ask me anything about Meta ads strategy.",
+        content: isOnboarding
+          ? "Hey, welcome to Buena Onda! 👋 I'm your AI assistant. Let me walk you through getting set up — it only takes a few minutes. What do you need help with first?"
+          : activeClient
+            ? `Hey — I'm your Buena Onda AI. I have live access to ${activeClient.name}'s campaign data. Ask me anything about performance, decisions, or strategy.`
+            : "Hey — I'm your Buena Onda AI. Select a client account to get campaign-specific insights, or ask me anything about Meta ads strategy.",
         timestamp: new Date(),
       }]);
     }
-  }, [open, activeClient, messages.length]);
+  }, [open, activeClient, isOnboarding, messages.length]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -160,6 +182,7 @@ export default function ChatBubble() {
             clientId: activeClient?.id ?? null,
             adAccountId: activeClient?.meta_ad_account_id ?? null,
             imageHash: pendingCreative?.imageHash ?? null,
+            isOnboarding,
           }),
           signal: controller.signal,
         });
@@ -309,10 +332,10 @@ export default function ChatBubble() {
             {showSuggestions && messages.length <= 1 && (
               <div style={{ marginTop: 8 }}>
                 <div style={{ fontSize: 10, color: "#5a5e72", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
-                  Try asking
+                  {isOnboarding ? "Getting started" : "Try asking"}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {SUGGESTED_PROMPTS.map((prompt) => (
+                  {(isOnboarding ? ONBOARDING_PROMPTS : SUGGESTED_PROMPTS).map((prompt) => (
                     <button
                       key={prompt}
                       onClick={() => sendMessage(prompt)}

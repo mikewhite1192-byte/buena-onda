@@ -39,7 +39,7 @@ const NAV_ITEMS = [
 function DashboardNav({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { setActiveClient } = useActiveClient();
+  const { setActiveClient, setHasNoClients } = useActiveClient();
 
   const [clients, setClients] = useState<Client[]>([]);
   const [localActive, setLocalActive] = useState<Client | null>(null);
@@ -66,6 +66,7 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
       const data = await res.json();
       const list = (data.clients ?? []) as Client[];
       setClients(list);
+      setHasNoClients(list.length === 0);
       const first = list.find((c) => c.status === "active") ?? list[0] ?? null;
       if (first) selectClient(first);
     } catch {
