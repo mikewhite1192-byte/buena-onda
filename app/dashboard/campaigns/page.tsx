@@ -1,28 +1,24 @@
 "use client";
 
 // app/dashboard/campaigns/page.tsx
-import { useEffect, useState, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useCallback } from "react";
 import { useActiveClient } from "@/lib/context/client-context";
 import { METRIC_GROUPS, METRIC_BY_KEY, LEADS_DEFAULT_COLUMNS, ECOMM_DEFAULT_COLUMNS } from "@/lib/meta/metric-definitions";
 import type { MetricDef } from "@/lib/meta/metric-definitions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Summary {
-  total_spend: number;
-  total_leads: number;
-  avg_cpl: number;
-  avg_ctr: number;
-  avg_frequency: number;
-  total_impressions: number;
-  active_ad_sets: number;
-}
-
-interface SummaryResponse {
-  current: Summary;
-  previous: { total_spend: number; total_leads: number; avg_cpl: number };
-  active_briefs: number;
+interface CampaignMetric {
+  campaign_id: string;
+  campaign_name: string | null;
+  spend: number;
+  leads: number;
+  cpl: number;
+  ctr: number;
+  frequency: number;
+  impressions: number;
+  clicks: number;
+  raw_metrics: Record<string, unknown>;
 }
 
 interface AdSetMetric {
@@ -36,6 +32,7 @@ interface AdSetMetric {
   ctr: number;
   frequency: number;
   impressions: number;
+  clicks: number;
   date_recorded: string;
   raw_metrics: Record<string, unknown>;
 }
@@ -54,69 +51,51 @@ interface AdMetric {
   raw_metrics: Record<string, unknown>;
 }
 
+// Generic row shape that formatRowValue accepts
+interface MetricRow {
+  spend: number;
+  leads: number;
+  cpl: number;
+  ctr: number;
+  frequency: number;
+  impressions: number;
+  raw_metrics: Record<string, unknown>;
+}
+
 type SortKey = "cpl" | "spend" | "leads" | "frequency" | "ctr" | "impressions";
 type SortDir = "asc" | "desc";
-type HealthFilter = "all" | "Scaling" | "Stable" | "Fatigued" | "CPL High";
 
 interface Preset { id: string; name: string; columns: string[]; is_default: boolean; }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function trendCalc(current: number, previous: number) {
-  if (!previous || previous === 0) return { dir: "flat" as const, pct: 0 };
-  const pct = ((current - previous) / previous) * 100;
-  return { dir: pct > 1 ? "up" as const : pct < -1 ? "down" as const : "flat" as const, pct: Math.abs(pct) };
-}
-
-function healthColor(adSet: AdSetMetric): string {
-  if (adSet.cpl > 30) return "#E8705A";
-  if (adSet.frequency > 3) return "#F5A623";
-  if (adSet.cpl < 20 && adSet.leads >= 5) return "#2A8C8A";
-  return "#8ab8b8";
-}
-
-function healthLabel(adSet: AdSetMetric): HealthFilter {
-  if (adSet.cpl > 30) return "CPL High";
-  if (adSet.frequency > 3) return "Fatigued";
-  if (adSet.cpl < 20 && adSet.leads >= 5) return "Scaling";
-  return "Stable";
-}
-
 type MetaActionRow = { action_type: string; value: string };
 
 function extractFromRaw(raw: Record<string, unknown>, apiField: string): unknown {
-  if (apiField.startsWith("computed:")) return undefined; // handled separately
-
+  if (apiField.startsWith("computed:")) return undefined;
   const [prefix, actionType] = apiField.split(":");
-
   if (actionType) {
-    // Field is nested in an array (e.g. actions:link_click, cost_per_action_type:lead)
     const arr = raw[prefix] as MetaActionRow[] | undefined;
     return arr?.find((r) => r.action_type === actionType)?.value;
   }
-
-  // Top-level flat field (e.g. cpc, cpm, reach, unique_clicks)
   return raw[apiField];
 }
 
-function formatMetricValue(key: string, adSet: AdSetMetric): string {
+function formatRowValue(key: string, row: MetricRow): string {
   const def: MetricDef | undefined = METRIC_BY_KEY[key];
   if (!def) return "—";
 
-  // Fields kept as typed properties on AdSetMetric
-  const direct: Record<string, number | string | null> = {
-    spend: adSet.spend, leads: adSet.leads, cpl: adSet.cpl,
-    ctr: adSet.ctr, frequency: adSet.frequency, impressions: adSet.impressions,
+  const direct: Record<string, number | null> = {
+    spend: row.spend, leads: row.leads, cpl: row.cpl,
+    ctr: row.ctr, frequency: row.frequency, impressions: row.impressions,
   };
 
-  let val: unknown = direct[key] ?? extractFromRaw(adSet.raw_metrics ?? {}, def.apiField);
+  let val: unknown = direct[key] ?? extractFromRaw(row.raw_metrics ?? {}, def.apiField);
 
-  // Computed fields
   if (key === "hook_rate" && val === undefined) {
-    const raw = adSet.raw_metrics ?? {};
+    const raw = row.raw_metrics ?? {};
     const plays = (raw["video_play_actions"] as MetaActionRow[] | undefined)?.find(r => r.action_type === "video_view")?.value;
-    const imp = adSet.impressions;
-    if (plays && imp > 0) val = parseFloat(plays) / imp;
+    if (plays && row.impressions > 0) val = parseFloat(plays) / row.impressions;
   }
 
   if (val === undefined || val === null) return "—";
@@ -135,24 +114,26 @@ function formatMetricValue(key: string, adSet: AdSetMetric): string {
   }
 }
 
+function adSetHealthColor(a: AdSetMetric): string {
+  if (a.cpl > 30) return "#E8705A";
+  if (a.frequency > 3) return "#F5A623";
+  if (a.cpl < 20 && a.leads >= 5) return "#2A8C8A";
+  return "#8ab8b8";
+}
 
-function StatCard({ label, value, sub, trendDir, trendPct, invertTrend }: {
-  label: string; value: string; sub?: string;
-  trendDir?: "up" | "down" | "flat"; trendPct?: number; invertTrend?: boolean;
-}) {
-  const isGood = trendDir === "flat" ? null : invertTrend ? trendDir === "down" : trendDir === "up";
+function adSetHealthLabel(a: AdSetMetric): string {
+  if (a.cpl > 30) return "CPL High";
+  if (a.frequency > 3) return "Fatigued";
+  if (a.cpl < 20 && a.leads >= 5) return "Scaling";
+  return "Stable";
+}
+
+function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div style={{ background: "#0d1818", border: "1px solid #1a2f2f", borderRadius: 10, padding: "18px 20px" }}>
       <div style={{ fontSize: 11, color: "#2a4a4a", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>{label}</div>
       <div style={{ fontSize: 26, fontWeight: 700, color: "#e8f4f4", letterSpacing: "-0.5px", marginBottom: 4 }}>{value}</div>
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        {trendDir && trendDir !== "flat" && trendPct !== undefined && (
-          <span style={{ fontSize: 11, color: isGood ? "#2A8C8A" : "#E8705A", fontWeight: 600 }}>
-            {trendDir === "up" ? "↑" : "↓"} {trendPct.toFixed(1)}%
-          </span>
-        )}
-        {sub && <span style={{ fontSize: 11, color: "#4a7a7a" }}>{sub}</span>}
-      </div>
+      {sub && <div style={{ fontSize: 11, color: "#4a7a7a" }}>{sub}</div>}
     </div>
   );
 }
@@ -202,7 +183,6 @@ function ColumnPickerModal({
     <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ background: "#0d1818", border: "1px solid #1a2f2f", borderRadius: 12, width: 780, maxHeight: "85vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-        {/* Header */}
         <div style={{ padding: "20px 24px", borderBottom: "1px solid #1a2f2f", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <div style={{ fontSize: 16, fontWeight: 700, color: "#2A8C8A" }}>Customize Columns</div>
@@ -211,7 +191,6 @@ function ColumnPickerModal({
           <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#4a7a7a", cursor: "pointer", fontSize: 18 }}>✕</button>
         </div>
 
-        {/* Saved Presets */}
         {presets.length > 0 && (
           <div style={{ padding: "12px 24px", borderBottom: "1px solid #0f1f1f", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <span style={{ fontSize: 11, color: "#2a4a4a", textTransform: "uppercase", letterSpacing: "0.08em" }}>Presets:</span>
@@ -226,7 +205,6 @@ function ColumnPickerModal({
           </div>
         )}
 
-        {/* Search */}
         <div style={{ padding: "12px 24px", borderBottom: "1px solid #0f1f1f" }}>
           <input
             type="text" placeholder="Search metrics..."
@@ -235,28 +213,16 @@ function ColumnPickerModal({
           />
         </div>
 
-        {/* Body — group tabs + metrics */}
         <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-
-          {/* Group tabs */}
           <div style={{ width: 160, borderRight: "1px solid #0f1f1f", padding: "12px 0", overflowY: "auto", flexShrink: 0 }}>
             {filteredGroups.map(g => (
-              <div
-                key={g.group}
-                onClick={() => setActiveGroup(g.group)}
-                style={{
-                  padding: "8px 16px", fontSize: 12, cursor: "pointer",
-                  color: activeGroup === g.group ? "#2A8C8A" : "#4a7a7a",
-                  background: activeGroup === g.group ? "#0f2020" : "transparent",
-                  borderLeft: activeGroup === g.group ? "2px solid #2A8C8A" : "2px solid transparent",
-                }}
-              >
+              <div key={g.group} onClick={() => setActiveGroup(g.group)}
+                style={{ padding: "8px 16px", fontSize: 12, cursor: "pointer", color: activeGroup === g.group ? "#2A8C8A" : "#4a7a7a", background: activeGroup === g.group ? "#0f2020" : "transparent", borderLeft: activeGroup === g.group ? "2px solid #2A8C8A" : "2px solid transparent" }}>
                 {g.group}
               </div>
             ))}
           </div>
 
-          {/* Metrics */}
           <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px" }}>
             {filteredGroups.map(g =>
               (search ? true : g.group === activeGroup) && (
@@ -267,12 +233,7 @@ function ColumnPickerModal({
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                         {sub.metrics.map(m => (
                           <label key={m.key} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, color: visibleCols.has(m.key) ? "#e8f4f4" : "#4a7a7a" }}>
-                            <input
-                              type="checkbox"
-                              checked={visibleCols.has(m.key)}
-                              onChange={() => toggle(m.key)}
-                              style={{ accentColor: "#2A8C8A", cursor: "pointer" }}
-                            />
+                            <input type="checkbox" checked={visibleCols.has(m.key)} onChange={() => toggle(m.key)} style={{ accentColor: "#2A8C8A", cursor: "pointer" }} />
                             {m.label}
                           </label>
                         ))}
@@ -285,26 +246,17 @@ function ColumnPickerModal({
           </div>
         </div>
 
-        {/* Footer */}
         <div style={{ padding: "16px 24px", borderTop: "1px solid #1a2f2f", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {showPresetInput ? (
               <>
-                <input
-                  type="text" placeholder="Preset name..."
-                  value={presetName} onChange={e => setPresetName(e.target.value)}
-                  style={{ background: "#0a0f0f", border: "1px solid #1a2f2f", borderRadius: 6, color: "#e8f4f4", fontSize: 12, fontFamily: "'DM Mono', monospace", padding: "6px 10px", outline: "none", width: 160 }}
-                />
-                <button
-                  onClick={() => { if (presetName) { onSavePreset(presetName); setPresetName(""); setShowPresetInput(false); } }}
-                  style={{ ...btnStyle(true), padding: "6px 12px" }}
-                >Save</button>
+                <input type="text" placeholder="Preset name..." value={presetName} onChange={e => setPresetName(e.target.value)}
+                  style={{ background: "#0a0f0f", border: "1px solid #1a2f2f", borderRadius: 6, color: "#e8f4f4", fontSize: 12, fontFamily: "'DM Mono', monospace", padding: "6px 10px", outline: "none", width: 160 }} />
+                <button onClick={() => { if (presetName) { onSavePreset(presetName); setPresetName(""); setShowPresetInput(false); } }} style={{ ...btnStyle(true), padding: "6px 12px" }}>Save</button>
                 <button onClick={() => setShowPresetInput(false)} style={{ ...btnStyle(false), padding: "6px 12px" }}>Cancel</button>
               </>
             ) : (
-              <button onClick={() => setShowPresetInput(true)} style={{ ...btnStyle(false), padding: "6px 12px" }}>
-                Save as preset
-              </button>
+              <button onClick={() => setShowPresetInput(true)} style={{ ...btnStyle(false), padding: "6px 12px" }}>Save as preset</button>
             )}
           </div>
           <button onClick={onClose} style={{ ...btnStyle(true), padding: "8px 20px" }}>Apply</button>
@@ -317,17 +269,20 @@ function ColumnPickerModal({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CampaignsPage() {
-  const router = useRouter();
   const { activeClient } = useActiveClient();
 
-  const [summary, setSummary] = useState<SummaryResponse | null>(null);
-  const [adSets, setAdSets] = useState<AdSetMetric[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignMetric[]>([]);
   const [loading, setLoading] = useState(true);
+  const [presets, setPresets] = useState<Preset[]>([]);
+  const [showColModal, setShowColModal] = useState(false);
+
+  // Expand state: campaign → ad sets, ad set → ads
+  const [expandedCampaigns, setExpandedCampaigns] = useState<Set<string>>(new Set());
+  const [adSetLevelData, setAdSetLevelData] = useState<Record<string, AdSetMetric[]>>({});
+  const [adSetLevelLoading, setAdSetLevelLoading] = useState<Set<string>>(new Set());
   const [expandedAdSets, setExpandedAdSets] = useState<Set<string>>(new Set());
   const [adLevelData, setAdLevelData] = useState<Record<string, AdMetric[]>>({});
   const [adLevelLoading, setAdLevelLoading] = useState<Set<string>>(new Set());
-  const [presets, setPresets] = useState<Preset[]>([]);
-  const [showColModal, setShowColModal] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
   const sevenAgo = new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0];
@@ -335,13 +290,9 @@ export default function CampaignsPage() {
   const [endDate, setEndDate] = useState(today);
   const [datePreset, setDatePreset] = useState<"today" | "7d" | "30d" | "max" | "custom">("7d");
 
-  const [sortKey, setSortKey] = useState<SortKey>("cpl");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
-  const [healthFilter, setHealthFilter] = useState<HealthFilter>("all");
+  const [sortKey, setSortKey] = useState<SortKey>("spend");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [search, setSearch] = useState("");
-  const [selectedAdSets, setSelectedAdSets] = useState<Set<string>>(new Set());
-  const [showAdSetPicker, setShowAdSetPicker] = useState(false);
-  const adSetPickerRef = useRef<HTMLDivElement>(null);
 
   const defaultCols = activeClient?.vertical === "ecomm" ? ECOMM_DEFAULT_COLUMNS : LEADS_DEFAULT_COLUMNS;
   const [visibleCols, setVisibleCols] = useState<Set<string>>(new Set(defaultCols));
@@ -352,19 +303,22 @@ export default function CampaignsPage() {
     setLoading(true);
     const adAccountParam = activeClient?.meta_ad_account_id ? `&ad_account_id=${activeClient.meta_ad_account_id}` : "";
     try {
-      const [liveRes, presetsRes] = await Promise.all([
-        fetch(`/api/agent/metrics/live?startDate=${startDate}&endDate=${endDate}${adAccountParam}`),
+      const [campaignsRes, presetsRes] = await Promise.all([
+        fetch(`/api/agent/metrics/campaigns?startDate=${startDate}&endDate=${endDate}${adAccountParam}`),
         fetch("/api/agent/presets"),
       ]);
-      const [liveData, presetsData] = await Promise.all([liveRes.json(), presetsRes.json()]);
-      setSummary({ current: liveData.current, previous: liveData.previous, active_briefs: liveData.active_briefs });
-      setAdSets(liveData.ad_sets ?? []);
+      const [campaignsData, presetsData] = await Promise.all([campaignsRes.json(), presetsRes.json()]);
+      setCampaigns(campaignsData.campaigns ?? []);
       setPresets(presetsData.presets ?? []);
-
       const defaultPreset = (presetsData.presets ?? []).find((p: Preset) => p.is_default);
       if (defaultPreset) setVisibleCols(new Set(defaultPreset.columns));
+      // Clear expanded state when date range changes
+      setExpandedCampaigns(new Set());
+      setAdSetLevelData({});
+      setExpandedAdSets(new Set());
+      setAdLevelData({});
     } catch {
-      setSummary(null);
+      setCampaigns([]);
     } finally {
       setLoading(false);
     }
@@ -372,14 +326,30 @@ export default function CampaignsPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (adSetPickerRef.current && !adSetPickerRef.current.contains(e.target as Node)) setShowAdSetPicker(false);
+  // Expand/collapse campaign → load its ad sets
+  async function toggleCampaignExpand(campaignId: string) {
+    const next = new Set(expandedCampaigns);
+    if (next.has(campaignId)) {
+      next.delete(campaignId);
+      setExpandedCampaigns(next);
+      return;
     }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+    next.add(campaignId);
+    setExpandedCampaigns(next);
+    if (adSetLevelData[campaignId]) return;
+    setAdSetLevelLoading(prev => new Set(prev).add(campaignId));
+    try {
+      const res = await fetch(`/api/agent/metrics/adsets?campaignId=${campaignId}&startDate=${startDate}&endDate=${endDate}`);
+      const data = await res.json();
+      setAdSetLevelData(prev => ({ ...prev, [campaignId]: data.ad_sets ?? [] }));
+    } catch {
+      setAdSetLevelData(prev => ({ ...prev, [campaignId]: [] }));
+    } finally {
+      setAdSetLevelLoading(prev => { const s = new Set(prev); s.delete(campaignId); return s; });
+    }
+  }
 
+  // Expand/collapse ad set → load its ads
   async function toggleAdExpand(adSetId: string) {
     const next = new Set(expandedAdSets);
     if (next.has(adSetId)) {
@@ -389,27 +359,21 @@ export default function CampaignsPage() {
     }
     next.add(adSetId);
     setExpandedAdSets(next);
-    if (adLevelData[adSetId]) return; // already loaded
-    setAdLevelLoading((prev) => new Set(prev).add(adSetId));
+    if (adLevelData[adSetId]) return;
+    setAdLevelLoading(prev => new Set(prev).add(adSetId));
     try {
-      const res = await fetch(
-        `/api/agent/metrics/ads?adSetId=${adSetId}&startDate=${startDate}&endDate=${endDate}`
-      );
+      const res = await fetch(`/api/agent/metrics/ads?adSetId=${adSetId}&startDate=${startDate}&endDate=${endDate}`);
       const data = await res.json();
-      setAdLevelData((prev) => ({ ...prev, [adSetId]: data.ads ?? [] }));
+      setAdLevelData(prev => ({ ...prev, [adSetId]: data.ads ?? [] }));
     } catch {
-      setAdLevelData((prev) => ({ ...prev, [adSetId]: [] }));
+      setAdLevelData(prev => ({ ...prev, [adSetId]: [] }));
     } finally {
-      setAdLevelLoading((prev) => { const s = new Set(prev); s.delete(adSetId); return s; });
+      setAdLevelLoading(prev => { const s = new Set(prev); s.delete(adSetId); return s; });
     }
   }
 
   async function savePreset(name: string) {
-    const res = await fetch("/api/agent/presets", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, columns: Array.from(visibleCols), is_default: false }),
-    });
+    const res = await fetch("/api/agent/presets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, columns: Array.from(visibleCols), is_default: false }) });
     const data = await res.json();
     setPresets(p => [...p, data.preset]);
   }
@@ -419,49 +383,37 @@ export default function CampaignsPage() {
     setPresets(p => p.filter(x => x.id !== id));
   }
 
-  function loadPreset(preset: Preset) {
-    setVisibleCols(new Set(preset.columns));
-    setShowColModal(false);
-  }
-
+  function loadPreset(preset: Preset) { setVisibleCols(new Set(preset.columns)); setShowColModal(false); }
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
-    else { setSortKey(key); setSortDir("asc"); }
+    else { setSortKey(key); setSortDir("desc"); }
   }
 
-  const filtered = adSets
-    .filter(a => {
-      if (selectedAdSets.size > 0 && !selectedAdSets.has(a.ad_set_id)) return false;
-      if (search && !(a.ad_set_name ?? a.ad_set_id).toLowerCase().includes(search.toLowerCase())) return false;
-      if (healthFilter !== "all" && healthLabel(a) !== healthFilter) return false;
-      return true;
-    })
+  const filtered = campaigns
+    .filter(c => !search || (c.campaign_name ?? c.campaign_id).toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
-      const aVal = Number(a[sortKey as keyof AdSetMetric] ?? 0);
-      const bVal = Number(b[sortKey as keyof AdSetMetric] ?? 0);
+      const aVal = Number(a[sortKey as keyof CampaignMetric] ?? 0);
+      const bVal = Number(b[sortKey as keyof CampaignMetric] ?? 0);
       return sortDir === "asc" ? aVal - bVal : bVal - aVal;
     });
 
-  const cur = summary?.current;
-  const prev = summary?.previous;
-  const spendTrend = cur && prev ? trendCalc(cur.total_spend, prev.total_spend) : null;
-  const cplTrend = cur && prev ? trendCalc(cur.avg_cpl, prev.avg_cpl) : null;
-  const leadsTrend = cur && prev ? trendCalc(cur.total_leads, prev.total_leads) : null;
+  // Summary totals from campaign data
+  const totalSpend = campaigns.reduce((s, c) => s + c.spend, 0);
+  const totalLeads = campaigns.reduce((s, c) => s + c.leads, 0);
+  const avgCpl = totalLeads > 0 ? totalSpend / totalLeads : 0;
+  const avgCtr = campaigns.length > 0 ? campaigns.reduce((s, c) => s + c.ctr, 0) / campaigns.length : 0;
+  const avgFreq = campaigns.length > 0 ? campaigns.reduce((s, c) => s + c.frequency, 0) / campaigns.length : 0;
+  const totalImpressions = campaigns.reduce((s, c) => s + c.impressions, 0);
 
   const visibleColsArray = Array.from(visibleCols);
+  const colTemplate = `280px ${visibleColsArray.map(() => "120px").join(" ")}`;
+  const colMin = 280 + visibleColsArray.length * 120;
 
   return (
     <div style={{ minHeight: "100vh", background: "#0a0f0f", fontFamily: "'DM Mono', 'Fira Mono', monospace", color: "#e8f4f4", padding: "40px 24px" }}>
       {showColModal && (
-        <ColumnPickerModal
-          visibleCols={visibleCols}
-          onChange={setVisibleCols}
-          onClose={() => setShowColModal(false)}
-          onSavePreset={savePreset}
-          presets={presets}
-          onLoadPreset={loadPreset}
-          onDeletePreset={deletePreset}
-        />
+        <ColumnPickerModal visibleCols={visibleCols} onChange={setVisibleCols} onClose={() => setShowColModal(false)}
+          onSavePreset={savePreset} presets={presets} onLoadPreset={loadPreset} onDeletePreset={deletePreset} />
       )}
 
       <div style={{ maxWidth: 1200, margin: "0 auto" }}>
@@ -470,7 +422,7 @@ export default function CampaignsPage() {
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 32, flexWrap: "wrap", gap: 16 }}>
           <div>
             <h1 style={{ fontSize: 28, fontWeight: 700, color: "#2A8C8A", margin: "0 0 6px", letterSpacing: "-0.5px" }}>Campaigns</h1>
-            <p style={{ color: "#4a7a7a", fontSize: 13, margin: 0 }}>Live performance across all ad sets.</p>
+            <p style={{ color: "#4a7a7a", fontSize: 13, margin: 0 }}>Live performance · Campaign → Ad Set → Ad</p>
           </div>
 
           {/* Date range */}
@@ -502,97 +454,56 @@ export default function CampaignsPage() {
         {/* Stat Cards */}
         {loading ? (
           <div style={{ color: "#4a7a7a", fontSize: 13, marginBottom: 32 }}>Loading metrics...</div>
-        ) : !cur ? (
+        ) : campaigns.length === 0 ? (
           <div style={{ border: "1px dashed #1a3535", borderRadius: 10, padding: "40px 24px", textAlign: "center", color: "#4a7a7a", marginBottom: 32 }}>
-            <div style={{ fontSize: 13 }}>No metric data yet.</div>
-            <div style={{ fontSize: 12, marginTop: 6 }}>The agent loop will populate this once it pulls from Meta API.</div>
+            <div style={{ fontSize: 13 }}>No campaign data for this period.</div>
           </div>
         ) : (
           <>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12, marginBottom: 32 }}>
-              <StatCard label="Total Spend" value={`$${Number(cur.total_spend).toLocaleString()}`} sub={`${computedDays}d window`} trendDir={spendTrend?.dir} trendPct={spendTrend?.pct} />
-              <StatCard label="Total Leads" value={String(cur.total_leads)} trendDir={leadsTrend?.dir} trendPct={leadsTrend?.pct} />
-              <StatCard label="Avg CPL" value={`$${Number(cur.avg_cpl).toFixed(2)}`} trendDir={cplTrend?.dir} trendPct={cplTrend?.pct} invertTrend />
-              <StatCard label="Avg CTR" value={`${(Number(cur.avg_ctr) * 100).toFixed(2)}%`} />
-              <StatCard label="Avg Frequency" value={Number(cur.avg_frequency).toFixed(2)} sub={Number(cur.avg_frequency) > 3 ? "⚠ high" : "ok"} />
-              <StatCard label="Impressions" value={Number(cur.total_impressions).toLocaleString()} />
-              <StatCard label="Ad Sets" value={String(cur.active_ad_sets)} sub={`${summary?.active_briefs ?? 0} briefs pending`} />
+              <StatCard label="Total Spend" value={`$${totalSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} sub={`${computedDays}d window`} />
+              <StatCard label="Total Leads" value={String(totalLeads)} />
+              <StatCard label="Avg CPL" value={`$${avgCpl.toFixed(2)}`} />
+              <StatCard label="Avg CTR" value={`${(avgCtr * 100).toFixed(2)}%`} />
+              <StatCard label="Avg Frequency" value={avgFreq.toFixed(2)} sub={avgFreq > 3 ? "⚠ high" : "ok"} />
+              <StatCard label="Impressions" value={totalImpressions.toLocaleString()} />
+              <StatCard label="Campaigns" value={String(campaigns.length)} />
             </div>
 
             {/* Table controls */}
             <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+              <input type="text" placeholder="Search campaigns..." value={search} onChange={e => setSearch(e.target.value)}
+                style={{ background: "#0d1818", border: "1px solid #1a2f2f", borderRadius: 6, color: "#e8f4f4", fontSize: 12, fontFamily: "'DM Mono', monospace", padding: "6px 12px", outline: "none", width: 220 }} />
 
-              {/* Ad set picker */}
-              <div ref={adSetPickerRef} style={{ position: "relative" }}>
-                <button style={btnStyle(selectedAdSets.size > 0)} onClick={() => setShowAdSetPicker(v => !v)}>
-                  Ad Sets {selectedAdSets.size > 0 ? `(${selectedAdSets.size})` : "▾"}
-                </button>
-                {showAdSetPicker && (
-                  <div style={{ position: "absolute", left: 0, top: "calc(100% + 6px)", zIndex: 50, background: "#0d1818", border: "1px solid #1a2f2f", borderRadius: 8, padding: "10px 14px", minWidth: 260, maxHeight: 260, overflowY: "auto" }}>
-                    {selectedAdSets.size > 0 && (
-                      <button onClick={() => setSelectedAdSets(new Set())} style={{ ...btnStyle(false), fontSize: 11, marginBottom: 8, width: "100%", textAlign: "left" as const }}>Clear selection</button>
-                    )}
-                    {adSets.map(a => (
-                      <label key={a.ad_set_id} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, color: selectedAdSets.has(a.ad_set_id) ? "#e8f4f4" : "#4a7a7a", marginBottom: 6 }}>
-                        <input type="checkbox" checked={selectedAdSets.has(a.ad_set_id)}
-                          onChange={() => setSelectedAdSets(prev => {
-                            const next = new Set(prev);
-                            if (next.has(a.ad_set_id)) next.delete(a.ad_set_id); else next.add(a.ad_set_id);
-                            return next;
-                          })}
-                          style={{ accentColor: "#2A8C8A" }} />
-                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{a.ad_set_name ?? a.ad_set_id}</span>
-                        <span style={{ color: healthColor(a), fontSize: 10, fontWeight: 600 }}>{healthLabel(a)}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Search */}
-              <input type="text" placeholder="Search ad sets..." value={search} onChange={e => setSearch(e.target.value)}
-                style={{ background: "#0d1818", border: "1px solid #1a2f2f", borderRadius: 6, color: "#e8f4f4", fontSize: 12, fontFamily: "'DM Mono', monospace", padding: "6px 12px", outline: "none", width: 200 }} />
-
-              {/* Health filter */}
-              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                <span style={{ fontSize: 11, color: "#2a4a4a" }}>HEALTH</span>
-                {(["all", "Scaling", "Stable", "Fatigued", "CPL High"] as HealthFilter[]).map(h => (
-                  <button key={h} style={btnStyle(healthFilter === h)} onClick={() => setHealthFilter(h)}>{h === "all" ? "All" : h}</button>
-                ))}
-              </div>
-
-              {/* Sort */}
               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 <span style={{ fontSize: 11, color: "#2a4a4a" }}>SORT</span>
-                {(["cpl", "spend", "leads", "frequency"] as SortKey[]).map(k => (
+                {(["spend", "leads", "cpl", "ctr", "frequency"] as SortKey[]).map(k => (
                   <button key={k} style={btnStyle(sortKey === k)} onClick={() => toggleSort(k)}>
                     {k.toUpperCase()} {sortKey === k ? (sortDir === "asc" ? "↑" : "↓") : ""}
                   </button>
                 ))}
               </div>
 
-              {/* Column picker */}
               <button style={{ ...btnStyle(false), marginLeft: "auto" }} onClick={() => setShowColModal(true)}>
                 Columns ({visibleCols.size}) ▾
               </button>
             </div>
 
-            {/* Results count */}
             <div style={{ fontSize: 11, color: "#2a4a4a", marginBottom: 10 }}>
-              {filtered.length} ad set{filtered.length !== 1 ? "s" : ""} {healthFilter !== "all" || search || selectedAdSets.size > 0 ? "matching filters" : "total"}
+              {filtered.length} campaign{filtered.length !== 1 ? "s" : ""}
             </div>
 
             {/* Table */}
             <div style={{ border: "1px solid #1a2f2f", borderRadius: 10, overflow: "auto" }}>
+
               {/* Header */}
-              <div style={{ display: "grid", gridTemplateColumns: `260px ${visibleColsArray.map(() => "120px").join(" ")}`, padding: "10px 18px", background: "#0d1818", borderBottom: "1px solid #1a2f2f", fontSize: 11, color: "#2a4a4a", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: 260 + visibleColsArray.length * 120 }}>
-                <span>Ad Set</span>
+              <div style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "10px 18px", background: "#0d1818", borderBottom: "1px solid #1a2f2f", fontSize: 11, color: "#2a4a4a", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: colMin }}>
+                <span>Campaign</span>
                 {visibleColsArray.map(col => {
                   const def = METRIC_BY_KEY[col];
                   const sortable = ["spend", "leads", "cpl", "ctr", "frequency", "impressions"].includes(col);
                   return (
-                    <span key={col}
-                      onClick={() => sortable ? toggleSort(col as SortKey) : undefined}
+                    <span key={col} onClick={() => sortable ? toggleSort(col as SortKey) : undefined}
                       style={{ cursor: sortable ? "pointer" : "default", color: sortKey === col ? "#2A8C8A" : "#2a4a4a" }}>
                       {def?.label ?? col} {sortKey === col ? (sortDir === "asc" ? "↑" : "↓") : ""}
                     </span>
@@ -600,89 +511,125 @@ export default function CampaignsPage() {
                 })}
               </div>
 
-              {/* Rows */}
               {filtered.length === 0 ? (
-                <div style={{ padding: "40px 18px", textAlign: "center", color: "#4a7a7a", fontSize: 13 }}>
-                  {adSets.length === 0 ? "No ad sets found in this window." : "No ad sets match your filters."}
-                </div>
+                <div style={{ padding: "40px 18px", textAlign: "center", color: "#4a7a7a", fontSize: 13 }}>No campaigns match your search.</div>
               ) : (
-                filtered.map((adSet, i) => {
-                  const isExpanded = expandedAdSets.has(adSet.ad_set_id);
-                  const isLoading = adLevelLoading.has(adSet.ad_set_id);
-                  const ads = adLevelData[adSet.ad_set_id] ?? [];
-                  const hColor = healthColor(adSet);
-                  const isActive = adSet.ad_status === "ACTIVE";
-                  const colTemplate = `260px ${visibleColsArray.map(() => "120px").join(" ")}`;
-                  const colMin = 260 + visibleColsArray.length * 120;
+                filtered.map((campaign, i) => {
+                  const isCampaignExpanded = expandedCampaigns.has(campaign.campaign_id);
+                  const isCampaignLoading = adSetLevelLoading.has(campaign.campaign_id);
+                  const campaignAdSets = adSetLevelData[campaign.campaign_id] ?? [];
 
                   return (
-                    <div key={adSet.ad_set_id}>
-                      {/* Ad Set row */}
+                    <div key={campaign.campaign_id}>
+                      {/* ── Campaign row ── */}
                       <div
-                        onClick={() => toggleAdExpand(adSet.ad_set_id)}
-                        onDoubleClick={() => router.push(`/dashboard/campaigns/${encodeURIComponent(adSet.ad_set_id)}`)}
-                        title="Click to expand ads · Double-click for detail page"
-                        style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "13px 18px", borderBottom: "1px solid #0f1f1f", fontSize: 12, alignItems: "center", background: isExpanded ? "#0f1f1f" : i % 2 === 0 ? "#0a0f0f" : "#0c1515", cursor: "pointer", minWidth: colMin }}
+                        onClick={() => toggleCampaignExpand(campaign.campaign_id)}
+                        title="Click to expand ad sets"
+                        style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "14px 18px", borderBottom: "1px solid #0f1f1f", fontSize: 12, alignItems: "center", background: isCampaignExpanded ? "#0f2020" : i % 2 === 0 ? "#0a0f0f" : "#0c1515", cursor: "pointer", minWidth: colMin }}
                       >
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                            <span style={{ fontSize: 10, color: "#4a7a7a", transition: "transform 0.15s", display: "inline-block", transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
-                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: isActive ? "#2A8C8A" : "#2a4a4a", flexShrink: 0, display: "inline-block" }} />
-                            <span style={{ color: "#e8f4f4", fontFamily: "sans-serif", fontSize: 12, fontWeight: 500 }}>
-                              {adSet.ad_set_name ?? adSet.ad_set_id}
-                            </span>
-                            <span style={{ fontSize: 10, color: isActive ? "#2A8C8A" : "#4a7a7a", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                              {isActive ? "Active" : (adSet.ad_status ?? "—")}
+                            <span style={{ fontSize: 10, color: "#2A8C8A", transition: "transform 0.15s", display: "inline-block", transform: isCampaignExpanded ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
+                            <span style={{ color: "#e8f4f4", fontFamily: "sans-serif", fontSize: 13, fontWeight: 600 }}>
+                              {campaign.campaign_name ?? campaign.campaign_id}
                             </span>
                           </div>
-                          <div style={{ fontSize: 10, color: "#2A8C8A", fontFamily: "monospace", paddingLeft: 22 }}>{adSet.ad_set_id}</div>
+                          <div style={{ fontSize: 10, color: "#2A8C8A", fontFamily: "monospace", paddingLeft: 18 }}>{campaign.campaign_id}</div>
                         </div>
                         {visibleColsArray.map(col => {
-                          if (col === "trend") return <div key={col} />;
-                          if (col === "health") return <span key={col} style={{ fontSize: 11, fontWeight: 600, color: hColor, textTransform: "uppercase", letterSpacing: "0.06em" }}>{healthLabel(adSet)}</span>;
-                          const val = formatMetricValue(col, adSet);
-                          const isBad = col === "cpl" && adSet.cpl > 30;
-                          const isGood = col === "cpl" && adSet.cpl < 20 && adSet.leads >= 5;
-                          return <span key={col} style={{ color: isBad ? "#E8705A" : isGood ? "#2A8C8A" : "#8ab8b8", fontWeight: isBad ? 600 : 400 }}>{val}</span>;
+                          if (col === "trend" || col === "health") return <span key={col} style={{ color: "#2a4a4a" }}>—</span>;
+                          const val = formatRowValue(col, campaign);
+                          return <span key={col} style={{ color: "#8ab8b8" }}>{val}</span>;
                         })}
                       </div>
 
-                      {/* Expanded: individual ads */}
-                      {isExpanded && (
-                        <div style={{ background: "#080d0d", borderBottom: "1px solid #1a2f2f", overflowX: "auto" }}>
-                          {/* Sub-header */}
-                          <div style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "8px 18px 8px 36px", background: "#0a1212", borderBottom: "1px solid #0f1f1f", fontSize: 10, color: "#2a4a4a", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: colMin }}>
-                            <span>Ad</span>
-                            {visibleColsArray.map(col => {
-                              const def = METRIC_BY_KEY[col];
-                              return <span key={col}>{def?.label ?? col}</span>;
-                            })}
-                          </div>
-
-                          {/* Ad rows */}
-                          {isLoading ? (
-                            <div style={{ padding: "16px 36px", fontSize: 12, color: "#4a7a7a" }}>Loading ads...</div>
-                          ) : ads.length === 0 ? (
-                            <div style={{ padding: "16px 36px", fontSize: 12, color: "#4a7a7a" }}>No ad data for this period.</div>
+                      {/* ── Ad Set rows (expanded under campaign) ── */}
+                      {isCampaignExpanded && (
+                        <div style={{ background: "#080d0d", borderBottom: "1px solid #1a2f2f" }}>
+                          {isCampaignLoading ? (
+                            <div style={{ padding: "14px 18px 14px 36px", fontSize: 12, color: "#4a7a7a" }}>Loading ad sets...</div>
+                          ) : campaignAdSets.length === 0 ? (
+                            <div style={{ padding: "14px 18px 14px 36px", fontSize: 12, color: "#4a7a7a" }}>No ad set data for this period.</div>
                           ) : (
-                            ads.map((ad, j) => {
-                              const adAsMetric = { ...ad, ad_set_id: ad.ad_id, ad_set_name: ad.ad_name, campaign_id: "", date_recorded: "", raw_metrics: ad.raw_metrics };
-                              return (
-                                <div key={ad.ad_id} style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "10px 18px 10px 36px", borderBottom: "1px solid #0a1a1a", fontSize: 11, alignItems: "center", background: j % 2 === 0 ? "#080d0d" : "#0a1010", minWidth: colMin }}>
-                                  <div>
-                                    <div style={{ color: "#c8e8e8", fontSize: 11, fontWeight: 500, marginBottom: 2 }}>{ad.ad_name ?? ad.ad_id}</div>
-                                    <div style={{ fontSize: 10, color: "#2A8C8A", fontFamily: "monospace" }}>{ad.ad_id}</div>
+                            <>
+                              {/* Ad set sub-header */}
+                              <div style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "8px 18px 8px 36px", background: "#0b1616", borderBottom: "1px solid #0f1f1f", fontSize: 10, color: "#2a4a4a", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: colMin }}>
+                                <span>Ad Set</span>
+                                {visibleColsArray.map(col => <span key={col}>{METRIC_BY_KEY[col]?.label ?? col}</span>)}
+                              </div>
+
+                              {campaignAdSets.map((adSet, j) => {
+                                const isAdSetExpanded = expandedAdSets.has(adSet.ad_set_id);
+                                const isAdSetLoading = adLevelLoading.has(adSet.ad_set_id);
+                                const ads = adLevelData[adSet.ad_set_id] ?? [];
+                                const hColor = adSetHealthColor(adSet);
+
+                                return (
+                                  <div key={adSet.ad_set_id}>
+                                    {/* Ad Set row */}
+                                    <div
+                                      onClick={e => { e.stopPropagation(); toggleAdExpand(adSet.ad_set_id); }}
+                                      title="Click to expand ads"
+                                      style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "11px 18px 11px 36px", borderBottom: "1px solid #0a1a1a", fontSize: 11, alignItems: "center", background: isAdSetExpanded ? "#0c1a1a" : j % 2 === 0 ? "#080d0d" : "#0a1212", cursor: "pointer", minWidth: colMin }}
+                                    >
+                                      <div>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                                          <span style={{ fontSize: 9, color: "#4a7a7a", transition: "transform 0.15s", display: "inline-block", transform: isAdSetExpanded ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
+                                          <span style={{ width: 5, height: 5, borderRadius: "50%", background: adSet.ad_status === "ACTIVE" ? "#2A8C8A" : "#2a4a4a", flexShrink: 0, display: "inline-block" }} />
+                                          <span style={{ color: "#c8e8e8", fontFamily: "sans-serif", fontSize: 12 }}>
+                                            {adSet.ad_set_name ?? adSet.ad_set_id}
+                                          </span>
+                                          <span style={{ fontSize: 9, color: hColor, textTransform: "uppercase", letterSpacing: "0.06em" }}>{adSetHealthLabel(adSet)}</span>
+                                        </div>
+                                        <div style={{ fontSize: 9, color: "#2A8C8A", fontFamily: "monospace", paddingLeft: 17 }}>{adSet.ad_set_id}</div>
+                                      </div>
+                                      {visibleColsArray.map(col => {
+                                        if (col === "trend") return <div key={col} />;
+                                        if (col === "health") return <span key={col} style={{ fontSize: 10, fontWeight: 600, color: hColor, textTransform: "uppercase" }}>{adSetHealthLabel(adSet)}</span>;
+                                        const val = formatRowValue(col, adSet);
+                                        const isBad = col === "cpl" && adSet.cpl > 30;
+                                        const isGood = col === "cpl" && adSet.cpl < 20 && adSet.leads >= 5;
+                                        return <span key={col} style={{ color: isBad ? "#E8705A" : isGood ? "#2A8C8A" : "#6a9898", fontWeight: isBad ? 600 : 400 }}>{val}</span>;
+                                      })}
+                                    </div>
+
+                                    {/* ── Ad rows (expanded under ad set) ── */}
+                                    {isAdSetExpanded && (
+                                      <div style={{ background: "#060b0b", borderBottom: "1px solid #1a2f2f" }}>
+                                        {/* Ad sub-header */}
+                                        <div style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "7px 18px 7px 56px", background: "#080e0e", borderBottom: "1px solid #0a1515", fontSize: 10, color: "#2a4a4a", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: colMin }}>
+                                          <span>Ad</span>
+                                          {visibleColsArray.map(col => <span key={col}>{METRIC_BY_KEY[col]?.label ?? col}</span>)}
+                                        </div>
+
+                                        {isAdSetLoading ? (
+                                          <div style={{ padding: "12px 18px 12px 56px", fontSize: 11, color: "#4a7a7a" }}>Loading ads...</div>
+                                        ) : ads.length === 0 ? (
+                                          <div style={{ padding: "12px 18px 12px 56px", fontSize: 11, color: "#4a7a7a" }}>No ad data for this period.</div>
+                                        ) : (
+                                          ads.map((ad, k) => (
+                                            <div key={ad.ad_id} style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "9px 18px 9px 56px", borderBottom: "1px solid #09100f", fontSize: 11, alignItems: "center", background: k % 2 === 0 ? "#060b0b" : "#080d0d", minWidth: colMin }}>
+                                              <div>
+                                                <div style={{ color: "#a8d8d8", fontSize: 11, fontWeight: 500, marginBottom: 1 }}>{ad.ad_name ?? ad.ad_id}</div>
+                                                <div style={{ fontSize: 9, color: "#2A8C8A", fontFamily: "monospace" }}>{ad.ad_id}</div>
+                                              </div>
+                                              {visibleColsArray.map(col => {
+                                                if (col === "trend" || col === "health") return <span key={col} style={{ color: "#2a4a4a" }}>—</span>;
+                                                const adRow: MetricRow = { spend: ad.spend, leads: ad.leads, cpl: ad.cpl, ctr: ad.ctr, frequency: ad.frequency, impressions: ad.impressions, raw_metrics: ad.raw_metrics };
+                                                const val = formatRowValue(col, adRow);
+                                                const isBad = col === "cpl" && ad.cpl > 30;
+                                                const isGood = col === "cpl" && ad.cpl < 20 && ad.leads >= 5;
+                                                return <span key={col} style={{ color: isBad ? "#E8705A" : isGood ? "#2A8C8A" : "#507070" }}>{val}</span>;
+                                              })}
+                                            </div>
+                                          ))
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
-                                  {visibleColsArray.map(col => {
-                                    if (col === "trend" || col === "health") return <span key={col} style={{ color: "#2a4a4a" }}>—</span>;
-                                    const val = formatMetricValue(col, adAsMetric as AdSetMetric);
-                                    const isBad = col === "cpl" && ad.cpl > 30;
-                                    const isGood = col === "cpl" && ad.cpl < 20 && ad.leads >= 5;
-                                    return <span key={col} style={{ color: isBad ? "#E8705A" : isGood ? "#2A8C8A" : "#6a9898" }}>{val}</span>;
-                                  })}
-                                </div>
-                              );
-                            })
+                                );
+                              })}
+                            </>
                           )}
                         </div>
                       )}
