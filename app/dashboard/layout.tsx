@@ -5,6 +5,7 @@ import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import { ClientProvider, useActiveClient } from "@/lib/context/client-context";
+import ChatBubble from "@/components/chat/ChatBubble";
 
 interface Client {
   id: string;
@@ -239,6 +240,8 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
 
       {/* Page content */}
       <main>{children}</main>
+
+      <ChatBubble />
     </div>
   );
 }
