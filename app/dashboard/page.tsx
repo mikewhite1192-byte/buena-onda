@@ -134,7 +134,8 @@ function ClientCard({
     }
 
     const today = new Date().toISOString().split("T")[0];
-    fetch(`/api/agent/metrics/campaigns?client_id=${client.id}&startDate=${today}&endDate=${today}`)
+    const adAccountParam = client.meta_ad_account_id ? `&ad_account_id=${client.meta_ad_account_id}` : "";
+    fetch(`/api/agent/metrics/campaigns?client_id=${client.id}${adAccountParam}&startDate=${today}&endDate=${today}`)
       .then(r => r.json())
       .then(data => {
         const campaigns = (data.campaigns ?? []) as Array<{ spend: number; leads: number }>;
