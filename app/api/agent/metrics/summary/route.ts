@@ -11,6 +11,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const adAccountId = searchParams.get("ad_account_id");
+  const days = parseInt(searchParams.get("days") ?? "30");
 
   // Latest snapshot per ad set, then aggregate
   const summary = await sql`
@@ -26,22 +27,27 @@ export async function GET(req: NextRequest) {
       SELECT DISTINCT ON (ad_set_id)
         spend, leads, cpl, ctr, frequency, impressions
       FROM ad_metrics
-      WHERE date_recorded >= NOW() - INTERVAL '7 days'
+      WHERE date_recorded >= NOW() - INTERVAL '1 day' * ${days}
         AND (${adAccountId}::text IS NULL OR ad_account_id = ${adAccountId})
       ORDER BY ad_set_id, date_recorded DESC
     ) latest
   `;
 
-  // Previous 7 days for trend comparison
+  // Previous period for trend comparison
   const prev = await sql`
     SELECT
       COALESCE(SUM(spend), 0)::numeric(10,2)    AS total_spend,
       COALESCE(SUM(leads), 0)::int              AS total_leads,
       COALESCE(AVG(cpl), 0)::numeric(10,2)      AS avg_cpl
-    FROM ad_metrics
-    WHERE date_recorded >= NOW() - INTERVAL '14 days'
-      AND date_recorded < NOW() - INTERVAL '7 days'
-      AND (${adAccountId}::text IS NULL OR ad_account_id = ${adAccountId})
+    FROM (
+      SELECT DISTINCT ON (ad_set_id)
+        spend, leads, cpl
+      FROM ad_metrics
+      WHERE date_recorded >= NOW() - INTERVAL '1 day' * ${days * 2}
+        AND date_recorded < NOW() - INTERVAL '1 day' * ${days}
+        AND (${adAccountId}::text IS NULL OR ad_account_id = ${adAccountId})
+      ORDER BY ad_set_id, date_recorded DESC
+    ) prev_latest
   `;
 
   // Active briefs count

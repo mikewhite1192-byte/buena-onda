@@ -323,7 +323,7 @@ export default function CampaignsPage() {
     const adAccountParam = activeClient?.meta_ad_account_id ? `&ad_account_id=${activeClient.meta_ad_account_id}` : "";
     try {
       const [sumRes, metricsRes, presetsRes] = await Promise.all([
-        fetch(`/api/agent/metrics/summary?${adAccountParam}`),
+        fetch(`/api/agent/metrics/summary?days=${computedDays}${adAccountParam}`),
         fetch(`/api/agent/metrics?days=${computedDays}${adAccountParam}`),
         fetch("/api/agent/presets"),
       ]);
