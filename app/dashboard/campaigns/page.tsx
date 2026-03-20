@@ -532,7 +532,7 @@ export default function CampaignsPage() {
             {/* Table */}
             <div style={{ border: "1px solid #1a2f2f", borderRadius: 10, overflow: "auto" }}>
               {/* Header */}
-              <div style={{ display: "grid", gridTemplateColumns: `260px ${visibleColsArray.map(() => "120px").join(" ")}`, padding: "10px 18px", background: "#0d1818", borderBottom: "1px solid #1a2f2f", fontSize: 11, color: "#2a4a4a", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: `calc(260px + ${visibleColsArray.length} * 120px)` }}>
+              <div style={{ display: "grid", gridTemplateColumns: `260px ${visibleColsArray.map(() => "120px").join(" ")}`, padding: "10px 18px", background: "#0d1818", borderBottom: "1px solid #1a2f2f", fontSize: 11, color: "#2a4a4a", letterSpacing: "0.08em", textTransform: "uppercase", minWidth: 260 + visibleColsArray.length * 120 }}>
                 <span>Ad Set</span>
                 {visibleColsArray.map(col => {
                   const def = METRIC_BY_KEY[col];
@@ -567,7 +567,7 @@ export default function CampaignsPage() {
                         onClick={() => setSelectedAdSet(isSelected ? null : adSet.ad_set_id)}
                         onDoubleClick={() => router.push(`/dashboard/campaigns/${encodeURIComponent(adSet.ad_set_id)}`)}
                         title="Click to expand · Double-click for detail page"
-                        style={{ display: "grid", gridTemplateColumns: `260px ${visibleColsArray.map(() => "120px").join(" ")}`, padding: "13px 18px", borderBottom: "1px solid #0f1f1f", fontSize: 12, alignItems: "center", background: isSelected ? "#0f1f1f" : i % 2 === 0 ? "#0a0f0f" : "#0c1515", cursor: "pointer", minWidth: `calc(260px + ${visibleColsArray.length} * 120px)` }}
+                        style={{ display: "grid", gridTemplateColumns: `260px ${visibleColsArray.map(() => "120px").join(" ")}`, padding: "13px 18px", borderBottom: "1px solid #0f1f1f", fontSize: 12, alignItems: "center", background: isSelected ? "#0f1f1f" : i % 2 === 0 ? "#0a0f0f" : "#0c1515", cursor: "pointer", minWidth: 260 + visibleColsArray.length * 120 }}
                       >
                         {/* Ad Set name + status */}
                         <div>
