@@ -115,6 +115,7 @@ function formatMetricValue(key: string, adSet: AdSetMetric): string {
     case "currency": return n === 0 ? "$—" : `$${n.toFixed(2)}`;
     case "percent": return def.rawIsPercent ? `${n.toFixed(2)}%` : `${(n * 100).toFixed(2)}%`;
     case "roas": return `${n.toFixed(2)}x`;
+    case "seconds": return n < 60 ? `${n.toFixed(1)}s` : `${Math.floor(n/60)}m${Math.round(n%60)}s`;
     case "number": return n.toLocaleString();
     case "text": return String(val);
     default: return String(val);
