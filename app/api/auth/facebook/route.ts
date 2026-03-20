@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   const url = new URL("https://www.facebook.com/v21.0/dialog/oauth");
   url.searchParams.set("client_id", APP_ID);
   url.searchParams.set("redirect_uri", redirectUri);
-  url.searchParams.set("scope", "ads_management,ads_read,pages_read_engagement,pages_show_list,leads_retrieval,pages_manage_ads");
+  url.searchParams.set("scope", "ads_management,ads_read,pages_read_engagement,pages_show_list");
   url.searchParams.set("state", state);
   url.searchParams.set("response_type", "code");
 
