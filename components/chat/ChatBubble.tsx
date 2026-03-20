@@ -113,6 +113,7 @@ export default function ChatBubble() {
       const form = new FormData();
       form.append("file", compressedFile);
       if (activeClient?.meta_ad_account_id) form.append("ad_account_id", activeClient.meta_ad_account_id);
+      if (activeClient?.id) form.append("client_id", activeClient.id);
       const res = await fetch("/api/agent/creative/upload", { method: "POST", body: form });
       const data = await res.json();
       if (data.image_hash) {

@@ -2,10 +2,10 @@ import { ALL_API_FIELDS } from "@/lib/meta/metric-definitions";
 
 const META_BASE_URL = "https://graph.facebook.com/v21.0";
 
-function getAccessToken(): string {
-  const token = process.env.META_ACCESS_TOKEN;
-  if (!token) throw new Error("Missing META_ACCESS_TOKEN");
-  return token;
+function getAccessToken(token?: string): string {
+  const t = token ?? process.env.META_ACCESS_TOKEN;
+  if (!t) throw new Error("Missing META_ACCESS_TOKEN");
+  return t;
 }
 
 function getAdAccountId(): string {
@@ -16,9 +16,9 @@ function getAdAccountId(): string {
 
 // ── Shared fetch helpers ─────────────────────────────────────────────────────
 
-async function metaGet<T>(path: string, params: Record<string, string> = {}): Promise<T> {
+async function metaGet<T>(path: string, params: Record<string, string> = {}, token?: string): Promise<T> {
   const url = new URL(`${META_BASE_URL}${path}`);
-  url.searchParams.set("access_token", getAccessToken());
+  url.searchParams.set("access_token", getAccessToken(token));
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, v);
   }
@@ -34,9 +34,9 @@ async function metaGet<T>(path: string, params: Record<string, string> = {}): Pr
   return data as T;
 }
 
-async function metaPost<T>(path: string, body: Record<string, unknown> = {}): Promise<T> {
+async function metaPost<T>(path: string, body: Record<string, unknown> = {}, token?: string): Promise<T> {
   const url = new URL(`${META_BASE_URL}${path}`);
-  url.searchParams.set("access_token", getAccessToken());
+  url.searchParams.set("access_token", getAccessToken(token));
 
   const res = await fetch(url.toString(), {
     method: "POST",
@@ -122,7 +122,8 @@ export async function getAdSetMetrics(
   adsetId: string,
   days?: number,
   sinceDate?: string,
-  untilDate?: string
+  untilDate?: string,
+  token?: string,
 ): Promise<MetaResult<AdSetMetrics>> {
   try {
     const today = new Date().toISOString().split("T")[0];
@@ -135,12 +136,12 @@ export async function getAdSetMetrics(
     const [adsetRes, insightsRes] = await Promise.all([
       metaGet<RawAdSet>(`/${adsetId}`, {
         fields: "id,name,status,daily_budget",
-      }),
+      }, token),
       metaGet<MetaPaged<RawInsight>>(`/${adsetId}/insights`, {
         fields: ["adset_id", "adset_name", ...ALL_API_FIELDS].join(","),
         time_range: timeRange,
         level: "adset",
-      }),
+      }, token),
     ]);
 
     const insights = insightsRes.data ?? [];
@@ -193,10 +194,11 @@ export async function getAdSetMetrics(
 // ── pauseAdSet ───────────────────────────────────────────────────────────────
 
 export async function pauseAdSet(
-  adsetId: string
+  adsetId: string,
+  token?: string,
 ): Promise<MetaResult<{ adset_id: string; status: "PAUSED" }>> {
   try {
-    await metaPost(`/${adsetId}`, { status: "PAUSED" });
+    await metaPost(`/${adsetId}`, { status: "PAUSED" }, token);
     return ok({ adset_id: adsetId, status: "PAUSED" as const });
   } catch (err) {
     return fail(err);
@@ -207,10 +209,11 @@ export async function pauseAdSet(
 
 export async function scaleAdSet(
   adsetId: string,
-  newBudgetCents: number
+  newBudgetCents: number,
+  token?: string,
 ): Promise<MetaResult<{ adset_id: string; daily_budget_cents: number }>> {
   try {
-    await metaPost(`/${adsetId}`, { daily_budget: newBudgetCents });
+    await metaPost(`/${adsetId}`, { daily_budget: newBudgetCents }, token);
     return ok({ adset_id: adsetId, daily_budget_cents: newBudgetCents });
   } catch (err) {
     return fail(err);
@@ -220,10 +223,11 @@ export async function scaleAdSet(
 // ── pauseCampaign ────────────────────────────────────────────────────────────
 
 export async function pauseCampaign(
-  campaignId: string
+  campaignId: string,
+  token?: string,
 ): Promise<MetaResult<{ campaign_id: string; status: "PAUSED" }>> {
   try {
-    await metaPost(`/${campaignId}`, { status: "PAUSED" });
+    await metaPost(`/${campaignId}`, { status: "PAUSED" }, token);
     return ok({ campaign_id: campaignId, status: "PAUSED" as const });
   } catch (err) {
     return fail(err);
@@ -233,10 +237,11 @@ export async function pauseCampaign(
 // ── enableCampaign ───────────────────────────────────────────────────────────
 
 export async function enableCampaign(
-  campaignId: string
+  campaignId: string,
+  token?: string,
 ): Promise<MetaResult<{ campaign_id: string; status: "ACTIVE" }>> {
   try {
-    await metaPost(`/${campaignId}`, { status: "ACTIVE" });
+    await metaPost(`/${campaignId}`, { status: "ACTIVE" }, token);
     return ok({ campaign_id: campaignId, status: "ACTIVE" as const });
   } catch (err) {
     return fail(err);
@@ -247,10 +252,11 @@ export async function enableCampaign(
 
 export async function scaleCampaignBudget(
   campaignId: string,
-  newDailyBudgetCents: number
+  newDailyBudgetCents: number,
+  token?: string,
 ): Promise<MetaResult<{ campaign_id: string; daily_budget_cents: number }>> {
   try {
-    await metaPost(`/${campaignId}`, { daily_budget: newDailyBudgetCents });
+    await metaPost(`/${campaignId}`, { daily_budget: newDailyBudgetCents }, token);
     return ok({ campaign_id: campaignId, daily_budget_cents: newDailyBudgetCents });
   } catch (err) {
     return fail(err);
@@ -260,10 +266,11 @@ export async function scaleCampaignBudget(
 // ── pauseAd ──────────────────────────────────────────────────────────────────
 
 export async function pauseAd(
-  adId: string
+  adId: string,
+  token?: string,
 ): Promise<MetaResult<{ ad_id: string; status: "PAUSED" }>> {
   try {
-    await metaPost(`/${adId}`, { status: "PAUSED" });
+    await metaPost(`/${adId}`, { status: "PAUSED" }, token);
     return ok({ ad_id: adId, status: "PAUSED" as const });
   } catch (err) {
     return fail(err);
@@ -273,10 +280,11 @@ export async function pauseAd(
 // ── enableAd ─────────────────────────────────────────────────────────────────
 
 export async function enableAd(
-  adId: string
+  adId: string,
+  token?: string,
 ): Promise<MetaResult<{ ad_id: string; status: "ACTIVE" }>> {
   try {
-    await metaPost(`/${adId}`, { status: "ACTIVE" });
+    await metaPost(`/${adId}`, { status: "ACTIVE" }, token);
     return ok({ ad_id: adId, status: "ACTIVE" as const });
   } catch (err) {
     return fail(err);
@@ -286,11 +294,12 @@ export async function enableAd(
 // ── deleteAd ─────────────────────────────────────────────────────────────────
 
 export async function deleteAd(
-  adId: string
+  adId: string,
+  token?: string,
 ): Promise<MetaResult<{ ad_id: string; deleted: true }>> {
   try {
     const url = new URL(`${META_BASE_URL}/${adId}`);
-    url.searchParams.set("access_token", getAccessToken());
+    url.searchParams.set("access_token", getAccessToken(token));
     const res = await fetch(url.toString(), { method: "DELETE", cache: "no-store" });
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error?.message ?? `Meta API error: ${res.status}`);
@@ -334,6 +343,7 @@ export interface CampaignCreationParams {
   destinationUrl?: string;
   leadFormId?: string;
   specialAdCategories?: string[];
+  token?: string;
 }
 
 export interface CampaignCreationResult {
@@ -350,6 +360,7 @@ export async function createMetaCampaign(
 ): Promise<MetaResult<CampaignCreationResult>> {
   try {
     const acct = params.adAccountId.startsWith("act_") ? params.adAccountId : `act_${params.adAccountId}`;
+    const token = params.token;
 
     // 1. Resolve creative — image (hash or URL) or video (id or URL)
     const isVideoCreative = !!(params.videoId || params.videoUrl);
@@ -360,12 +371,13 @@ export async function createMetaCampaign(
       const vidRes = await metaPost<{ id: string }>(`/${acct}/advideos`, {
         file_url: params.videoUrl,
         name: params.adName,
-      });
+      }, token);
       videoId = vidRes.id;
     } else if (!imageHash && params.imageUrl) {
       const imgRes = await metaPost<{ images: Record<string, { hash: string }> }>(
         `/${acct}/adimages`,
-        { url: params.imageUrl }
+        { url: params.imageUrl },
+        token,
       );
       const entries = Object.entries(imgRes.images ?? {});
       if (entries.length === 0) throw new Error("Image upload returned no hash");
@@ -381,7 +393,7 @@ export async function createMetaCampaign(
       status: "PAUSED",
       special_ad_categories: params.specialAdCategories ?? [],
       is_adset_budget_sharing_enabled: false,
-    });
+    }, token);
 
     // 3. Build targeting — special ad categories restrict age/gender targeting
     const hasSpecialCategory = (params.specialAdCategories ?? []).length > 0;
@@ -417,7 +429,7 @@ export async function createMetaCampaign(
       // URL-based leads or sales — pixel + event type
       adSetBody.promoted_object = { pixel_id: params.pixelId, custom_event_type: "LEAD" };
     }
-    const adSet = await metaPost<{ id: string }>(`/${acct}/adsets`, adSetBody);
+    const adSet = await metaPost<{ id: string }>(`/${acct}/adsets`, adSetBody, token);
 
     // 4. Create ad creative — video vs image, lead form vs. traffic/conversion
     const isLeadAd = !!params.leadFormId;
@@ -453,7 +465,7 @@ export async function createMetaCampaign(
     const creative = await metaPost<{ id: string }>(`/${acct}/adcreatives`, {
       name: params.adName,
       object_story_spec: objectStorySpec,
-    });
+    }, token);
 
     // 5. Create ad
     const ad = await metaPost<{ id: string }>(`/${acct}/ads`, {
@@ -461,7 +473,7 @@ export async function createMetaCampaign(
       adset_id: adSet.id,
       creative: { creative_id: creative.id },
       status: "PAUSED",
-    });
+    }, token);
 
     return ok({
       campaign_id: campaign.id,
@@ -485,13 +497,14 @@ export interface LeadForm {
 }
 
 export async function listLeadForms(
-  pageId: string
+  pageId: string,
+  token?: string,
 ): Promise<MetaResult<LeadForm[]>> {
   try {
     const data = await metaGet<{ data: LeadForm[] }>(`/${pageId}/leadgen_forms`, {
       fields: "id,name,status",
       limit: "50",
-    });
+    }, token);
     return ok(data.data ?? []);
   } catch (err) {
     return fail(err);
@@ -503,7 +516,8 @@ export async function listLeadForms(
 // anything longer → searches Meta's geo API for matching regions.
 
 export async function resolveGeoLocations(
-  locations: string[]
+  locations: string[],
+  token?: string,
 ): Promise<{ countries: string[]; regionKeys: GeoKey[] }> {
   const countries: string[] = [];
   const regionKeys: GeoKey[] = [];
@@ -523,7 +537,8 @@ export async function resolveGeoLocations(
             q: trimmed,
             location_types: JSON.stringify(["region", "city"]),
             limit: "1",
-          }
+          },
+          token,
         );
         const match = data.data?.[0];
         if (match) {
@@ -546,7 +561,8 @@ export async function resolveGeoLocations(
 export async function duplicateAdSet(
   adsetId: string,
   newBudgetCents: number,
-  adAccountId?: string
+  adAccountId?: string,
+  token?: string,
 ): Promise<MetaResult<{ new_adset_id: string; daily_budget_cents: number }>> {
   try {
     const acct = adAccountId ?? getAdAccountId();
@@ -556,7 +572,8 @@ export async function duplicateAdSet(
         copy_adset_id: adsetId,
         status_option: "PAUSED",       // start paused so it can be reviewed before going live
         daily_budget: newBudgetCents,
-      }
+      },
+      token,
     );
     return ok({ new_adset_id: res.copied_adset_id, daily_budget_cents: newBudgetCents });
   } catch (err) {

@@ -161,32 +161,25 @@ const TOOLS: Anthropic.Tool[] = [
 async function executeTool(
   name: string,
   input: Record<string, unknown>,
-  clientInfo?: { meta_ad_account_id?: string; meta_page_id?: string },
+  clientInfo?: { meta_ad_account_id?: string; meta_page_id?: string; meta_access_token?: string },
   imageHash?: string | null,
 ): Promise<string> {
+  const metaToken = clientInfo?.meta_access_token ?? process.env.META_ACCESS_TOKEN;
 
   // ── Ad set ────────────────────────────────────────────────────────────────
   if (name === "pause_ad_set") {
-    const r = await pauseAdSet(input.ad_set_id as string);
+    const r = await pauseAdSet(input.ad_set_id as string, metaToken);
     return r.ok ? `Paused ad set ${input.ad_set_id}.` : `Failed: ${r.error}`;
   }
 
   if (name === "enable_ad_set") {
-    const url = new URL(`https://graph.facebook.com/v21.0/${input.ad_set_id}`);
-    url.searchParams.set("access_token", process.env.META_ACCESS_TOKEN!);
-    const res = await fetch(url.toString(), {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "ACTIVE" }), cache: "no-store",
-    });
-    const data = await res.json();
-    return res.ok && !data.error
-      ? `Enabled ad set ${input.ad_set_id}.`
-      : `Failed: ${data.error?.message ?? res.status}`;
+    const r = await enableAd(input.ad_set_id as string, metaToken);
+    return r.ok ? `Enabled ad set ${input.ad_set_id}.` : `Failed: ${r.error}`;
   }
 
   if (name === "scale_ad_set_budget") {
     const cents = Math.round((input.new_daily_budget as number) * 100);
-    const r = await scaleAdSet(input.ad_set_id as string, cents);
+    const r = await scaleAdSet(input.ad_set_id as string, cents, metaToken);
     return r.ok
       ? `Updated ad set ${input.ad_set_id} daily budget to $${(cents / 100).toFixed(2)}.`
       : `Failed: ${r.error}`;
@@ -194,18 +187,18 @@ async function executeTool(
 
   // ── Campaign ──────────────────────────────────────────────────────────────
   if (name === "pause_campaign") {
-    const r = await pauseCampaign(input.campaign_id as string);
+    const r = await pauseCampaign(input.campaign_id as string, metaToken);
     return r.ok ? `Paused campaign ${input.campaign_id}.` : `Failed: ${r.error}`;
   }
 
   if (name === "enable_campaign") {
-    const r = await enableCampaign(input.campaign_id as string);
+    const r = await enableCampaign(input.campaign_id as string, metaToken);
     return r.ok ? `Enabled campaign ${input.campaign_id}.` : `Failed: ${r.error}`;
   }
 
   if (name === "scale_campaign_budget") {
     const cents = Math.round((input.new_daily_budget as number) * 100);
-    const r = await scaleCampaignBudget(input.campaign_id as string, cents);
+    const r = await scaleCampaignBudget(input.campaign_id as string, cents, metaToken);
     return r.ok
       ? `Updated campaign ${input.campaign_id} daily budget to $${(cents / 100).toFixed(2)}.`
       : `Failed: ${r.error}`;
@@ -213,25 +206,25 @@ async function executeTool(
 
   // ── Ad ────────────────────────────────────────────────────────────────────
   if (name === "pause_ad") {
-    const r = await pauseAd(input.ad_id as string);
+    const r = await pauseAd(input.ad_id as string, metaToken);
     return r.ok ? `Paused ad ${input.ad_id}.` : `Failed: ${r.error}`;
   }
 
   if (name === "enable_ad") {
-    const r = await enableAd(input.ad_id as string);
+    const r = await enableAd(input.ad_id as string, metaToken);
     return r.ok ? `Enabled ad ${input.ad_id}.` : `Failed: ${r.error}`;
   }
 
   if (name === "delete_ad") {
-    const r = await deleteAd(input.ad_id as string);
+    const r = await deleteAd(input.ad_id as string, metaToken);
     return r.ok ? `Deleted ad ${input.ad_id}. This cannot be undone.` : `Failed: ${r.error}`;
   }
 
   // ── List lead forms ───────────────────────────────────────────────────────
   if (name === "list_lead_forms") {
-    const pageId = ((input.page_id as string | undefined) ?? process.env.META_PAGE_ID ?? "").trim();
+    const pageId = ((input.page_id as string | undefined) ?? clientInfo?.meta_page_id ?? process.env.META_PAGE_ID ?? "").trim();
     if (!pageId) return "No page ID available. Provide it or set META_PAGE_ID.";
-    const r = await listLeadForms(pageId);
+    const r = await listLeadForms(pageId, metaToken);
     if (!r.ok) return `Failed to fetch lead forms: ${r.error}`;
     if (r.data.length === 0) return "No instant forms found on this page. Create one in Meta Ads Manager under your Page → Instant Forms.";
     return r.data.map(f => `- **${f.name}** (ID: ${f.id}) — ${f.status}`).join("\n");
@@ -265,7 +258,7 @@ async function executeTool(
 
     // Resolve geo locations — handles country codes AND state/region names
     const rawLocations = locations as string[];
-    const { countries, regionKeys } = await resolveGeoLocations(rawLocations);
+    const { countries, regionKeys } = await resolveGeoLocations(rawLocations, metaToken);
 
     // Generate ad copy
     const specialCats = (special_ad_categories as string[] | undefined) ?? [];
@@ -328,6 +321,7 @@ async function executeTool(
       destinationUrl: destination_url as string | undefined,
       leadFormId: lead_form_id as string | undefined,
       specialAdCategories: specialCats.length ? specialCats : undefined,
+      token: metaToken,
     });
 
     if (!result.ok) return `Failed to create campaign: ${result.error}`;
@@ -390,11 +384,11 @@ export async function POST(req: NextRequest) {
       LIMIT 10
     ` : Promise.resolve([]),
     clientId ? sql`
-      SELECT name, vertical, meta_ad_account_id, meta_page_id FROM clients WHERE id = ${clientId} LIMIT 1
+      SELECT name, vertical, meta_ad_account_id, meta_page_id, meta_access_token FROM clients WHERE id = ${clientId} LIMIT 1
     ` : Promise.resolve([]),
   ]);
 
-  const clientInfo = client?.[0] as { name: string; vertical: string; meta_ad_account_id: string; meta_page_id?: string } | undefined;
+  const clientInfo = client?.[0] as { name: string; vertical: string; meta_ad_account_id: string; meta_page_id?: string; meta_access_token?: string } | undefined;
 
   const systemPrompt = `You are the Buena Onda AI — an expert Meta ads analyst, strategist, and operator embedded in the Buena Onda dashboard. You help agency owners and media buyers make smart decisions and take direct action on their Meta ad accounts.
 

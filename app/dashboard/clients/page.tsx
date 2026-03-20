@@ -13,6 +13,18 @@ interface Client {
   whatsapp_number: string;
   notes: string;
   created_at: string;
+  meta_connected: boolean;
+  meta_token_expires_at: string | null;
+}
+
+function getTokenStatus(c: Client): "connected" | "expiring" | "disconnected" {
+  if (!c.meta_connected) return "disconnected";
+  if (c.meta_token_expires_at) {
+    const exp = new Date(c.meta_token_expires_at);
+    const daysLeft = (exp.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+    if (daysLeft < 10) return "expiring";
+  }
+  return "connected";
 }
 
 const EMPTY_FORM = {
@@ -35,9 +47,21 @@ export default function ClientsPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
   useEffect(() => {
     loadClients();
+    // Handle OAuth callback params
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get("connected");
+    const oauthError = params.get("error");
+    if (connected) {
+      setSuccessMsg("Facebook account connected successfully.");
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (oauthError) {
+      setError(`Facebook connection failed: ${oauthError}`);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   }, []);
 
   async function loadClients() {
@@ -163,6 +187,13 @@ export default function ClientsPage() {
         </button>
       </div>
 
+      {/* Success banner */}
+      {successMsg && (
+        <div style={{ background: "#0a2a1a", border: "1px solid #1a5a2a", borderRadius: 8, padding: "10px 14px", color: "#4ade80", fontSize: 13, marginBottom: 16 }}>
+          {successMsg}
+        </div>
+      )}
+
       {/* Error banner */}
       {error && !showForm && (
         <div style={{ background: "#2a0a0a", border: "1px solid #5a1a1a", borderRadius: 8, padding: "10px 14px", color: "#f87171", fontSize: 13, marginBottom: 16 }}>
@@ -238,6 +269,29 @@ export default function ClientsPage() {
                   {c.meta_ad_account_id ? `Act: ${c.meta_ad_account_id}` : "No ad account"}
                   {c.meta_page_id ? ` · Page: ${c.meta_page_id}` : " · No page ID"}
                   {c.whatsapp_number ? ` · WA: ${c.whatsapp_number}` : ""}
+                </div>
+                <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8 }}>
+                  {(() => {
+                    const status = getTokenStatus(c);
+                    const badge = status === "connected"
+                      ? { bg: "#0f2f1a", color: "#4ade80", text: "FB Connected" }
+                      : status === "expiring"
+                      ? { bg: "#2a2000", color: "#facc15", text: "Token expiring" }
+                      : { bg: "#1a1a1a", color: "#4a7a7a", text: "FB Not connected" };
+                    return (
+                      <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 4, background: badge.bg, color: badge.color, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>
+                        {badge.text}
+                      </span>
+                    );
+                  })()}
+                  {getTokenStatus(c) !== "connected" && (
+                    <a
+                      href={`/api/auth/facebook?clientId=${c.id}`}
+                      style={{ fontSize: 10, color: "#2A8C8A", textDecoration: "none", fontWeight: 600 }}
+                    >
+                      Connect Facebook →
+                    </a>
+                  )}
                 </div>
               </div>
 

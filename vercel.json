@@ -6,5 +6,6 @@
     "app/api/agent/metrics/adsets/route.ts": { "maxDuration": 30 },
     "app/api/agent/metrics/ads/route.ts": { "maxDuration": 30 },
     "app/api/agent/creative/upload/route.ts": { "maxDuration": 30 }
-  }
+  },
+  "crons": [{ "path": "/api/cron/refresh-meta-tokens", "schedule": "0 6 * * *" }]
 }
