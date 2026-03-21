@@ -939,12 +939,7 @@ export default function CampaignsPage() {
                 <div style={{ fontSize: 12, color: "#fca5a5", maxWidth: 600, margin: "0 auto", wordBreak: "break-word" }}>{apiError}</div>
               </>
             ) : (
-              <>
-                <div style={{ fontSize: 13 }}>No campaign data for this period.</div>
-                <div style={{ fontSize: 11, color: "#5a5e72", marginTop: 8 }}>
-                  Querying: {activeClient?.meta_ad_account_id || "no ad account set"} · {startDate} → {endDate}
-                </div>
-              </>
+              <div style={{ fontSize: 13 }}>No campaign data for this period.</div>
             )}
           </div>
         ) : (
