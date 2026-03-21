@@ -131,11 +131,28 @@ function adSetHealthLabel(a: AdSetMetric): string {
   return "Stable";
 }
 
-function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
+// Returns green/yellow/red based on CPL vs target (lower is better)
+function cplStatusColor(cpl: number, target: number | null): string {
+  if (!target || cpl === 0) return "#e8eaf0";
+  if (cpl <= target) return "#2ecc71";
+  if (cpl <= target * 1.3) return "#e8b84b";
+  return "#ff4d4d";
+}
+
+// Returns green/yellow/red based on ROAS vs target (higher is better)
+function roasStatusColor(roas: number, target: number | null): string {
+  if (!target || roas === 0) return "#e8eaf0";
+  if (roas >= target) return "#2ecc71";
+  if (roas >= target * 0.7) return "#e8b84b";
+  return "#ff4d4d";
+}
+
+function StatCard({ label, value, sub, valueColor, target }: { label: string; value: string; sub?: string; valueColor?: string; target?: string }) {
   return (
     <div style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "18px 20px" }}>
       <div style={{ fontSize: 11, color: "#5a5e72", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 700, color: "#e8eaf0", letterSpacing: "-0.5px", marginBottom: 4 }}>{value}</div>
+      <div style={{ fontSize: 26, fontWeight: 700, color: valueColor ?? "#e8eaf0", letterSpacing: "-0.5px", marginBottom: 4 }}>{value}</div>
+      {target && <div style={{ fontSize: 10, color: "#5a5e72", marginBottom: 2 }}>Target: {target}</div>}
       {sub && <div style={{ fontSize: 11, color: "#8b8fa8" }}>{sub}</div>}
     </div>
   );
@@ -541,7 +558,31 @@ export default function CampaignsPage() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12, flex: 1 }}>
                 <StatCard label="Total Spend" value={`$${totalSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} sub={`${computedDays}d window`} />
                 <StatCard label="Total Leads" value={String(totalLeads)} />
-                <StatCard label="Avg CPL" value={`$${avgCpl.toFixed(2)}`} />
+                {(() => {
+                  if (isEcomm) {
+                    const totalPurchaseValue = campaigns.reduce((s, c) => {
+                      const avArr = (c.raw_metrics as Record<string, unknown>)?.action_values as { action_type: string; value: string }[] | undefined;
+                      return s + parseFloat(avArr?.find(a => a.action_type === "purchase")?.value ?? "0");
+                    }, 0);
+                    const overallRoas = totalSpend > 0 ? totalPurchaseValue / totalSpend : 0;
+                    return (
+                      <StatCard
+                        label="Overall ROAS"
+                        value={`${overallRoas.toFixed(2)}x`}
+                        valueColor={roasStatusColor(overallRoas, activeClient?.roas_target ?? null)}
+                        target={activeClient?.roas_target ? `${activeClient.roas_target}x` : undefined}
+                      />
+                    );
+                  }
+                  return (
+                    <StatCard
+                      label="Avg CPL"
+                      value={`$${avgCpl.toFixed(2)}`}
+                      valueColor={cplStatusColor(avgCpl, activeClient?.cpl_target ?? null)}
+                      target={activeClient?.cpl_target ? `$${activeClient.cpl_target}` : undefined}
+                    />
+                  );
+                })()}
                 <StatCard label="Avg CTR" value={`${(avgCtr * 100).toFixed(2)}%`} />
                 <StatCard label="Avg Frequency" value={avgFreq.toFixed(2)} sub={avgFreq > 3 ? "⚠ high" : "ok"} />
                 <StatCard label="Impressions" value={totalImpressions.toLocaleString()} />
@@ -740,7 +781,15 @@ export default function CampaignsPage() {
                         {visibleColsArray.map(col => {
                           if (col === "trend" || col === "health") return <span key={col} style={{ color: "#5a5e72" }}>—</span>;
                           const val = formatRowValue(col, campaign);
-                          return <span key={col} style={{ color: "#8b8fa8" }}>{val}</span>;
+                          let color = "#8b8fa8";
+                          if (col === "cpl" && campaign.cpl > 0) color = cplStatusColor(campaign.cpl, activeClient?.cpl_target ?? null);
+                          if (col === "roas" && campaign.spend > 0) {
+                            const avArr = (campaign.raw_metrics as Record<string, unknown>)?.action_values as { action_type: string; value: string }[] | undefined;
+                            const purchaseValue = parseFloat(avArr?.find(a => a.action_type === "purchase")?.value ?? "0");
+                            const roasVal = purchaseValue / campaign.spend;
+                            if (roasVal > 0) color = roasStatusColor(roasVal, activeClient?.roas_target ?? null);
+                          }
+                          return <span key={col} style={{ color }}>{val}</span>;
                         })}
                       </div>
 

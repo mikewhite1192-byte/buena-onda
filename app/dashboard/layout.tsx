@@ -28,6 +28,9 @@ interface Client {
   meta_ad_account_id: string;
   vertical: "leads" | "ecomm";
   status: string;
+  cpl_target: number | null;
+  roas_target: number | null;
+  monthly_budget: number | null;
 }
 
 const NAV_ITEMS = [
@@ -89,6 +92,9 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
       name: client.name,
       meta_ad_account_id: client.meta_ad_account_id,
       vertical: client.vertical,
+      cpl_target: client.cpl_target ?? null,
+      roas_target: client.roas_target ?? null,
+      monthly_budget: client.monthly_budget ?? null,
     });
     router.push("/dashboard/campaigns");
   }

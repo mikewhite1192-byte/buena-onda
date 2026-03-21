@@ -40,6 +40,9 @@ interface Client {
   vertical: "leads" | "ecomm";
   meta_connected: boolean;
   meta_token_expires_at: string | null;
+  cpl_target: number | null;
+  roas_target: number | null;
+  monthly_budget: number | null;
 }
 
 interface CampaignDetail {
@@ -404,6 +407,9 @@ export default function DashboardPage() {
       name: client.name,
       meta_ad_account_id: client.meta_ad_account_id,
       vertical: client.vertical,
+      cpl_target: client.cpl_target ?? null,
+      roas_target: client.roas_target ?? null,
+      monthly_budget: client.monthly_budget ?? null,
     });
     router.push("/dashboard/campaigns");
   }
@@ -426,7 +432,7 @@ export default function DashboardPage() {
     }
     if (rec.actionType === "view" || !rec.targetCampaignId) {
       const client = clients.find(c => c.id === rec.clientId);
-      if (client) setActiveClient({ id: client.id, name: client.name, meta_ad_account_id: client.meta_ad_account_id, vertical: client.vertical });
+      if (client) setActiveClient({ id: client.id, name: client.name, meta_ad_account_id: client.meta_ad_account_id, vertical: client.vertical, cpl_target: client.cpl_target ?? null, roas_target: client.roas_target ?? null, monthly_budget: client.monthly_budget ?? null });
       router.push("/dashboard/campaigns");
       return;
     }

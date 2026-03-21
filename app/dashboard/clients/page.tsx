@@ -15,6 +15,9 @@ interface Client {
   created_at: string;
   meta_connected: boolean;
   meta_token_expires_at: string | null;
+  cpl_target: number | null;
+  roas_target: number | null;
+  monthly_budget: number | null;
 }
 
 interface AdAccount {
@@ -41,6 +44,9 @@ const EMPTY_FORM = {
   whatsapp_number: "",
   notes: "",
   status: "active",
+  cpl_target: "",
+  roas_target: "",
+  monthly_budget: "",
 };
 
 const VERTICAL_COLORS = { leads: "#f5a623", ecomm: "#8B6FE8" };
@@ -122,6 +128,9 @@ export default function ClientsPage() {
       whatsapp_number: c.whatsapp_number ?? "",
       notes: c.notes ?? "",
       status: c.status ?? "active",
+      cpl_target: c.cpl_target != null ? String(c.cpl_target) : "",
+      roas_target: c.roas_target != null ? String(c.roas_target) : "",
+      monthly_budget: c.monthly_budget != null ? String(c.monthly_budget) : "",
     });
     setEditingId(c.id);
     setShowForm(true);
@@ -132,7 +141,13 @@ export default function ClientsPage() {
     if (!form.name.trim()) { setError("Name is required"); return; }
     const raw = form.meta_ad_account_id.trim();
     const normalized = raw && !raw.startsWith("act_") ? `act_${raw}` : raw;
-    const payload = { ...form, meta_ad_account_id: normalized };
+    const payload = {
+      ...form,
+      meta_ad_account_id: normalized,
+      cpl_target: form.cpl_target !== "" ? parseFloat(form.cpl_target) : null,
+      roas_target: form.roas_target !== "" ? parseFloat(form.roas_target) : null,
+      monthly_budget: form.monthly_budget !== "" ? parseFloat(form.monthly_budget) : null,
+    };
     setSaving(true);
     setError("");
     try {
@@ -599,6 +614,42 @@ export default function ClientsPage() {
                   <option value="ecomm">E-commerce</option>
                 </select>
               </Field>
+
+              <Field label="Monthly Budget" hint="Total monthly ad spend budget for this client">
+                <input
+                  type="number"
+                  value={form.monthly_budget}
+                  onChange={(e) => setForm({ ...form, monthly_budget: e.target.value })}
+                  placeholder="e.g. 10000"
+                  min="0"
+                  style={inputStyle}
+                />
+              </Field>
+
+              {form.vertical === "leads" ? (
+                <Field label="CPL Target ($)" hint="Green below target, yellow within 30%, red above">
+                  <input
+                    type="number"
+                    value={form.cpl_target}
+                    onChange={(e) => setForm({ ...form, cpl_target: e.target.value })}
+                    placeholder="e.g. 25"
+                    min="0"
+                    style={inputStyle}
+                  />
+                </Field>
+              ) : (
+                <Field label="ROAS Target" hint="Green above target, yellow within 30%, red below">
+                  <input
+                    type="number"
+                    value={form.roas_target}
+                    onChange={(e) => setForm({ ...form, roas_target: e.target.value })}
+                    placeholder="e.g. 3.5"
+                    min="0"
+                    step="0.1"
+                    style={inputStyle}
+                  />
+                </Field>
+              )}
 
               <Field label="WhatsApp Number">
                 <input

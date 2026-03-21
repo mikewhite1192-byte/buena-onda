@@ -8,6 +8,9 @@ export interface ActiveClient {
   name: string;
   meta_ad_account_id: string;
   vertical: "leads" | "ecomm";
+  cpl_target: number | null;
+  roas_target: number | null;
+  monthly_budget: number | null;
 }
 
 interface ClientContextValue {
