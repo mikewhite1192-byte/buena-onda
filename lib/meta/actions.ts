@@ -27,7 +27,11 @@ async function metaGet<T>(path: string, params: Record<string, string> = {}, tok
   const data = await res.json();
 
   if (!res.ok || data.error) {
-    const msg = data.error?.message ?? `Meta API error: ${res.status}`;
+    const e = data.error;
+    const msg = e
+      ? `${e.message} (code: ${e.code}, subcode: ${e.error_subcode ?? "n/a"}, user_msg: ${e.error_user_msg ?? "n/a"})`
+      : `Meta API error: ${res.status}`;
+    console.error("[metaGet]", path, msg);
     throw new Error(msg);
   }
 
@@ -47,7 +51,11 @@ async function metaPost<T>(path: string, body: Record<string, unknown> = {}, tok
   const data = await res.json();
 
   if (!res.ok || data.error) {
-    const msg = data.error?.message ?? `Meta API error: ${res.status}`;
+    const e = data.error;
+    const msg = e
+      ? `${e.message} (code: ${e.code}, subcode: ${e.error_subcode ?? "n/a"}, user_msg: ${e.error_user_msg ?? "n/a"})`
+      : `Meta API error: ${res.status}`;
+    console.error("[metaPost]", path, msg, JSON.stringify(body).slice(0, 500));
     throw new Error(msg);
   }
 
