@@ -148,7 +148,7 @@ const TOOLS: Anthropic.Tool[] = [
         },
         daily_budget_usd: { type: "number", description: "Daily budget in USD. Only used when creating a new campaign. Ignored if existing_adset_id is provided." },
         creative_url: { type: "string", description: "Image: public URL or image_hash from 📎 upload. Video: public URL ending in .mp4/.mov/.avi (must be publicly accessible)." },
-        destination_url: { type: "string", description: "Landing page URL. Required for TRAFFIC/SALES. Omit for lead gen." },
+        destination_url: { type: "string", description: "Landing page or website URL. ALWAYS required — Meta requires an external URL even for lead gen ads. Never omit this." },
         lead_form_id: { type: "string", description: "Instant form ID for lead gen campaigns. Use list_lead_forms to get available forms." },
         page_id: { type: "string", description: "Facebook Page ID. Optional if META_PAGE_ID env var is set." },
         objective: {
@@ -395,9 +395,8 @@ async function executeTool(
     if (!adAccountId) return "No Meta Ad Account ID found. Select a client or set META_AD_ACCOUNT_ID.";
 
     const isLeadGen = !!lead_form_id;
-    // Only enforce destination_url requirement for new campaigns (existing ad sets inherit their config)
-    if (!existing_adset_id && !isLeadGen && !destination_url) {
-      return "Please provide either a `lead_form_id` (for instant form campaigns) or a `destination_url` (for traffic/sales campaigns).";
+    if (!destination_url) {
+      return "destination_url is required for all ad types — Meta needs an external website URL even for lead gen ads. Please provide the landing page or homepage URL.";
     }
 
     const specialCats = (special_ad_categories as string[] | undefined) ?? [];

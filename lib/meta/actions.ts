@@ -464,8 +464,9 @@ export async function createMetaCampaign(
         name: params.headline,
         description: params.description ?? "",
         call_to_action: callToAction,
-        link: params.destinationUrl ?? `https://www.facebook.com/${params.pageId}`,
+        link: params.destinationUrl,
       };
+      if (!linkData.link) throw new Error("destination_url is required — Meta requires an external website URL even for lead gen ads (e.g. your landing page or homepage).");
       objectStorySpec = { page_id: params.pageId, link_data: linkData };
     }
 
@@ -572,8 +573,9 @@ export async function addAdToAdSet(
         name: params.headline,
         description: params.description ?? "",
         call_to_action: callToAction,
-        link: params.destinationUrl ?? `https://www.facebook.com/${params.pageId}`,
+        link: params.destinationUrl,
       };
+      if (!linkData.link) throw new Error("destination_url is required — Meta requires an external website URL even for lead gen ads (e.g. your landing page or homepage).");
       objectStorySpec = { page_id: params.pageId, link_data: linkData };
     }
 
