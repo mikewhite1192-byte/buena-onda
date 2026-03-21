@@ -111,9 +111,18 @@ export interface TimeseriesPoint {
   leads: number;
   cpl: number;
   impressions: number;
+  reach: number;
+  frequency: number;
   clicks: number;
+  link_clicks: number;
+  unique_clicks: number;
+  ctr: number;
+  cpm: number;
+  cpc: number;
   purchases: number;
   purchase_value: number;
+  adds_to_cart: number;
+  checkouts: number;
   cpa: number;
   roas: number;
 }
@@ -161,16 +170,34 @@ export function getDemoTimeseries(accountId: string, startDate: string, endDate:
     dayLeads       = Math.max(0, Math.round(dayLeads));
     dayImpressions = Math.max(0, Math.round(dayImpressions));
     dayClicks      = Math.max(0, Math.round(dayClicks));
-    const dayCpl   = dayLeads > 0 ? Number((daySpend / dayLeads).toFixed(2)) : 0;
+    const dayCpl       = dayLeads > 0 ? Number((daySpend / dayLeads).toFixed(2)) : 0;
+    // Derived delivery metrics
+    const freqSeed     = (i * 17 + 3);
+    const dayFrequency = Number((1.8 + seededRand(freqSeed) * 1.8).toFixed(2)); // 1.8–3.6
+    const dayReach     = dayImpressions > 0 ? Math.round(dayImpressions / dayFrequency) : 0;
+    const dayLinkClicks   = Math.round(dayClicks * (0.55 + seededRand(i * 5) * 0.15));
+    const dayUniqueClicks = Math.round(dayClicks * (0.85 + seededRand(i * 9) * 0.1));
+    const dayCtr   = dayImpressions > 0 ? Number((dayClicks / dayImpressions).toFixed(4)) : 0;
+    const dayCpm   = dayImpressions > 0 ? Number(((daySpend / dayImpressions) * 1000).toFixed(2)) : 0;
+    const dayCpc   = dayClicks > 0 ? Number((daySpend / dayClicks).toFixed(2)) : 0;
 
-    // For ecomm accounts, treat leads as purchases with avg order ~$85
+    // For ecomm accounts, treat leads as purchases
     const isEcomm = ["act_demo_ecomm","act_demo_beauty","act_demo_supps","act_demo_homegood","act_demo_fitness"].includes(accountId);
     const purchases     = isEcomm ? dayLeads : 0;
     const purchaseValue = isEcomm ? Number((purchases * (75 + seededRand(i * 13) * 40)).toFixed(2)) : 0;
+    const addsToCart    = isEcomm ? Math.round(purchases * (3 + seededRand(i * 7))) : 0;
+    const checkouts     = isEcomm ? Math.round(purchases * (1.4 + seededRand(i * 11) * 0.4)) : 0;
     const cpa           = purchases > 0 ? Number((daySpend / purchases).toFixed(2)) : 0;
     const roas          = daySpend > 0 && purchaseValue > 0 ? Number((purchaseValue / daySpend).toFixed(2)) : 0;
 
-    points.push({ date: dateStr, spend: daySpend, leads: dayLeads, cpl: dayCpl, impressions: dayImpressions, clicks: dayClicks, purchases, purchase_value: purchaseValue, cpa, roas });
+    points.push({
+      date: dateStr, spend: daySpend, leads: dayLeads, cpl: dayCpl,
+      impressions: dayImpressions, reach: dayReach, frequency: dayFrequency,
+      clicks: dayClicks, link_clicks: dayLinkClicks, unique_clicks: dayUniqueClicks,
+      ctr: dayCtr, cpm: dayCpm, cpc: dayCpc,
+      purchases, purchase_value: purchaseValue, adds_to_cart: addsToCart, checkouts,
+      cpa, roas,
+    });
   }
 
   return points;

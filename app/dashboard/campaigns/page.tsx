@@ -509,7 +509,8 @@ export default function CampaignsPage() {
   const [showCharts, setShowCharts] = useState(false);
   const [timeseries, setTimeseries] = useState<TimeseriesPoint[]>([]);
   const [tsLoading, setTsLoading] = useState(false);
-  const [chartMetric, setChartMetric] = useState<"spend" | "leads" | "cpl" | "roas" | "purchases" | "cpa">("spend");
+  const [chartMetric, setChartMetric] = useState<string>("spend");
+  const [showChartMetricPicker, setShowChartMetricPicker] = useState(false);
   const isEcomm = activeClient?.vertical === "ecomm";
 
   // Reset chart metric when switching between leads and ecomm clients
@@ -814,106 +815,118 @@ export default function CampaignsPage() {
             </div>
 
             {/* Chart Panel */}
-            {showCharts && (
-              <div style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "20px 24px", marginBottom: 28 }}>
-                {/* Metric tabs */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#e8eaf0" }}>Trend Over Time</div>
-                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const }}>
-                    {(isEcomm
-                      ? ([
-                          { key: "spend"     as typeof chartMetric, label: "Spend",     color: "#f5a623" },
-                          { key: "purchases" as typeof chartMetric, label: "Purchases", color: "#7b8cde" },
-                          { key: "roas"      as typeof chartMetric, label: "ROAS",      color: "#2ecc71" },
-                          { key: "cpa"       as typeof chartMetric, label: "CPA",       color: "#c07ef0" },
-                        ])
-                      : ([
-                          { key: "spend" as typeof chartMetric, label: "Spend", color: "#f5a623" },
-                          { key: "leads" as typeof chartMetric, label: "Leads", color: "#7b8cde" },
-                          { key: "cpl"   as typeof chartMetric, label: "CPL",   color: "#2ecc71" },
-                        ])
-                    ).map(({ key, label, color: _c }) => (
-                      <button
-                        key={key}
-                        onClick={() => setChartMetric(key)}
-                        style={{ ...btnStyle(chartMetric === key), padding: "4px 12px", fontSize: 11 }}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+            {showCharts && (() => {
+              // All available chart metrics with metadata
+              const CHART_METRIC_DEFS: { key: string; label: string; color: string; format: "currency" | "number" | "percent" | "roas" | "decimal"; group: string }[] = [
+                { key: "spend",          label: "Amount Spent",       color: "#f5a623", format: "currency", group: "Delivery" },
+                { key: "impressions",    label: "Impressions",         color: "#5a8dee", format: "number",   group: "Delivery" },
+                { key: "reach",          label: "Reach",               color: "#4bcfb5", format: "number",   group: "Delivery" },
+                { key: "frequency",      label: "Frequency",           color: "#E8705A", format: "decimal",  group: "Delivery" },
+                { key: "cpm",            label: "CPM",                 color: "#fc6e51", format: "currency", group: "Delivery" },
+                { key: "clicks",         label: "Clicks (All)",        color: "#ac92ec", format: "number",   group: "Clicks" },
+                { key: "link_clicks",    label: "Link Clicks",         color: "#c07ef0", format: "number",   group: "Clicks" },
+                { key: "unique_clicks",  label: "Unique Clicks",       color: "#a0d468", format: "number",   group: "Clicks" },
+                { key: "ctr",            label: "CTR",                 color: "#48cfad", format: "percent",  group: "Clicks" },
+                { key: "cpc",            label: "CPC",                 color: "#e8b84b", format: "currency", group: "Clicks" },
+                { key: "leads",          label: "Leads",               color: "#7b8cde", format: "number",   group: "Results" },
+                { key: "cpl",            label: "Cost per Lead",       color: "#2ecc71", format: "currency", group: "Results" },
+                { key: "purchases",      label: "Purchases",           color: "#7b8cde", format: "number",   group: "Results" },
+                { key: "purchase_value", label: "Revenue",             color: "#e8b84b", format: "currency", group: "Results" },
+                { key: "adds_to_cart",   label: "Add to Cart",         color: "#f5a623", format: "number",   group: "Results" },
+                { key: "checkouts",      label: "Checkouts Initiated", color: "#5a8dee", format: "number",   group: "Results" },
+                { key: "cpa",            label: "Cost per Purchase",   color: "#c07ef0", format: "currency", group: "Results" },
+                { key: "roas",           label: "Purchase ROAS",       color: "#2ecc71", format: "roas",     group: "Results" },
+              ];
+              const currentDef = CHART_METRIC_DEFS.find(d => d.key === chartMetric) ?? CHART_METRIC_DEFS[0];
+              const lineColor  = currentDef.color;
+              const fmt = currentDef.format;
+              const groups = [...new Set(CHART_METRIC_DEFS.map(d => d.group))];
 
-                {tsLoading ? (
-                  <div style={{ height: 220, display: "flex", alignItems: "center", justifyContent: "center", color: "#8b8fa8", fontSize: 13 }}>
-                    Loading chart data...
+              const formatVal = (v: number) => {
+                if (fmt === "currency") return v >= 1000 ? `$${(v/1000).toFixed(1)}k` : `$${v.toFixed(2)}`;
+                if (fmt === "roas")    return `${v.toFixed(2)}x`;
+                if (fmt === "percent") return `${(v * 100).toFixed(2)}%`;
+                if (fmt === "decimal") return v.toFixed(2);
+                return v >= 1000 ? `${(v/1000).toFixed(1)}k` : String(Math.round(v));
+              };
+
+              return (
+                <div style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "20px 24px", marginBottom: 28 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#e8eaf0" }}>Trend Over Time</div>
+
+                    {/* Metric selector */}
+                    <div style={{ position: "relative" }}>
+                      <button
+                        onClick={() => setShowChartMetricPicker(v => !v)}
+                        style={{ ...btnStyle(showChartMetricPicker), padding: "5px 14px", fontSize: 12, display: "flex", alignItems: "center", gap: 8 }}
+                      >
+                        <span style={{ color: lineColor }}>●</span>
+                        {currentDef.label}
+                        <span style={{ fontSize: 9, color: "#5a5e72" }}>▼</span>
+                      </button>
+
+                      {showChartMetricPicker && (
+                        <div style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 300, background: "#13151d", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, width: 260, maxHeight: 340, overflowY: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}>
+                          {groups.map(group => (
+                            <div key={group}>
+                              <div style={{ padding: "8px 14px 4px", fontSize: 10, color: "#5a5e72", textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>{group}</div>
+                              {CHART_METRIC_DEFS.filter(d => d.group === group).map(d => (
+                                <button key={d.key} onClick={() => { setChartMetric(d.key); setShowChartMetricPicker(false); }}
+                                  style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "8px 14px", background: chartMetric === d.key ? "rgba(245,166,35,0.08)" : "transparent", border: "none", color: chartMetric === d.key ? "#e8eaf0" : "#8b8fa8", cursor: "pointer", fontSize: 12, fontFamily: "'DM Mono',monospace", textAlign: "left" as const }}>
+                                  <span style={{ color: d.color, fontSize: 8 }}>●</span>
+                                  {d.label}
+                                  {chartMetric === d.key && <span style={{ marginLeft: "auto", color: "#f5a623", fontSize: 10 }}>✓</span>}
+                                </button>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                ) : timeseries.length === 0 ? (
-                  <div style={{ height: 220, display: "flex", alignItems: "center", justifyContent: "center", color: "#8b8fa8", fontSize: 13 }}>
-                    No data for this period
-                  </div>
-                ) : (
-                  <ResponsiveContainer width="100%" height={220}>
-                    <LineChart data={timeseries} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                      <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        tick={{ fill: "#5a5e72", fontSize: 10, fontFamily: "'DM Mono',monospace" }}
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={d => {
-                          const date = new Date(d + "T12:00:00");
-                          return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-                        }}
-                        interval={Math.max(0, Math.floor(timeseries.length / 8) - 1)}
-                      />
-                      <YAxis
-                        tick={{ fill: "#5a5e72", fontSize: 10, fontFamily: "'DM Mono',monospace" }}
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={v =>
-                          (chartMetric === "spend" || chartMetric === "cpa") ? `$${v >= 1000 ? `${(v/1000).toFixed(1)}k` : v.toFixed(0)}` :
-                          chartMetric === "cpl"   ? `$${v.toFixed(0)}` :
-                          chartMetric === "roas"  ? `${v.toFixed(1)}x` :
-                          String(v)
-                        }
-                        width={52}
-                      />
-                      <Tooltip
-                        contentStyle={{ background: "#13151d", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontFamily: "'DM Mono',monospace", fontSize: 12 }}
-                        labelStyle={{ color: "#8b8fa8", marginBottom: 4 }}
-                        labelFormatter={d => {
-                          const date = new Date(d + "T12:00:00");
-                          return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-                        }}
-                        formatter={(value) => {
-                          const n = Number(value ?? 0);
-                          if (chartMetric === "spend")     return [`$${n.toFixed(2)}`, "Spend"];
-                          if (chartMetric === "cpl")       return [`$${n.toFixed(2)}`, "CPL"];
-                          if (chartMetric === "cpa")       return [`$${n.toFixed(2)}`, "CPA"];
-                          if (chartMetric === "roas")      return [`${n.toFixed(2)}x`, "ROAS"];
-                          if (chartMetric === "purchases") return [n, "Purchases"];
-                          return [n, "Leads"];
-                        }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey={chartMetric}
-                        stroke={
-                          chartMetric === "spend"     ? "#f5a623" :
-                          chartMetric === "leads" || chartMetric === "purchases" ? "#7b8cde" :
-                          chartMetric === "roas"      ? "#2ecc71" :
-                          chartMetric === "cpa"       ? "#c07ef0" : "#2ecc71"
-                        }
-                        strokeWidth={2}
-                        dot={timeseries.length <= 30 ? { r: 3, strokeWidth: 0, fill: chartMetric === "spend" ? "#f5a623" : chartMetric === "leads" || chartMetric === "purchases" ? "#7b8cde" : chartMetric === "roas" ? "#2ecc71" : chartMetric === "cpa" ? "#c07ef0" : "#2ecc71" } : false}
-                        activeDot={{ r: 5, strokeWidth: 0 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            )}
+
+                  {tsLoading ? (
+                    <div style={{ height: 220, display: "flex", alignItems: "center", justifyContent: "center", color: "#8b8fa8", fontSize: 13 }}>Loading chart data...</div>
+                  ) : timeseries.length === 0 ? (
+                    <div style={{ height: 220, display: "flex", alignItems: "center", justifyContent: "center", color: "#8b8fa8", fontSize: 13 }}>No data for this period</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={220}>
+                      <LineChart data={timeseries} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                        <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="date"
+                          tick={{ fill: "#5a5e72", fontSize: 10, fontFamily: "'DM Mono',monospace" }}
+                          tickLine={false} axisLine={false}
+                          tickFormatter={d => { const dt = new Date(d + "T12:00:00"); return dt.toLocaleDateString("en-US", { month: "short", day: "numeric" }); }}
+                          interval={Math.max(0, Math.floor(timeseries.length / 8) - 1)}
+                        />
+                        <YAxis tick={{ fill: "#5a5e72", fontSize: 10, fontFamily: "'DM Mono',monospace" }}
+                          tickLine={false} axisLine={false}
+                          tickFormatter={formatVal} width={56}
+                        />
+                        <Tooltip
+                          contentStyle={{ background: "#13151d", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontFamily: "'DM Mono',monospace", fontSize: 12 }}
+                          labelStyle={{ color: "#8b8fa8", marginBottom: 4 }}
+                          labelFormatter={d => { const dt = new Date(d + "T12:00:00"); return dt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }); }}
+                          formatter={(value) => {
+                            const n = Number(value ?? 0);
+                            if (fmt === "currency") return [`$${n.toFixed(2)}`, currentDef.label];
+                            if (fmt === "roas")     return [`${n.toFixed(2)}x`, currentDef.label];
+                            if (fmt === "percent")  return [`${(n * 100).toFixed(2)}%`, currentDef.label];
+                            if (fmt === "decimal")  return [n.toFixed(2), currentDef.label];
+                            return [Math.round(n).toLocaleString(), currentDef.label];
+                          }}
+                        />
+                        <Line type="monotone" dataKey={chartMetric} stroke={lineColor} strokeWidth={2}
+                          dot={timeseries.length <= 30 ? { r: 3, strokeWidth: 0, fill: lineColor } : false}
+                          activeDot={{ r: 5, strokeWidth: 0, fill: lineColor }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Table controls */}
             <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
