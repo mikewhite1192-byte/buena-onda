@@ -116,15 +116,22 @@ export default function ChatBubble() {
   }, [isOnboarding]);
 
   // Open chat when Help button is clicked from the nav
+  // Optionally pass { message: string } in event detail to auto-send a starter message
   useEffect(() => {
-    function handler() {
+    function handler(e: Event) {
+      const detail = (e as CustomEvent<{ message?: string }>).detail;
       setHelpMode(true);
       setMessages([]);
-      setShowSuggestions(true);
+      setShowSuggestions(!detail?.message);
       setOpen(true);
+      if (detail?.message) {
+        const msg = detail.message;
+        setTimeout(() => sendMessage(msg), 400);
+      }
     }
     document.addEventListener("buenaonda:open-chat", handler);
     return () => document.removeEventListener("buenaonda:open-chat", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Tour step 3 — open chat and auto-send optimization question
