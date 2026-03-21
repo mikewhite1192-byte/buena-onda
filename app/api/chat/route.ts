@@ -395,8 +395,8 @@ async function executeTool(
     if (!adAccountId) return "No Meta Ad Account ID found. Select a client or set META_AD_ACCOUNT_ID.";
 
     const isLeadGen = !!lead_form_id;
-    if (!destination_url) {
-      return "destination_url is required for all ad types — Meta needs an external website URL even for lead gen ads. Please provide the landing page or homepage URL.";
+    if (!destination_url || String(destination_url).includes("facebook.com") || String(destination_url).includes("fb.com")) {
+      return "destination_url must be an external website URL (not Facebook). Please ask the user for their landing page or website URL (e.g. https://coveredbymike.com/life-insurance).";
     }
 
     const specialCats = (special_ad_categories as string[] | undefined) ?? [];
