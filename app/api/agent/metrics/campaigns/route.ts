@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
     const url = new URL(`${META_BASE_URL}/${accountId}/insights`);
     url.searchParams.set("access_token", token);
     url.searchParams.set("level", "campaign");
-    url.searchParams.set("fields", ["campaign_id", "campaign_name", ...ALL_API_FIELDS].join(","));
+    url.searchParams.set("fields", ["campaign_id", "campaign_name", "effective_status", ...ALL_API_FIELDS].join(","));
     url.searchParams.set("time_range", timeRange);
     url.searchParams.set("limit", "50");
 
@@ -96,6 +96,7 @@ export async function GET(req: NextRequest) {
     return {
       campaign_id: row.campaign_id as string,
       campaign_name: (row.campaign_name as string) ?? null,
+      status: (row.effective_status as string) ?? "UNKNOWN",
       spend: Number(spend.toFixed(2)),
       leads,
       cpl: Number(cpl.toFixed(2)),

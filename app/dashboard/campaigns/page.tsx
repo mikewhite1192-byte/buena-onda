@@ -5,12 +5,15 @@ import { useEffect, useState, useCallback } from "react";
 import { useActiveClient } from "@/lib/context/client-context";
 import { METRIC_GROUPS, METRIC_BY_KEY, LEADS_DEFAULT_COLUMNS, ECOMM_DEFAULT_COLUMNS } from "@/lib/meta/metric-definitions";
 import type { MetricDef } from "@/lib/meta/metric-definitions";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import type { TimeseriesPoint } from "@/lib/demo-data";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface CampaignMetric {
   campaign_id: string;
   campaign_name: string | null;
+  status: string;
   spend: number;
   leads: number;
   cpl: number;
@@ -289,11 +292,17 @@ export default function CampaignsPage() {
   const sevenAgo = new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0];
   const [startDate, setStartDate] = useState(sevenAgo);
   const [endDate, setEndDate] = useState(today);
-  const [datePreset, setDatePreset] = useState<"today" | "7d" | "30d" | "max" | "custom">("7d");
+  const [datePreset, setDatePreset] = useState<"today" | "7d" | "30d" | "90d" | "max" | "custom">("7d");
 
   const [sortKey, setSortKey] = useState<SortKey>("spend");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [search, setSearch] = useState("");
+
+  // Charts
+  const [showCharts, setShowCharts] = useState(false);
+  const [timeseries, setTimeseries] = useState<TimeseriesPoint[]>([]);
+  const [tsLoading, setTsLoading] = useState(false);
+  const [chartMetric, setChartMetric] = useState<"spend" | "leads" | "cpl">("spend");
 
   const defaultCols = activeClient?.vertical === "ecomm" ? ECOMM_DEFAULT_COLUMNS : LEADS_DEFAULT_COLUMNS;
   const [visibleCols, setVisibleCols] = useState<Set<string>>(new Set(defaultCols));
@@ -332,14 +341,32 @@ export default function CampaignsPage() {
     }
   }, [startDate, endDate, activeClient]);
 
+  const fetchTimeseries = useCallback(async () => {
+    if (!activeClient) return;
+    setTsLoading(true);
+    const adAccountParam = activeClient.meta_ad_account_id ? `&ad_account_id=${activeClient.meta_ad_account_id}` : "";
+    const clientParam = activeClient.id ? `&client_id=${activeClient.id}` : "";
+    try {
+      const res = await fetch(`/api/agent/metrics/campaigns/timeseries?startDate=${startDate}&endDate=${endDate}${adAccountParam}${clientParam}`);
+      const data = await res.json();
+      setTimeseries(data.timeseries ?? []);
+    } catch {
+      setTimeseries([]);
+    } finally {
+      setTsLoading(false);
+    }
+  }, [startDate, endDate, activeClient]);
+
   function handleRefresh() {
     // Clear all cached expanded data so re-expanding re-fetches fresh from Meta
     setAdSetLevelData({});
     setAdLevelData({});
     fetchData();
+    if (showCharts) fetchTimeseries();
   }
 
   useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { if (showCharts) fetchTimeseries(); }, [showCharts, fetchTimeseries]);
 
   // Expand/collapse campaign → load its ad sets
   async function toggleCampaignExpand(campaignId: string) {
@@ -407,6 +434,10 @@ export default function CampaignsPage() {
   const filtered = campaigns
     .filter(c => !search || (c.campaign_name ?? c.campaign_id).toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
+      // Active always before paused/inactive
+      const aActive = a.status === "ACTIVE" ? 0 : 1;
+      const bActive = b.status === "ACTIVE" ? 0 : 1;
+      if (aActive !== bActive) return aActive - bActive;
       const aVal = Number(a[sortKey as keyof CampaignMetric] ?? 0);
       const bVal = Number(b[sortKey as keyof CampaignMetric] ?? 0);
       return sortDir === "asc" ? aVal - bVal : bVal - aVal;
@@ -469,12 +500,13 @@ export default function CampaignsPage() {
           {/* Date range */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
             <div style={{ display: "flex", gap: 6 }}>
-              {([{ key: "today", label: "1D" }, { key: "7d", label: "7D" }, { key: "30d", label: "30D" }, { key: "max", label: "MAX" }, { key: "custom", label: "Custom" }] as { key: typeof datePreset; label: string }[]).map(({ key, label }) => (
+              {([{ key: "today", label: "1D" }, { key: "7d", label: "7D" }, { key: "30d", label: "30D" }, { key: "90d", label: "90D" }, { key: "max", label: "MAX" }, { key: "custom", label: "Custom" }] as { key: typeof datePreset; label: string }[]).map(({ key, label }) => (
                 <button key={key} style={btnStyle(datePreset === key)} onClick={() => {
                   setDatePreset(key);
                   if (key === "today") { setStartDate(new Date(Date.now() - 1 * 86400000).toISOString().split("T")[0]); setEndDate(today); }
                   if (key === "7d") { setStartDate(new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0]); setEndDate(today); }
                   if (key === "30d") { setStartDate(new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0]); setEndDate(today); }
+                  if (key === "90d") { setStartDate(new Date(Date.now() - 90 * 86400000).toISOString().split("T")[0]); setEndDate(today); }
                   if (key === "max") { setStartDate("2024-01-01"); setEndDate(today); }
                 }}>{label}</button>
               ))}
@@ -501,15 +533,112 @@ export default function CampaignsPage() {
           </div>
         ) : (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12, marginBottom: 32 }}>
-              <StatCard label="Total Spend" value={`$${totalSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} sub={`${computedDays}d window`} />
-              <StatCard label="Total Leads" value={String(totalLeads)} />
-              <StatCard label="Avg CPL" value={`$${avgCpl.toFixed(2)}`} />
-              <StatCard label="Avg CTR" value={`${(avgCtr * 100).toFixed(2)}%`} />
-              <StatCard label="Avg Frequency" value={avgFreq.toFixed(2)} sub={avgFreq > 3 ? "⚠ high" : "ok"} />
-              <StatCard label="Impressions" value={totalImpressions.toLocaleString()} />
-              <StatCard label="Campaigns" value={String(campaigns.length)} />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12, flex: 1 }}>
+                <StatCard label="Total Spend" value={`$${totalSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} sub={`${computedDays}d window`} />
+                <StatCard label="Total Leads" value={String(totalLeads)} />
+                <StatCard label="Avg CPL" value={`$${avgCpl.toFixed(2)}`} />
+                <StatCard label="Avg CTR" value={`${(avgCtr * 100).toFixed(2)}%`} />
+                <StatCard label="Avg Frequency" value={avgFreq.toFixed(2)} sub={avgFreq > 3 ? "⚠ high" : "ok"} />
+                <StatCard label="Impressions" value={totalImpressions.toLocaleString()} />
+                <StatCard label="Campaigns" value={String(campaigns.length)} />
+              </div>
             </div>
+
+            {/* Charts toggle */}
+            <div style={{ marginBottom: 24 }}>
+              <button
+                onClick={() => setShowCharts(v => !v)}
+                style={{ ...btnStyle(showCharts), display: "flex", alignItems: "center", gap: 6 }}
+              >
+                <span style={{ fontSize: 13 }}>📈</span>
+                {showCharts ? "Hide Charts" : "Show Charts"}
+              </button>
+            </div>
+
+            {/* Chart Panel */}
+            {showCharts && (
+              <div style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "20px 24px", marginBottom: 28 }}>
+                {/* Metric tabs */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#e8eaf0" }}>Trend Over Time</div>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {([
+                      { key: "spend", label: "Spend", color: "#f5a623" },
+                      { key: "leads", label: "Leads", color: "#7b8cde" },
+                      { key: "cpl",   label: "CPL",   color: "#2ecc71" },
+                    ] as { key: typeof chartMetric; label: string; color: string }[]).map(({ key, label }) => (
+                      <button
+                        key={key}
+                        onClick={() => setChartMetric(key)}
+                        style={{ ...btnStyle(chartMetric === key), padding: "4px 12px", fontSize: 11 }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {tsLoading ? (
+                  <div style={{ height: 220, display: "flex", alignItems: "center", justifyContent: "center", color: "#8b8fa8", fontSize: 13 }}>
+                    Loading chart data...
+                  </div>
+                ) : timeseries.length === 0 ? (
+                  <div style={{ height: 220, display: "flex", alignItems: "center", justifyContent: "center", color: "#8b8fa8", fontSize: 13 }}>
+                    No data for this period
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <LineChart data={timeseries} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                      <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        tick={{ fill: "#5a5e72", fontSize: 10, fontFamily: "'DM Mono',monospace" }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={d => {
+                          const date = new Date(d + "T12:00:00");
+                          return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                        }}
+                        interval={Math.max(0, Math.floor(timeseries.length / 8) - 1)}
+                      />
+                      <YAxis
+                        tick={{ fill: "#5a5e72", fontSize: 10, fontFamily: "'DM Mono',monospace" }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={v =>
+                          chartMetric === "spend" ? `$${v >= 1000 ? `${(v/1000).toFixed(1)}k` : v.toFixed(0)}` :
+                          chartMetric === "cpl"   ? `$${v.toFixed(0)}` :
+                          String(v)
+                        }
+                        width={52}
+                      />
+                      <Tooltip
+                        contentStyle={{ background: "#13151d", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontFamily: "'DM Mono',monospace", fontSize: 12 }}
+                        labelStyle={{ color: "#8b8fa8", marginBottom: 4 }}
+                        labelFormatter={d => {
+                          const date = new Date(d + "T12:00:00");
+                          return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+                        }}
+                        formatter={(value) => {
+                          const n = Number(value ?? 0);
+                          if (chartMetric === "spend" || chartMetric === "cpl") return [`$${n.toFixed(2)}`, chartMetric === "spend" ? "Spend" : "CPL"];
+                          return [n, "Leads"];
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey={chartMetric}
+                        stroke={chartMetric === "spend" ? "#f5a623" : chartMetric === "leads" ? "#7b8cde" : "#2ecc71"}
+                        strokeWidth={2}
+                        dot={timeseries.length <= 30 ? { r: 3, fill: chartMetric === "spend" ? "#f5a623" : chartMetric === "leads" ? "#7b8cde" : "#2ecc71", strokeWidth: 0 } : false}
+                        activeDot={{ r: 5, strokeWidth: 0 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            )}
 
             {/* Table controls */}
             <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
@@ -569,13 +698,22 @@ export default function CampaignsPage() {
                         style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "14px 18px", borderBottom: "1px solid #13151d", fontSize: 12, alignItems: "center", background: isCampaignExpanded ? "rgba(245,166,35,0.06)" : i % 2 === 0 ? "#0d0f14" : "#0d0f14", cursor: "pointer", minWidth: colMin }}
                       >
                         <div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                             <span style={{ fontSize: 10, color: "#f5a623", transition: "transform 0.15s", display: "inline-block", transform: isCampaignExpanded ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
-                            <span style={{ color: "#e8eaf0", fontFamily: "sans-serif", fontSize: 13, fontWeight: 600 }}>
+                            <span style={{ color: campaign.status === "ACTIVE" ? "#e8eaf0" : "#5a5e72", fontFamily: "sans-serif", fontSize: 13, fontWeight: 600 }}>
                               {campaign.campaign_name ?? campaign.campaign_id}
                             </span>
+                            <span style={{
+                              fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" as const,
+                              padding: "2px 6px", borderRadius: 4,
+                              background: campaign.status === "ACTIVE" ? "rgba(46,204,113,0.12)" : "rgba(90,94,114,0.2)",
+                              color: campaign.status === "ACTIVE" ? "#2ecc71" : "#5a5e72",
+                              border: `1px solid ${campaign.status === "ACTIVE" ? "rgba(46,204,113,0.25)" : "rgba(90,94,114,0.3)"}`,
+                            }}>
+                              {campaign.status === "ACTIVE" ? "● Active" : "⏸ Paused"}
+                            </span>
                           </div>
-                          <div style={{ fontSize: 10, color: "#f5a623", fontFamily: "monospace", paddingLeft: 18 }}>{campaign.campaign_id}</div>
+                          <div style={{ fontSize: 10, color: "#3a3e52", fontFamily: "monospace", paddingLeft: 18 }}>{campaign.campaign_id}</div>
                         </div>
                         {visibleColsArray.map(col => {
                           if (col === "trend" || col === "health") return <span key={col} style={{ color: "#5a5e72" }}>—</span>;
@@ -599,7 +737,7 @@ export default function CampaignsPage() {
                                 {visibleColsArray.map(col => <span key={col}>{METRIC_BY_KEY[col]?.label ?? col}</span>)}
                               </div>
 
-                              {campaignAdSets.map((adSet, j) => {
+                              {[...campaignAdSets].sort((a, b) => (a.ad_status === "ACTIVE" ? 0 : 1) - (b.ad_status === "ACTIVE" ? 0 : 1)).map((adSet, j) => {
                                 const isAdSetExpanded = expandedAdSets.has(adSet.ad_set_id);
                                 const isAdSetLoading = adLevelLoading.has(adSet.ad_set_id);
                                 const ads = adLevelData[adSet.ad_set_id] ?? [];
@@ -614,15 +752,22 @@ export default function CampaignsPage() {
                                       style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "11px 18px 11px 36px", borderBottom: "1px solid #0a1a1a", fontSize: 11, alignItems: "center", background: isAdSetExpanded ? "#0c1a1a" : j % 2 === 0 ? "#080d0d" : "#0a1212", cursor: "pointer", minWidth: colMin }}
                                     >
                                       <div>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
                                           <span style={{ fontSize: 9, color: "#8b8fa8", transition: "transform 0.15s", display: "inline-block", transform: isAdSetExpanded ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
-                                          <span style={{ width: 5, height: 5, borderRadius: "50%", background: adSet.ad_status === "ACTIVE" ? "#f5a623" : "#5a5e72", flexShrink: 0, display: "inline-block" }} />
-                                          <span style={{ color: "#c8e8e8", fontFamily: "sans-serif", fontSize: 12 }}>
+                                          <span style={{ color: adSet.ad_status === "ACTIVE" ? "#c8e8e8" : "#5a5e72", fontFamily: "sans-serif", fontSize: 12 }}>
                                             {adSet.ad_set_name ?? adSet.ad_set_id}
                                           </span>
-                                          <span style={{ fontSize: 9, color: hColor, textTransform: "uppercase", letterSpacing: "0.06em" }}>{adSetHealthLabel(adSet)}</span>
+                                          <span style={{
+                                            fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" as const,
+                                            padding: "1px 5px", borderRadius: 3,
+                                            background: adSet.ad_status === "ACTIVE" ? "rgba(46,204,113,0.1)" : "rgba(90,94,114,0.18)",
+                                            color: adSet.ad_status === "ACTIVE" ? "#2ecc71" : "#5a5e72",
+                                          }}>
+                                            {adSet.ad_status === "ACTIVE" ? "● Active" : "⏸ Paused"}
+                                          </span>
+                                          <span style={{ fontSize: 9, color: hColor, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>{adSetHealthLabel(adSet)}</span>
                                         </div>
-                                        <div style={{ fontSize: 9, color: "#f5a623", fontFamily: "monospace", paddingLeft: 17 }}>{adSet.ad_set_id}</div>
+                                        <div style={{ fontSize: 9, color: "#3a3e52", fontFamily: "monospace", paddingLeft: 17 }}>{adSet.ad_set_id}</div>
                                       </div>
                                       {visibleColsArray.map(col => {
                                         if (col === "trend") return <div key={col} />;
@@ -648,11 +793,21 @@ export default function CampaignsPage() {
                                         ) : ads.length === 0 ? (
                                           <div style={{ padding: "12px 18px 12px 56px", fontSize: 11, color: "#8b8fa8" }}>No ad data for this period.</div>
                                         ) : (
-                                          ads.map((ad, k) => (
+                                          [...ads].sort((a, b) => (a.ad_status === "ACTIVE" ? 0 : 1) - (b.ad_status === "ACTIVE" ? 0 : 1)).map((ad, k) => (
                                             <div key={ad.ad_id} style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "9px 18px 9px 56px", borderBottom: "1px solid #09100f", fontSize: 11, alignItems: "center", background: k % 2 === 0 ? "#060b0b" : "#080d0d", minWidth: colMin }}>
                                               <div>
-                                                <div style={{ color: "#a8d8d8", fontSize: 11, fontWeight: 500, marginBottom: 1 }}>{ad.ad_name ?? ad.ad_id}</div>
-                                                <div style={{ fontSize: 9, color: "#f5a623", fontFamily: "monospace" }}>{ad.ad_id}</div>
+                                                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                                                  <span style={{ color: ad.ad_status === "ACTIVE" ? "#a8d8d8" : "#5a5e72", fontSize: 11, fontWeight: 500 }}>{ad.ad_name ?? ad.ad_id}</span>
+                                                  <span style={{
+                                                    fontSize: 8, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" as const,
+                                                    padding: "1px 4px", borderRadius: 3,
+                                                    background: ad.ad_status === "ACTIVE" ? "rgba(46,204,113,0.1)" : "rgba(90,94,114,0.18)",
+                                                    color: ad.ad_status === "ACTIVE" ? "#2ecc71" : "#5a5e72",
+                                                  }}>
+                                                    {ad.ad_status === "ACTIVE" ? "● Active" : "⏸ Paused"}
+                                                  </span>
+                                                </div>
+                                                <div style={{ fontSize: 9, color: "#3a3e52", fontFamily: "monospace" }}>{ad.ad_id}</div>
                                               </div>
                                               {visibleColsArray.map(col => {
                                                 if (col === "trend" || col === "health") return <span key={col} style={{ color: "#5a5e72" }}>—</span>;
