@@ -113,7 +113,7 @@ const TOOLS: Anthropic.Tool[] = [
   // ── Lead forms ────────────────────────────────────────────────────────────
   {
     name: "list_lead_forms",
-    description: "List all instant lead forms (lead gen forms) attached to the Facebook Page. Use this before creating a lead gen campaign so the user can pick their form.",
+    description: "List all instant lead forms attached to the Facebook Page. ALWAYS call this automatically whenever the user mentions a lead form, lead gen objective, or says they want to use an existing form — never ask the user to find the ID themselves.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -868,6 +868,7 @@ ${(clientRules as { id: string; rule_text: string; category: string }[]).map(r =
 When the user tells you a standing rule, preference, or strategy for this client (e.g. "never scale above $300/day", "always use broad targeting", "pause on weekends"), call save_client_rule immediately to remember it — then confirm you've saved it. If they say to forget a rule, call delete_client_rule with its ID.
 Keep responses concise and actionable. Use numbers when you have them.
 CRITICAL RULE — ONE QUESTION AT A TIME: Never ask more than one question in a single message. Ask one question, wait for the answer, then ask the next. This is non-negotiable. If you need to gather multiple pieces of information (objective, audience, budget, copy, etc.), ask for them one by one — never combine them into a list or multi-part question.
+CRITICAL RULE — NEVER ASK THE USER FOR IDs: Never ask the user to go find a lead form ID, campaign ID, ad set ID, or any Meta ID. You have tools for this. When lead forms are needed, call list_lead_forms to fetch them and present the options by name. When campaigns/ad sets are needed, call list_campaigns. Always look it up yourself first.
 ${imageHash ? `UPLOADED CREATIVE: The user has already uploaded an image. Use this exact image_hash as the creative_url parameter when calling create_ad_campaign: ${imageHash}` : ""}`;
 
   let currentMessages: Anthropic.MessageParam[] = messages.map((m: Message) => ({
