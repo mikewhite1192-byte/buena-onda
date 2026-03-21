@@ -42,6 +42,15 @@ interface Client {
   meta_token_expires_at: string | null;
 }
 
+interface CampaignDetail {
+  campaign_id: string;
+  campaign_name: string | null;
+  spend: number;
+  leads: number;
+  cpl: number;
+  frequency: number;
+}
+
 interface ClientMetrics {
   totalSpend: number;
   totalLeads: number;
@@ -49,6 +58,7 @@ interface ClientMetrics {
   campaignCount: number;
   status: "healthy" | "warning" | "critical" | "no_data";
   alert: string | null;
+  topCampaigns: CampaignDetail[];
 }
 
 interface Recommendation {
@@ -60,6 +70,9 @@ interface Recommendation {
   clientId: string;
   clientName: string;
   approveLabel: string;
+  actionType: "pause_campaign" | "scale_budget" | "reconnect" | "view" | null;
+  targetCampaignId?: string;
+  targetCampaignName?: string;
 }
 
 function generateRecommendations(clients: Client[], allMetrics: Record<string, ClientMetrics>): Recommendation[] {
@@ -67,21 +80,38 @@ function generateRecommendations(clients: Client[], allMetrics: Record<string, C
   for (const client of clients) {
     const m = allMetrics[client.id];
     if (!client.meta_connected) {
-      recs.push({ id: `connect_${client.id}`, priority: "warning", icon: "🔗", title: "Facebook not connected", body: `${client.name} has no Facebook connection — no metrics can be pulled.`, clientId: client.id, clientName: client.name, approveLabel: "Connect now" });
+      recs.push({ id: `connect_${client.id}`, priority: "warning", icon: "🔗", title: "Facebook not connected", body: `${client.name} has no Facebook connection — no metrics can be pulled.`, clientId: client.id, clientName: client.name, approveLabel: "Connect Facebook", actionType: "reconnect" });
       continue;
     }
     if (!m) continue;
+
+    // Critical: spending with no leads — pause the top-spend campaign
     if (client.vertical === "leads" && m.totalSpend > 80 && m.totalLeads === 0) {
-      recs.push({ id: `no_leads_${client.id}`, priority: "critical", icon: "🚨", title: "Spend with no leads", body: `${client.name} spent $${m.totalSpend.toFixed(0)} today with zero leads. Campaigns may be misconfigured.`, clientId: client.id, clientName: client.name, approveLabel: "View campaigns" });
+      const worst = m.topCampaigns.sort((a, b) => b.spend - a.spend)[0];
+      recs.push({ id: `no_leads_${client.id}`, priority: "critical", icon: "🚨", title: "Spending with no leads", body: `${client.name} spent $${m.totalSpend.toFixed(0)} with zero leads. Pause "${worst?.campaign_name ?? "top campaign"}" now.`, clientId: client.id, clientName: client.name, approveLabel: "Pause Campaign", actionType: "pause_campaign", targetCampaignId: worst?.campaign_id, targetCampaignName: worst?.campaign_name ?? undefined });
     }
+
+    // Warning: high CPL — pause the worst campaign
     if (client.vertical === "leads" && m.avgCPL > 60 && m.totalLeads > 0) {
-      recs.push({ id: `high_cpl_${client.id}`, priority: "warning", icon: "📉", title: "CPL above target", body: `${client.name} CPL is $${m.avgCPL.toFixed(0)}, above the $60 threshold. Review targeting or creative.`, clientId: client.id, clientName: client.name, approveLabel: "Review campaigns" });
+      const worst = [...m.topCampaigns].filter(c => c.leads > 0).sort((a, b) => b.cpl - a.cpl)[0];
+      if (worst) recs.push({ id: `high_cpl_${client.id}`, priority: "warning", icon: "📉", title: "CPL above target", body: `${client.name} — "${worst.campaign_name}" at $${worst.cpl.toFixed(0)} CPL. Pause it to stop bleeding budget.`, clientId: client.id, clientName: client.name, approveLabel: "Pause Campaign", actionType: "pause_campaign", targetCampaignId: worst.campaign_id, targetCampaignName: worst.campaign_name ?? undefined });
     }
-    if (client.vertical === "leads" && m.avgCPL > 0 && m.avgCPL < 30 && m.totalLeads >= 3) {
-      recs.push({ id: `scale_${client.id}`, priority: "info", icon: "📈", title: "Scale opportunity", body: `${client.name} CPL is $${m.avgCPL.toFixed(0)} — well below target. Consider increasing budget.`, clientId: client.id, clientName: client.name, approveLabel: "View campaigns" });
+
+    // Warning: ad fatigue (high frequency)
+    const fatigued = m.topCampaigns.find(c => c.frequency > 4);
+    if (fatigued) {
+      recs.push({ id: `fatigue_${client.id}_${fatigued.campaign_id}`, priority: "warning", icon: "😴", title: "Ad fatigue detected", body: `"${fatigued.campaign_name}" has ${fatigued.frequency.toFixed(1)}x frequency on ${client.name}. Pause to rotate creative.`, clientId: client.id, clientName: client.name, approveLabel: "Pause Campaign", actionType: "pause_campaign", targetCampaignId: fatigued.campaign_id, targetCampaignName: fatigued.campaign_name ?? undefined });
     }
-    if (client.vertical === "ecomm" && m.totalLeads > 0 && m.avgCPL < 20 && m.totalSpend > 50) {
-      recs.push({ id: `scale_ecomm_${client.id}`, priority: "info", icon: "📈", title: "Strong ROAS — scale budget", body: `${client.name} CPA is $${m.avgCPL.toFixed(0)} with ${m.totalLeads} purchases today. Good signal to increase budget.`, clientId: client.id, clientName: client.name, approveLabel: "View campaigns" });
+
+    // Info: scale the best-performing campaign
+    const best = [...m.topCampaigns].filter(c => c.leads > 0 && c.cpl > 0).sort((a, b) => a.cpl - b.cpl)[0];
+    if (best && best.cpl < 30 && m.totalLeads >= 3) {
+      recs.push({ id: `scale_${client.id}_${best.campaign_id}`, priority: "info", icon: "📈", title: "Scale opportunity", body: `"${best.campaign_name}" on ${client.name} is at $${best.cpl.toFixed(0)} CPL. Increase budget 20% to capture more leads.`, clientId: client.id, clientName: client.name, approveLabel: "Increase Budget 20%", actionType: "scale_budget", targetCampaignId: best.campaign_id, targetCampaignName: best.campaign_name ?? undefined });
+    }
+
+    // Ecomm scale
+    if (client.vertical === "ecomm" && best && best.cpl < 20 && m.totalSpend > 50) {
+      recs.push({ id: `scale_ecomm_${client.id}_${best.campaign_id}`, priority: "info", icon: "📈", title: "Strong ROAS — scale budget", body: `"${best.campaign_name}" on ${client.name} CPA $${best.cpl.toFixed(0)}. +20% budget while signal is strong.`, clientId: client.id, clientName: client.name, approveLabel: "Increase Budget 20%", actionType: "scale_budget", targetCampaignId: best.campaign_id, targetCampaignName: best.campaign_name ?? undefined });
     }
   }
   return recs;
@@ -153,12 +183,14 @@ function ClientCard({
   onMetricsLoaded,
   startDate,
   endDate,
+  rangeLabel,
 }: {
   client: Client;
   onSelect: () => void;
   onMetricsLoaded: (id: string, m: ClientMetrics) => void;
   startDate: string;
   endDate: string;
+  rangeLabel: string;
 }) {
   const [metrics, setMetrics] = useState<ClientMetrics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -167,7 +199,7 @@ function ClientCard({
   useEffect(() => {
     setLoading(true);
     if (!client.meta_connected) {
-      const m: ClientMetrics = { totalSpend: 0, totalLeads: 0, avgCPL: 0, campaignCount: 0, status: "no_data", alert: "Facebook not connected" };
+      const m: ClientMetrics = { totalSpend: 0, totalLeads: 0, avgCPL: 0, campaignCount: 0, status: "no_data", alert: "Facebook not connected", topCampaigns: [] };
       setMetrics(m);
       onMetricsLoaded(client.id, m);
       setLoading(false);
@@ -178,18 +210,19 @@ function ClientCard({
     fetch(`/api/agent/metrics/campaigns?client_id=${client.id}${adAccountParam}&startDate=${startDate}&endDate=${endDate}`)
       .then(r => r.json())
       .then(data => {
-        const campaigns = (data.campaigns ?? []) as Array<{ spend: number; leads: number }>;
+        const campaigns = (data.campaigns ?? []) as Array<{ campaign_id: string; campaign_name: string | null; spend: number; leads: number; cpl: number; frequency: number }>;
         const totalSpend = campaigns.reduce((s, c) => s + c.spend, 0);
         const totalLeads = campaigns.reduce((s, c) => s + c.leads, 0);
         const avgCPL = totalLeads > 0 ? totalSpend / totalLeads : 0;
         const campaignCount = campaigns.length;
+        const topCampaigns: CampaignDetail[] = campaigns.map(c => ({ campaign_id: c.campaign_id, campaign_name: c.campaign_name, spend: c.spend, leads: c.leads, cpl: c.cpl, frequency: c.frequency ?? 0 }));
         const { status, alert } = computeStatus(client.vertical, totalSpend, totalLeads, avgCPL, campaignCount);
-        const m: ClientMetrics = { totalSpend, totalLeads, avgCPL, campaignCount, status, alert };
+        const m: ClientMetrics = { totalSpend, totalLeads, avgCPL, campaignCount, status, alert, topCampaigns };
         setMetrics(m);
         onMetricsLoaded(client.id, m);
       })
       .catch(() => {
-        const m: ClientMetrics = { totalSpend: 0, totalLeads: 0, avgCPL: 0, campaignCount: 0, status: "no_data", alert: "Could not load metrics" };
+        const m: ClientMetrics = { totalSpend: 0, totalLeads: 0, avgCPL: 0, campaignCount: 0, status: "no_data", alert: "Could not load metrics", topCampaigns: [] };
         setMetrics(m);
         onMetricsLoaded(client.id, m);
       })
@@ -200,6 +233,7 @@ function ClientCard({
   const st = metrics ? STATUS_CONFIG[metrics.status] : STATUS_CONFIG.no_data;
   const isLeads = client.vertical === "leads";
   const isCritical = metrics?.status === "critical";
+  const periodLabel = rangeLabel === "Today" ? "Today" : rangeLabel;
 
   return (
     <div
@@ -249,9 +283,9 @@ function ClientCard({
                 sub="cost per lead"
                 color={metrics.avgCPL > 50 ? T.warning : T.healthy}
               />
-              <MetricBox label="Leads Today" value={String(metrics.totalLeads)} sub="from ads" />
+              <MetricBox label={`Leads (${periodLabel})`} value={String(metrics.totalLeads)} sub="from ads" />
               <MetricBox
-                label="Spend Today"
+                label={`Spend (${periodLabel})`}
                 value={`$${metrics.totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
                 sub="total spend"
               />
@@ -260,18 +294,18 @@ function ClientCard({
           ) : (
             <>
               <MetricBox
-                label="Spend Today"
+                label={`Spend (${periodLabel})`}
                 value={`$${metrics.totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
                 sub="total spend"
               />
-              <MetricBox label="Purchases" value={String(metrics.totalLeads)} sub="conversions" />
+              <MetricBox label={`Purchases (${periodLabel})`} value={String(metrics.totalLeads)} sub="conversions" />
               <MetricBox label="Campaigns" value={String(metrics.campaignCount)} sub="with data" />
               <MetricBox label="CPA" value={metrics.avgCPL > 0 ? `$${metrics.avgCPL.toFixed(0)}` : "—"} sub="cost per acq." />
             </>
           )
         ) : (
           <div style={{ gridColumn: "1/-1", fontSize: 12, color: T.muted, textAlign: "center", padding: "14px 0" }}>
-            {client.meta_connected ? "No campaign spend today" : "Connect Facebook to view metrics"}
+            {client.meta_connected ? `No campaign spend (${periodLabel})` : "Connect Facebook to view metrics"}
           </div>
         )}
       </div>
@@ -295,6 +329,7 @@ export default function DashboardPage() {
   const [loadingDemo, setLoadingDemo] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [snoozed, setSnoozed] = useState<Set<string>>(new Set());
+  const [actionState, setActionState] = useState<Record<string, "loading" | "done" | "error">>({});
 
   // ── Date range ─────────────────────────────────────────────────────────────
   function daysAgo(n: number) {
@@ -374,17 +409,33 @@ export default function DashboardPage() {
   const allRecs = useMemo(() => generateRecommendations(clients, allMetrics), [clients, allMetrics]);
   const visibleRecs = allRecs.filter(r => !dismissed.has(r.id) && !snoozed.has(r.id));
 
-  function handleApprove(rec: Recommendation) {
-    const client = clients.find(c => c.id === rec.clientId);
-    if (client) {
-      setActiveClient({ id: client.id, name: client.name, meta_ad_account_id: client.meta_ad_account_id, vertical: client.vertical });
-    }
-    if (rec.approveLabel === "Connect now") {
+  async function handleApprove(rec: Recommendation) {
+    if (rec.actionType === "reconnect") {
       router.push("/dashboard/clients");
-    } else {
-      router.push("/dashboard/campaigns");
+      return;
     }
-    setDismissed(prev => new Set([...prev, rec.id]));
+    if (rec.actionType === "view" || !rec.targetCampaignId) {
+      const client = clients.find(c => c.id === rec.clientId);
+      if (client) setActiveClient({ id: client.id, name: client.name, meta_ad_account_id: client.meta_ad_account_id, vertical: client.vertical });
+      router.push("/dashboard/campaigns");
+      return;
+    }
+
+    setActionState(prev => ({ ...prev, [rec.id]: "loading" }));
+    try {
+      const endpoint = rec.actionType === "pause_campaign" ? "/api/agent/actions/pause-campaign" : "/api/agent/actions/scale-budget";
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ campaignId: rec.targetCampaignId, clientId: rec.clientId }),
+      });
+      if (!res.ok) throw new Error("Action failed");
+      setActionState(prev => ({ ...prev, [rec.id]: "done" }));
+      // Auto-dismiss after 3 seconds
+      setTimeout(() => setDismissed(prev => new Set([...prev, rec.id])), 3000);
+    } catch {
+      setActionState(prev => ({ ...prev, [rec.id]: "error" }));
+    }
   }
 
   function handleDecline(id: string) {
@@ -575,6 +626,7 @@ export default function DashboardPage() {
                   onMetricsLoaded={handleMetricsLoaded}
                   startDate={rangeStart}
                   endDate={rangeEnd}
+                  rangeLabel={DATE_RANGES[activeRange].label}
                 />
               ))}
             </div>
@@ -614,28 +666,39 @@ export default function DashboardPage() {
                           <div style={{ fontSize: 11, color: T.muted, lineHeight: 1.5 }}>{rec.body}</div>
                         </div>
                       </div>
-                      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                        <button
-                          onClick={() => handleApprove(rec)}
-                          style={{ flex: 1, padding: "5px 0", fontSize: 11, fontWeight: 600, borderRadius: 5, border: "none", background: borderColor + "22", color: borderColor, cursor: "pointer", fontFamily: "inherit" }}
-                        >
-                          {rec.approveLabel}
-                        </button>
-                        <button
-                          onClick={() => handleSnooze(rec.id)}
-                          style={{ padding: "5px 8px", fontSize: 11, borderRadius: 5, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, cursor: "pointer", fontFamily: "inherit" }}
-                          title="Snooze 24h"
-                        >
-                          💤
-                        </button>
-                        <button
-                          onClick={() => handleDecline(rec.id)}
-                          style={{ padding: "5px 8px", fontSize: 11, borderRadius: 5, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, cursor: "pointer", fontFamily: "inherit" }}
-                          title="Dismiss"
-                        >
-                          ✕
-                        </button>
-                      </div>
+                      {actionState[rec.id] === "done" ? (
+                        <div style={{ marginTop: 8, padding: "6px 10px", borderRadius: 5, background: "rgba(46,204,113,0.12)", color: "#2ecc71", fontSize: 11, fontWeight: 600, textAlign: "center" }}>
+                          ✓ Done — changes applied
+                        </div>
+                      ) : actionState[rec.id] === "error" ? (
+                        <div style={{ marginTop: 8, padding: "6px 10px", borderRadius: 5, background: "rgba(255,77,77,0.1)", color: T.critical, fontSize: 11, textAlign: "center" }}>
+                          Failed — check campaigns page
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                          <button
+                            onClick={() => handleApprove(rec)}
+                            disabled={actionState[rec.id] === "loading"}
+                            style={{ flex: 1, padding: "5px 0", fontSize: 11, fontWeight: 600, borderRadius: 5, border: "none", background: actionState[rec.id] === "loading" ? "rgba(255,255,255,0.05)" : borderColor + "22", color: actionState[rec.id] === "loading" ? T.muted : borderColor, cursor: actionState[rec.id] === "loading" ? "not-allowed" : "pointer", fontFamily: "inherit" }}
+                          >
+                            {actionState[rec.id] === "loading" ? "Working…" : rec.approveLabel}
+                          </button>
+                          <button
+                            onClick={() => handleSnooze(rec.id)}
+                            style={{ padding: "5px 8px", fontSize: 11, borderRadius: 5, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, cursor: "pointer", fontFamily: "inherit" }}
+                            title="Snooze 24h"
+                          >
+                            💤
+                          </button>
+                          <button
+                            onClick={() => handleDecline(rec.id)}
+                            style={{ padding: "5px 8px", fontSize: 11, borderRadius: 5, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, cursor: "pointer", fontFamily: "inherit" }}
+                            title="Dismiss"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
