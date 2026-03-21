@@ -388,13 +388,20 @@ function CampaignCardUI({ campaign, acting, onApprove, onPause, onEditInChat, ad
   const ad = campaign.ads[0];
   const adset = campaign.adsets[0];
   const objLabel = OBJECTIVE_LABELS[campaign.objective] ?? campaign.objective;
-  const [showCopyEditor, setShowCopyEditor] = useState(false);
+  const [copyStep, setCopyStep] = useState<"closed" | "edit" | "preview">("closed");
   const [editHeadline, setEditHeadline] = useState(ad?.headline ?? "");
   const [editBody, setEditBody] = useState(ad?.body ?? "");
   const [savingCopy, setSavingCopy] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
 
-  async function handleSaveCopy() {
+  function openCopyEditor() {
+    setEditHeadline(ad?.headline ?? "");
+    setEditBody(ad?.body ?? "");
+    setCopyError(null);
+    setCopyStep("edit");
+  }
+
+  async function handlePublishCopy() {
     if (!ad?.id) return;
     setSavingCopy(true);
     setCopyError(null);
@@ -405,9 +412,9 @@ function CampaignCardUI({ campaign, acting, onApprove, onPause, onEditInChat, ad
         body: JSON.stringify({ adId: ad.id, headline: editHeadline, primaryText: editBody, adAccountId }),
       });
       const data = await res.json();
-      if (data.error) { setCopyError(data.error); return; }
+      if (data.error) { setCopyError(data.error); setCopyStep("preview"); return; }
       onCopyUpdated(campaign.id, editHeadline, editBody);
-      setShowCopyEditor(false);
+      setCopyStep("closed");
     } finally {
       setSavingCopy(false);
     }
@@ -501,7 +508,7 @@ function CampaignCardUI({ campaign, acting, onApprove, onPause, onEditInChat, ad
 
         {isPending && (
           <button
-            onClick={() => { setEditHeadline(ad?.headline ?? ""); setEditBody(ad?.body ?? ""); setCopyError(null); setShowCopyEditor(true); }}
+            onClick={openCopyEditor}
             style={{ padding: "7px 14px", background: "transparent", border: `1px solid ${T.border}`, borderRadius: 7, color: T.muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit", transition: "color 0.15s" }}
             onMouseEnter={e => e.currentTarget.style.color = T.accent}
             onMouseLeave={e => e.currentTarget.style.color = T.muted}
@@ -529,18 +536,18 @@ function CampaignCardUI({ campaign, acting, onApprove, onPause, onEditInChat, ad
         )}
       </div>
 
-      {/* Edit Copy Modal */}
-      {showCopyEditor && (
+      {/* Edit Copy — Step 1: Edit */}
+      {copyStep === "edit" && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 3000, padding: 20 }}
-          onClick={e => { if (e.target === e.currentTarget) setShowCopyEditor(false); }}
+          onClick={e => { if (e.target === e.currentTarget) setCopyStep("closed"); }}
         >
           <div style={{ background: "#13151d", border: `1px solid ${T.border}`, borderRadius: 14, width: "100%", maxWidth: 560, padding: "28px 32px", display: "flex", flexDirection: "column", gap: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>Edit Ad Copy</div>
-                <div style={{ fontSize: 11, color: T.faint, marginTop: 3 }}>{campaign.name}</div>
+                <div style={{ fontSize: 11, color: T.faint, marginTop: 3 }}>Step 1 of 2 — Write your copy</div>
               </div>
-              <button onClick={() => setShowCopyEditor(false)} style={{ background: "transparent", border: "none", color: T.muted, fontSize: 20, cursor: "pointer" }}>×</button>
+              <button onClick={() => setCopyStep("closed")} style={{ background: "transparent", border: "none", color: T.muted, fontSize: 20, cursor: "pointer" }}>×</button>
             </div>
 
             <div>
@@ -549,9 +556,10 @@ function CampaignCardUI({ campaign, acting, onApprove, onPause, onEditInChat, ad
                 value={editHeadline}
                 onChange={e => setEditHeadline(e.target.value)}
                 placeholder="e.g. Final Expense Coverage Made Simple"
+                autoFocus
                 style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: T.text, fontFamily: "'DM Mono', monospace", outline: "none", boxSizing: "border-box" }}
               />
-              <div style={{ fontSize: 10, color: T.faint, marginTop: 4 }}>{editHeadline.length}/40 chars</div>
+              <div style={{ fontSize: 10, color: editHeadline.length > 40 ? T.red : T.faint, marginTop: 4 }}>{editHeadline.length}/40 chars</div>
             </div>
 
             <div>
@@ -559,28 +567,76 @@ function CampaignCardUI({ campaign, acting, onApprove, onPause, onEditInChat, ad
               <textarea
                 value={editBody}
                 onChange={e => setEditBody(e.target.value)}
-                placeholder="e.g. Don't leave your loved ones with the burden. Final expense coverage from $19/month..."
+                placeholder="e.g. Don't leave your loved ones with the burden..."
                 rows={4}
                 style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: T.text, fontFamily: "'DM Mono', monospace", outline: "none", resize: "vertical", boxSizing: "border-box", lineHeight: 1.6 }}
               />
             </div>
 
-            {copyError && (
-              <div style={{ background: "rgba(255,77,77,0.08)", border: "1px solid rgba(255,77,77,0.2)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: T.red }}>
-                {copyError}
-              </div>
-            )}
-
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-              <button onClick={() => setShowCopyEditor(false)} style={{ padding: "9px 20px", background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, color: T.muted, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+              <button onClick={() => setCopyStep("closed")} style={{ padding: "9px 20px", background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, color: T.muted, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
                 Cancel
               </button>
               <button
-                onClick={handleSaveCopy}
-                disabled={savingCopy || !editHeadline.trim() || !editBody.trim()}
+                onClick={() => { if (editHeadline.trim() && editBody.trim()) setCopyStep("preview"); }}
+                disabled={!editHeadline.trim() || !editBody.trim()}
                 style={{ padding: "9px 24px", background: editHeadline.trim() && editBody.trim() ? T.accent : "rgba(245,166,35,0.3)", border: "none", borderRadius: 8, color: "#0d0f14", fontSize: 13, fontWeight: 700, cursor: editHeadline.trim() && editBody.trim() ? "pointer" : "not-allowed", fontFamily: "inherit" }}
               >
-                {savingCopy ? "Saving…" : "Save to Meta"}
+                Preview Ad →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Copy — Step 2: Preview & Publish */}
+      {copyStep === "preview" && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 3000, padding: 20 }}>
+          <div style={{ background: "#13151d", border: `1px solid ${T.border}`, borderRadius: 14, width: "100%", maxWidth: 680, padding: "28px 32px", display: "flex", flexDirection: "column", gap: 24 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>Review Before Publishing</div>
+                <div style={{ fontSize: 11, color: T.faint, marginTop: 3 }}>Step 2 of 2 — Confirm this is exactly what you want</div>
+              </div>
+              <button onClick={() => setCopyStep("closed")} style={{ background: "transparent", border: "none", color: T.muted, fontSize: 20, cursor: "pointer" }}>×</button>
+            </div>
+
+            {/* Side by side: mockup + copy */}
+            <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 24, alignItems: "start" }}>
+              <AdMockup
+                ad={{ id: "preview", name: "preview", status: "PAUSED", body: editBody, headline: editHeadline, image_url: ad?.image_url ?? null }}
+                clientName={campaign.name.split("|")[0].trim()}
+                imageUrl={ad?.image_url ?? null}
+              />
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div>
+                  <div style={{ fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Headline</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: T.text, lineHeight: 1.4 }}>{editHeadline}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Primary Text</div>
+                  <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.7 }}>{editBody}</div>
+                </div>
+                <div style={{ background: "rgba(245,166,35,0.08)", border: `1px solid ${T.accentBorder}`, borderRadius: 8, padding: "10px 14px", fontSize: 11, color: T.accent }}>
+                  This will update the ad creative in Meta. The campaign stays PAUSED until you approve it.
+                </div>
+              </div>
+            </div>
+
+            {copyError && (
+              <div style={{ background: "rgba(255,77,77,0.08)", border: "1px solid rgba(255,77,77,0.2)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: T.red }}>{copyError}</div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+              <button onClick={() => setCopyStep("edit")} style={{ padding: "9px 20px", background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, color: T.muted, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+                ← Edit Copy
+              </button>
+              <button
+                onClick={handlePublishCopy}
+                disabled={savingCopy}
+                style={{ padding: "9px 28px", background: savingCopy ? "rgba(46,204,113,0.15)" : T.green, border: "none", borderRadius: 8, color: savingCopy ? T.green : "#0d0f14", fontSize: 13, fontWeight: 700, cursor: savingCopy ? "not-allowed" : "pointer", fontFamily: "inherit" }}
+              >
+                {savingCopy ? "Publishing…" : "✓ Looks Good — Publish to Meta"}
               </button>
             </div>
           </div>
