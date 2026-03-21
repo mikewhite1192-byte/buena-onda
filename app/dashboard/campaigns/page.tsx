@@ -167,7 +167,7 @@ function BudgetPacingCard({ spend, budget }: { spend: number; budget: number | n
     ? `$${(spend - budget).toLocaleString(undefined, { maximumFractionDigits: 0 })} over`
     : `$${(budget - spend).toLocaleString(undefined, { maximumFractionDigits: 0 })} left`;
   return (
-    <div style={{ background: "#161820", border: `1px solid ${barColor}22`, borderRadius: 10, padding: "18px 20px", gridColumn: "span 2" }}>
+    <div style={{ background: "#161820", border: `1px solid ${barColor}22`, borderRadius: 10, padding: "18px 24px", marginBottom: 0 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
         <div style={{ fontSize: 11, color: "#5a5e72", letterSpacing: "0.08em", textTransform: "uppercase" }}>Budget Pacing</div>
         <div style={{ fontSize: 11, color: barColor }}>{label}</div>
@@ -312,6 +312,27 @@ function ColumnPickerModal({
   );
 }
 
+// ─── Stat Card Config ─────────────────────────────────────────────────────────
+
+const STAT_CARD_OPTIONS = [
+  { key: "spend",       label: "Total Spend",    vertical: "both"  },
+  { key: "leads",       label: "Total Leads",    vertical: "leads" },
+  { key: "purchases",   label: "Purchases",      vertical: "ecomm" },
+  { key: "cpl",         label: "Avg CPL",        vertical: "leads" },
+  { key: "roas",        label: "Overall ROAS",   vertical: "ecomm" },
+  { key: "ctr",         label: "Avg CTR",        vertical: "both"  },
+  { key: "frequency",   label: "Avg Frequency",  vertical: "both"  },
+  { key: "impressions", label: "Impressions",    vertical: "both"  },
+  { key: "campaigns",   label: "Campaign Count", vertical: "both"  },
+] as const;
+
+const LEADS_DEFAULT_STAT_CARDS = ["spend", "leads", "cpl", "ctr", "frequency"];
+const ECOMM_DEFAULT_STAT_CARDS  = ["spend", "purchases", "roas", "ctr", "frequency"];
+
+function getDefaultStatCards(vertical: string) {
+  return vertical === "ecomm" ? ECOMM_DEFAULT_STAT_CARDS : LEADS_DEFAULT_STAT_CARDS;
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CampaignsPage() {
@@ -322,6 +343,12 @@ export default function CampaignsPage() {
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [presets, setPresets] = useState<Preset[]>([]);
   const [showColModal, setShowColModal] = useState(false);
+  const [showStatCustomizer, setShowStatCustomizer] = useState(false);
+  const [visibleStatCards, setVisibleStatCards] = useState<string[]>(() => {
+    if (typeof window === "undefined") return LEADS_DEFAULT_STAT_CARDS;
+    const saved = localStorage.getItem("visibleStatCards");
+    return saved ? JSON.parse(saved) : LEADS_DEFAULT_STAT_CARDS;
+  });
 
   // Expand state: campaign → ad sets, ad set → ads
   const [expandedCampaigns, setExpandedCampaigns] = useState<Set<string>>(new Set());
@@ -580,41 +607,95 @@ export default function CampaignsPage() {
           </div>
         ) : (
           <>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12, flex: 1 }}>
-                <BudgetPacingCard spend={totalSpend} budget={activeClient?.monthly_budget ?? null} />
-                <StatCard label="Total Spend" value={`$${totalSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} sub={`${computedDays}d window`} />
-                <StatCard label="Total Leads" value={String(totalLeads)} />
-                {(() => {
-                  if (isEcomm) {
-                    const totalPurchaseValue = campaigns.reduce((s, c) => {
-                      const avArr = (c.raw_metrics as Record<string, unknown>)?.action_values as { action_type: string; value: string }[] | undefined;
-                      return s + parseFloat(avArr?.find(a => a.action_type === "purchase")?.value ?? "0");
-                    }, 0);
-                    const overallRoas = totalSpend > 0 ? totalPurchaseValue / totalSpend : 0;
-                    return (
-                      <StatCard
-                        label="Overall ROAS"
-                        value={`${overallRoas.toFixed(2)}x`}
-                        valueColor={roasStatusColor(overallRoas, activeClient?.roas_target ?? null)}
-                        target={activeClient?.roas_target ? `${activeClient.roas_target}x` : undefined}
-                      />
-                    );
-                  }
-                  return (
-                    <StatCard
-                      label="Avg CPL"
-                      value={`$${avgCpl.toFixed(2)}`}
-                      valueColor={cplStatusColor(avgCpl, activeClient?.cpl_target ?? null)}
-                      target={activeClient?.cpl_target ? `$${activeClient.cpl_target}` : undefined}
-                    />
-                  );
-                })()}
-                <StatCard label="Avg CTR" value={`${(avgCtr * 100).toFixed(2)}%`} />
-                <StatCard label="Avg Frequency" value={avgFreq.toFixed(2)} sub={avgFreq > 3 ? "⚠ high" : "ok"} />
-                <StatCard label="Impressions" value={totalImpressions.toLocaleString()} />
-                <StatCard label="Campaigns" value={String(campaigns.length)} />
+            {/* Budget Pacing — full width */}
+            <BudgetPacingCard spend={totalSpend} budget={activeClient?.monthly_budget ?? null} />
+
+            {/* Stat Cards header + customizer */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, marginTop: activeClient?.monthly_budget ? 16 : 0 }}>
+              <span style={{ fontSize: 11, color: "#5a5e72", letterSpacing: "0.08em", textTransform: "uppercase" }}>Performance</span>
+              <div style={{ position: "relative" }}>
+                <button
+                  onClick={() => setShowStatCustomizer(v => !v)}
+                  style={{ ...btnStyle(showStatCustomizer), padding: "3px 10px", fontSize: 11, display: "flex", alignItems: "center", gap: 5 }}
+                >
+                  ⚙ Customize
+                </button>
+                {showStatCustomizer && (
+                  <div style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 200, background: "#161820", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "14px 16px", width: 220, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
+                    <div style={{ fontSize: 11, color: "#5a5e72", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>Visible Cards</div>
+                    {STAT_CARD_OPTIONS.filter(o => o.vertical === "both" || o.vertical === (isEcomm ? "ecomm" : "leads")).map(opt => (
+                      <label key={opt.key} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, color: visibleStatCards.includes(opt.key) ? "#e8eaf0" : "#5a5e72", marginBottom: 8 }}>
+                        <input type="checkbox" checked={visibleStatCards.includes(opt.key)}
+                          onChange={() => {
+                            const next = visibleStatCards.includes(opt.key)
+                              ? visibleStatCards.filter(k => k !== opt.key)
+                              : [...visibleStatCards, opt.key];
+                            setVisibleStatCards(next);
+                            localStorage.setItem("visibleStatCards", JSON.stringify(next));
+                          }}
+                          style={{ accentColor: "#f5a623", cursor: "pointer" }}
+                        />
+                        {opt.label}
+                      </label>
+                    ))}
+                    <button
+                      onClick={() => {
+                        const def = getDefaultStatCards(activeClient?.vertical ?? "leads");
+                        setVisibleStatCards(def);
+                        localStorage.setItem("visibleStatCards", JSON.stringify(def));
+                      }}
+                      style={{ ...btnStyle(false), padding: "4px 10px", fontSize: 11, marginTop: 4, width: "100%" }}
+                    >
+                      Reset to default
+                    </button>
+                  </div>
+                )}
               </div>
+            </div>
+
+            {/* Stat Cards grid */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 12 }}>
+              {visibleStatCards.includes("spend") && (
+                <StatCard label="Total Spend" value={`$${totalSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} sub={`${computedDays}d window`} />
+              )}
+              {visibleStatCards.includes("leads") && !isEcomm && (
+                <StatCard label="Total Leads" value={String(totalLeads)} />
+              )}
+              {visibleStatCards.includes("purchases") && isEcomm && (
+                <StatCard label="Purchases" value={String(campaigns.reduce((s, c) => {
+                  const arr = (c.raw_metrics as Record<string,unknown>)?.actions as {action_type:string;value:string}[]|undefined;
+                  return s + parseInt(arr?.find(a=>a.action_type==="purchase")?.value??"0");
+                }, 0))} />
+              )}
+              {visibleStatCards.includes("cpl") && !isEcomm && (
+                <StatCard label="Avg CPL" value={`$${avgCpl.toFixed(2)}`}
+                  valueColor={cplStatusColor(avgCpl, activeClient?.cpl_target ?? null)}
+                  target={activeClient?.cpl_target ? `$${activeClient.cpl_target}` : undefined} />
+              )}
+              {visibleStatCards.includes("roas") && isEcomm && (() => {
+                const totalPurchaseValue = campaigns.reduce((s, c) => {
+                  const avArr = (c.raw_metrics as Record<string,unknown>)?.action_values as {action_type:string;value:string}[]|undefined;
+                  return s + parseFloat(avArr?.find(a=>a.action_type==="purchase")?.value??"0");
+                }, 0);
+                const overallRoas = totalSpend > 0 ? totalPurchaseValue / totalSpend : 0;
+                return (
+                  <StatCard label="Overall ROAS" value={`${overallRoas.toFixed(2)}x`}
+                    valueColor={roasStatusColor(overallRoas, activeClient?.roas_target ?? null)}
+                    target={activeClient?.roas_target ? `${activeClient.roas_target}x` : undefined} />
+                );
+              })()}
+              {visibleStatCards.includes("ctr") && (
+                <StatCard label="Avg CTR" value={`${(avgCtr * 100).toFixed(2)}%`} />
+              )}
+              {visibleStatCards.includes("frequency") && (
+                <StatCard label="Avg Frequency" value={avgFreq.toFixed(2)} sub={avgFreq > 3 ? "⚠ high" : "ok"} />
+              )}
+              {visibleStatCards.includes("impressions") && (
+                <StatCard label="Impressions" value={totalImpressions.toLocaleString()} />
+              )}
+              {visibleStatCards.includes("campaigns") && (
+                <StatCard label="Campaigns" value={String(campaigns.length)} />
+              )}
             </div>
 
             {/* Charts toggle */}
