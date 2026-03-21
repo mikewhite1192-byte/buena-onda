@@ -547,6 +547,7 @@ function AdCreatorOverlay({ client, onClose }: {
   const [spec, setSpec] = useState<AdSpec>({ headline: "", body: "", objective: "", budget: "", targeting: "", created: false });
   const [creative, setCreative] = useState<{ imageHash: string; preview: string } | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -554,8 +555,8 @@ function AdCreatorOverlay({ client, onClose }: {
 
   async function handleFileUpload(file: File) {
     setUploading(true);
+    setUploadError(null);
     try {
-      // Compress client-side
       const preview = await new Promise<string>((resolve) => {
         const reader = new FileReader();
         reader.onload = e => resolve(e.target?.result as string);
@@ -563,12 +564,19 @@ function AdCreatorOverlay({ client, onClose }: {
       });
       const formData = new FormData();
       formData.append("file", file);
-      if (client.meta_ad_account_id) formData.append("ad_account_id", client.meta_ad_account_id);
+      formData.append("ad_account_id", client.meta_ad_account_id);
+      formData.append("client_id", client.id);
       const res = await fetch("/api/agent/creative/upload", { method: "POST", body: formData });
       const data = await res.json();
-      if (data.image_hash) {
+      if (data.error) {
+        setUploadError(data.error);
+      } else if (data.image_hash) {
         setCreative({ imageHash: data.image_hash, preview });
+      } else {
+        setUploadError("Upload failed — no image hash returned.");
       }
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setUploading(false);
     }
@@ -716,6 +724,14 @@ function AdCreatorOverlay({ client, onClose }: {
 
             {/* Input */}
             <div style={{ padding: "16px 24px 20px", borderTop: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+              {/* Upload error */}
+              {uploadError && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, background: "rgba(255,77,77,0.08)", border: "1px solid rgba(255,77,77,0.2)", borderRadius: 8, padding: "8px 12px" }}>
+                  <div style={{ flex: 1, fontSize: 11, color: T.red }}>{uploadError}</div>
+                  <button onClick={() => setUploadError(null)} style={{ background: "transparent", border: "none", color: T.faint, cursor: "pointer", fontSize: 14 }}>×</button>
+                </div>
+              )}
+
               {/* Creative preview strip */}
               {creative && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: "8px 12px" }}>
