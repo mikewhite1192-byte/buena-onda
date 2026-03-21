@@ -565,6 +565,8 @@ export default function ClientsPage() {
             padding: "28px 32px",
             width: 480,
             maxWidth: "90vw",
+            maxHeight: "90vh",
+            overflowY: "auto",
           }}>
             <h2 style={{ margin: "0 0 20px", fontSize: 16, fontWeight: 700, color: "#e8eaf0", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
               {editingId ? "Edit Client" : "Add Client"}
