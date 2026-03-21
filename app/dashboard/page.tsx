@@ -379,6 +379,7 @@ export default function DashboardPage() {
   const [loadingClients, setLoadingClients] = useState(true);
   const [allMetrics, setAllMetrics] = useState<Record<string, ClientMetrics>>({});
   const [loadingDemo, setLoadingDemo] = useState(false);
+  const [alertsCollapsed, setAlertsCollapsed] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [snoozed, setSnoozed] = useState<Set<string>>(new Set());
   const [actionState, setActionState] = useState<Record<string, "loading" | "done" | "error">>({});
@@ -673,10 +674,17 @@ export default function DashboardPage() {
             if (alerts.length === 0) return null;
             return (
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 8 }}>
-                  Alerts <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: alerts.some(a => a.severity === "error") ? T.critical : T.warning, borderRadius: 10, padding: "1px 7px", marginLeft: 6 }}>{alerts.length}</span>
+                <div
+                  onClick={() => setAlertsCollapsed(v => !v)}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: alertsCollapsed ? 0 : 8, cursor: "pointer", userSelect: "none" as const }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase" as const }}>Alerts</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: alerts.some(a => a.severity === "error") ? T.critical : T.warning, borderRadius: 10, padding: "1px 7px" }}>{alerts.length}</span>
+                  </div>
+                  <span style={{ fontSize: 11, color: T.faint }}>{alertsCollapsed ? "▶" : "▼"}</span>
                 </div>
-                {alerts.map((a, i) => (
+                {!alertsCollapsed && alerts.map((a, i) => (
                   <div key={i}
                     onClick={() => { const c = clients.find(x => x.id === a.clientId); if (c) handleSelectClient(c); }}
                     style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", marginBottom: 6, background: a.severity === "error" ? "rgba(255,77,77,0.06)" : "rgba(232,184,75,0.06)", border: `1px solid ${a.severity === "error" ? "rgba(255,77,77,0.2)" : "rgba(232,184,75,0.2)"}`, borderRadius: 8, cursor: "pointer" }}
