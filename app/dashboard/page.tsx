@@ -1,7 +1,7 @@
 "use client";
 
 // app/dashboard/page.tsx — Agency Overview
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useActiveClient } from "@/lib/context/client-context";
@@ -49,6 +49,42 @@ interface ClientMetrics {
   campaignCount: number;
   status: "healthy" | "warning" | "critical" | "no_data";
   alert: string | null;
+}
+
+interface Recommendation {
+  id: string;
+  priority: "critical" | "warning" | "info";
+  icon: string;
+  title: string;
+  body: string;
+  clientId: string;
+  clientName: string;
+  approveLabel: string;
+}
+
+function generateRecommendations(clients: Client[], allMetrics: Record<string, ClientMetrics>): Recommendation[] {
+  const recs: Recommendation[] = [];
+  for (const client of clients) {
+    const m = allMetrics[client.id];
+    if (!client.meta_connected) {
+      recs.push({ id: `connect_${client.id}`, priority: "warning", icon: "🔗", title: "Facebook not connected", body: `${client.name} has no Facebook connection — no metrics can be pulled.`, clientId: client.id, clientName: client.name, approveLabel: "Connect now" });
+      continue;
+    }
+    if (!m) continue;
+    if (client.vertical === "leads" && m.totalSpend > 80 && m.totalLeads === 0) {
+      recs.push({ id: `no_leads_${client.id}`, priority: "critical", icon: "🚨", title: "Spend with no leads", body: `${client.name} spent $${m.totalSpend.toFixed(0)} today with zero leads. Campaigns may be misconfigured.`, clientId: client.id, clientName: client.name, approveLabel: "View campaigns" });
+    }
+    if (client.vertical === "leads" && m.avgCPL > 60 && m.totalLeads > 0) {
+      recs.push({ id: `high_cpl_${client.id}`, priority: "warning", icon: "📉", title: "CPL above target", body: `${client.name} CPL is $${m.avgCPL.toFixed(0)}, above the $60 threshold. Review targeting or creative.`, clientId: client.id, clientName: client.name, approveLabel: "Review campaigns" });
+    }
+    if (client.vertical === "leads" && m.avgCPL > 0 && m.avgCPL < 30 && m.totalLeads >= 3) {
+      recs.push({ id: `scale_${client.id}`, priority: "info", icon: "📈", title: "Scale opportunity", body: `${client.name} CPL is $${m.avgCPL.toFixed(0)} — well below target. Consider increasing budget.`, clientId: client.id, clientName: client.name, approveLabel: "View campaigns" });
+    }
+    if (client.vertical === "ecomm" && m.totalLeads > 0 && m.avgCPL < 20 && m.totalSpend > 50) {
+      recs.push({ id: `scale_ecomm_${client.id}`, priority: "info", icon: "📈", title: "Strong ROAS — scale budget", body: `${client.name} CPA is $${m.avgCPL.toFixed(0)} with ${m.totalLeads} purchases today. Good signal to increase budget.`, clientId: client.id, clientName: client.name, approveLabel: "View campaigns" });
+    }
+  }
+  return recs;
 }
 
 const STATUS_CONFIG = {
@@ -253,6 +289,21 @@ export default function DashboardPage() {
   const [loadingClients, setLoadingClients] = useState(true);
   const [allMetrics, setAllMetrics] = useState<Record<string, ClientMetrics>>({});
   const [loadingDemo, setLoadingDemo] = useState(false);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [snoozed, setSnoozed] = useState<Set<string>>(new Set());
+
+  // Load snoozed from localStorage on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("bo_snoozed_recs");
+      if (raw) {
+        const parsed = JSON.parse(raw) as Record<string, number>;
+        const now = Date.now();
+        const active = new Set(Object.entries(parsed).filter(([, exp]) => exp > now).map(([id]) => id));
+        setSnoozed(active);
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   useEffect(() => {
     fetch("/api/clients")
@@ -294,6 +345,36 @@ export default function DashboardPage() {
     .reduce((s, c) => s + (allMetrics[c.id]?.totalLeads ?? 0), 0);
   const attentionCount = Object.values(allMetrics).filter(m => m.status === "critical" || m.status === "warning").length;
   const connectedCount = clients.filter(c => c.meta_connected).length;
+
+  const allRecs = useMemo(() => generateRecommendations(clients, allMetrics), [clients, allMetrics]);
+  const visibleRecs = allRecs.filter(r => !dismissed.has(r.id) && !snoozed.has(r.id));
+
+  function handleApprove(rec: Recommendation) {
+    const client = clients.find(c => c.id === rec.clientId);
+    if (client) {
+      setActiveClient({ id: client.id, name: client.name, meta_ad_account_id: client.meta_ad_account_id, vertical: client.vertical });
+    }
+    if (rec.approveLabel === "Connect now") {
+      router.push("/dashboard/clients");
+    } else {
+      router.push("/dashboard/campaigns");
+    }
+    setDismissed(prev => new Set([...prev, rec.id]));
+  }
+
+  function handleDecline(id: string) {
+    setDismissed(prev => new Set([...prev, id]));
+  }
+
+  function handleSnooze(id: string) {
+    const exp = Date.now() + 24 * 60 * 60 * 1000;
+    setSnoozed(prev => new Set([...prev, id]));
+    try {
+      const raw = localStorage.getItem("bo_snoozed_recs");
+      const existing = raw ? JSON.parse(raw) as Record<string, number> : {};
+      localStorage.setItem("bo_snoozed_recs", JSON.stringify({ ...existing, [id]: exp }));
+    } catch { /* ignore */ }
+  }
 
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
@@ -444,6 +525,65 @@ export default function DashboardPage() {
 
         {/* Right sidebar */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* Recommendations */}
+          <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden" }}>
+            <div style={{ padding: "12px 16px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase" }}>
+                Recommendations
+              </div>
+              {visibleRecs.length > 0 && (
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: visibleRecs.some(r => r.priority === "critical") ? T.critical : T.warning, borderRadius: 10, padding: "1px 7px" }}>
+                  {visibleRecs.length}
+                </span>
+              )}
+            </div>
+            {visibleRecs.length === 0 ? (
+              <div style={{ padding: "20px 16px", textAlign: "center" }}>
+                <div style={{ fontSize: 18, marginBottom: 6 }}>✅</div>
+                <div style={{ fontSize: 12, color: T.muted }}>All accounts look good</div>
+              </div>
+            ) : (
+              <div>
+                {visibleRecs.map((rec, i) => {
+                  const borderColor = rec.priority === "critical" ? T.critical : rec.priority === "warning" ? T.warning : T.accent;
+                  return (
+                    <div key={rec.id} style={{ padding: "12px 16px", borderBottom: i < visibleRecs.length - 1 ? `1px solid ${T.border}` : "none", borderLeft: `3px solid ${borderColor}` }}>
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
+                        <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>{rec.icon}</span>
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 2 }}>{rec.title}</div>
+                          <div style={{ fontSize: 11, color: T.muted, lineHeight: 1.5 }}>{rec.body}</div>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                        <button
+                          onClick={() => handleApprove(rec)}
+                          style={{ flex: 1, padding: "5px 0", fontSize: 11, fontWeight: 600, borderRadius: 5, border: "none", background: borderColor + "22", color: borderColor, cursor: "pointer", fontFamily: "inherit" }}
+                        >
+                          {rec.approveLabel}
+                        </button>
+                        <button
+                          onClick={() => handleSnooze(rec.id)}
+                          style={{ padding: "5px 8px", fontSize: 11, borderRadius: 5, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, cursor: "pointer", fontFamily: "inherit" }}
+                          title="Snooze 24h"
+                        >
+                          💤
+                        </button>
+                        <button
+                          onClick={() => handleDecline(rec.id)}
+                          style={{ padding: "5px 8px", fontSize: 11, borderRadius: 5, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, cursor: "pointer", fontFamily: "inherit" }}
+                          title="Dismiss"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {/* Agent Status */}
           <div style={{ background: T.surface, border: `1px solid ${T.accent}30`, borderRadius: 10, padding: "16px" }}>
