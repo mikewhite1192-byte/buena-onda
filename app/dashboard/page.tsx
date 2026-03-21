@@ -330,6 +330,7 @@ export default function DashboardPage() {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [snoozed, setSnoozed] = useState<Set<string>>(new Set());
   const [actionState, setActionState] = useState<Record<string, "loading" | "done" | "error">>({});
+  const [actionError, setActionError] = useState<Record<string, string>>({});
 
   // ── Date range ─────────────────────────────────────────────────────────────
   function daysAgo(n: number) {
@@ -429,11 +430,13 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ campaignId: rec.targetCampaignId, clientId: rec.clientId }),
       });
-      if (!res.ok) throw new Error("Action failed");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Action failed");
       setActionState(prev => ({ ...prev, [rec.id]: "done" }));
-      // Auto-dismiss after 3 seconds
       setTimeout(() => setDismissed(prev => new Set([...prev, rec.id])), 3000);
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Action failed";
+      setActionError(prev => ({ ...prev, [rec.id]: msg }));
       setActionState(prev => ({ ...prev, [rec.id]: "error" }));
     }
   }
@@ -671,8 +674,8 @@ export default function DashboardPage() {
                           ✓ Done — changes applied
                         </div>
                       ) : actionState[rec.id] === "error" ? (
-                        <div style={{ marginTop: 8, padding: "6px 10px", borderRadius: 5, background: "rgba(255,77,77,0.1)", color: T.critical, fontSize: 11, textAlign: "center" }}>
-                          Failed — check campaigns page
+                        <div style={{ marginTop: 8, padding: "6px 10px", borderRadius: 5, background: "rgba(255,77,77,0.1)", color: T.critical, fontSize: 11 }}>
+                          {actionError[rec.id] ?? "Action failed"}
                         </div>
                       ) : (
                         <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
