@@ -347,6 +347,13 @@ export default function AdsPage() {
                 onApprove={() => handleAction(campaign.id, "approve")}
                 onPause={() => handleAction(campaign.id, "pause")}
                 onEditInChat={() => openChatEdit(campaign)}
+                adAccountId={activeClient.meta_ad_account_id}
+                onCopyUpdated={(id, headline, body) => {
+                  setCampaigns(prev => prev.map(c => c.id === id
+                    ? { ...c, ads: c.ads.map((a, i) => i === 0 ? { ...a, headline, body } : a) }
+                    : c
+                  ));
+                }}
               />
             ))}
           </div>
@@ -368,17 +375,43 @@ export default function AdsPage() {
 
 // ─── Campaign Card ─────────────────────────────────────────────────────────────
 
-function CampaignCardUI({ campaign, acting, onApprove, onPause, onEditInChat }: {
+function CampaignCardUI({ campaign, acting, onApprove, onPause, onEditInChat, adAccountId, onCopyUpdated }: {
   campaign: CampaignCard;
   acting: boolean;
   onApprove: () => void;
   onPause: () => void;
   onEditInChat: () => void;
+  adAccountId: string;
+  onCopyUpdated: (campaignId: string, headline: string, body: string) => void;
 }) {
   const isPending = campaign.status === "PAUSED";
   const ad = campaign.ads[0];
   const adset = campaign.adsets[0];
   const objLabel = OBJECTIVE_LABELS[campaign.objective] ?? campaign.objective;
+  const [showCopyEditor, setShowCopyEditor] = useState(false);
+  const [editHeadline, setEditHeadline] = useState(ad?.headline ?? "");
+  const [editBody, setEditBody] = useState(ad?.body ?? "");
+  const [savingCopy, setSavingCopy] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
+
+  async function handleSaveCopy() {
+    if (!ad?.id) return;
+    setSavingCopy(true);
+    setCopyError(null);
+    try {
+      const res = await fetch(`/api/agent/ads/${campaign.id}/copy`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adId: ad.id, headline: editHeadline, primaryText: editBody, adAccountId }),
+      });
+      const data = await res.json();
+      if (data.error) { setCopyError(data.error); return; }
+      onCopyUpdated(campaign.id, editHeadline, editBody);
+      setShowCopyEditor(false);
+    } finally {
+      setSavingCopy(false);
+    }
+  }
 
   return (
     <div style={{
@@ -456,24 +489,32 @@ function CampaignCardUI({ campaign, acting, onApprove, onPause, onEditInChat }: 
       </div>
 
       {/* Actions footer */}
-      <div style={{ padding: "12px 20px", borderTop: `1px solid ${T.border}`, display: "flex", justifyContent: "flex-end", gap: 8, background: "rgba(0,0,0,0.15)" }}>
+      <div style={{ padding: "12px 20px", borderTop: `1px solid ${T.border}`, display: "flex", justifyContent: "flex-end", gap: 8, background: "rgba(0,0,0,0.15)", flexWrap: "wrap" }}>
         <button
           onClick={onEditInChat}
           style={{ padding: "7px 14px", background: "transparent", border: `1px solid ${T.border}`, borderRadius: 7, color: T.muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit", transition: "color 0.15s" }}
           onMouseEnter={e => e.currentTarget.style.color = T.text}
           onMouseLeave={e => e.currentTarget.style.color = T.muted}
         >
-          Edit in Chat
+          Chat
         </button>
+
+        {isPending && (
+          <button
+            onClick={() => { setEditHeadline(ad?.headline ?? ""); setEditBody(ad?.body ?? ""); setCopyError(null); setShowCopyEditor(true); }}
+            style={{ padding: "7px 14px", background: "transparent", border: `1px solid ${T.border}`, borderRadius: 7, color: T.muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit", transition: "color 0.15s" }}
+            onMouseEnter={e => e.currentTarget.style.color = T.accent}
+            onMouseLeave={e => e.currentTarget.style.color = T.muted}
+          >
+            ✏ Edit Copy
+          </button>
+        )}
 
         {isPending ? (
           <button
             onClick={onApprove}
             disabled={acting}
-            style={{
-              padding: "7px 18px", background: acting ? "rgba(46,204,113,0.15)" : T.green, border: "none", borderRadius: 7,
-              color: acting ? T.green : "#0d0f14", fontSize: 12, fontWeight: 700, cursor: acting ? "not-allowed" : "pointer", fontFamily: "inherit", transition: "all 0.15s",
-            }}
+            style={{ padding: "7px 18px", background: acting ? "rgba(46,204,113,0.15)" : T.green, border: "none", borderRadius: 7, color: acting ? T.green : "#0d0f14", fontSize: 12, fontWeight: 700, cursor: acting ? "not-allowed" : "pointer", fontFamily: "inherit" }}
           >
             {acting ? "Approving…" : "✓ Approve & Go Live"}
           </button>
@@ -487,6 +528,64 @@ function CampaignCardUI({ campaign, acting, onApprove, onPause, onEditInChat }: 
           </button>
         )}
       </div>
+
+      {/* Edit Copy Modal */}
+      {showCopyEditor && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 3000, padding: 20 }}
+          onClick={e => { if (e.target === e.currentTarget) setShowCopyEditor(false); }}
+        >
+          <div style={{ background: "#13151d", border: `1px solid ${T.border}`, borderRadius: 14, width: "100%", maxWidth: 560, padding: "28px 32px", display: "flex", flexDirection: "column", gap: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>Edit Ad Copy</div>
+                <div style={{ fontSize: 11, color: T.faint, marginTop: 3 }}>{campaign.name}</div>
+              </div>
+              <button onClick={() => setShowCopyEditor(false)} style={{ background: "transparent", border: "none", color: T.muted, fontSize: 20, cursor: "pointer" }}>×</button>
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: 11, color: T.faint, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Headline</label>
+              <input
+                value={editHeadline}
+                onChange={e => setEditHeadline(e.target.value)}
+                placeholder="e.g. Final Expense Coverage Made Simple"
+                style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: T.text, fontFamily: "'DM Mono', monospace", outline: "none", boxSizing: "border-box" }}
+              />
+              <div style={{ fontSize: 10, color: T.faint, marginTop: 4 }}>{editHeadline.length}/40 chars</div>
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: 11, color: T.faint, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Primary Text</label>
+              <textarea
+                value={editBody}
+                onChange={e => setEditBody(e.target.value)}
+                placeholder="e.g. Don't leave your loved ones with the burden. Final expense coverage from $19/month..."
+                rows={4}
+                style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: T.text, fontFamily: "'DM Mono', monospace", outline: "none", resize: "vertical", boxSizing: "border-box", lineHeight: 1.6 }}
+              />
+            </div>
+
+            {copyError && (
+              <div style={{ background: "rgba(255,77,77,0.08)", border: "1px solid rgba(255,77,77,0.2)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: T.red }}>
+                {copyError}
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button onClick={() => setShowCopyEditor(false)} style={{ padding: "9px 20px", background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, color: T.muted, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveCopy}
+                disabled={savingCopy || !editHeadline.trim() || !editBody.trim()}
+                style={{ padding: "9px 24px", background: editHeadline.trim() && editBody.trim() ? T.accent : "rgba(245,166,35,0.3)", border: "none", borderRadius: 8, color: "#0d0f14", fontSize: 13, fontWeight: 700, cursor: editHeadline.trim() && editBody.trim() ? "pointer" : "not-allowed", fontFamily: "inherit" }}
+              >
+                {savingCopy ? "Saving…" : "Save to Meta"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -683,7 +782,7 @@ function AdCreatorOverlay({ client, onClose }: {
     initiated.current = true;
     const vertical = client.vertical === "ecomm" ? "ecommerce/DTC" : "lead generation";
     sendMessage(
-      `I want to create a new Facebook ad for ${client.name}, a ${vertical} client. Ask me one question at a time to build the ad. Start by asking about the campaign objective.`,
+      `I want to create a new Facebook ad for ${client.name}, a ${vertical} client. Here is how this should work: ask me questions one at a time to understand the objective, audience, targeting, and budget. Then BEFORE creating anything, brainstorm 3 headline options and 3 primary text options with me. Present them clearly and let me pick, mix, or ask for changes. Only call create_ad_campaign once I explicitly say I am happy with the copy and ready to create. Do not create the campaign until I give you the go-ahead. Start by asking about the campaign objective.`,
       true
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
