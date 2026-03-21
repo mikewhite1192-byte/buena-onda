@@ -272,7 +272,7 @@ export default function AdsPage() {
             onClick={openChatCreate}
             style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 20px", background: T.accent, border: "none", borderRadius: 8, color: "#0d0f14", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}
           >
-            ✦ Create with AI
+            ✦ Create with Buena Onda
           </button>
         </div>
 
@@ -332,7 +332,7 @@ export default function AdsPage() {
               onClick={openChatCreate}
               style={{ padding: "10px 22px", background: T.accentBg, border: `1px solid ${T.accentBorder}`, borderRadius: 8, color: T.accent, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
             >
-              ✦ Create with AI
+              ✦ Create with Buena Onda
             </button>
           </div>
         )}
@@ -402,30 +402,29 @@ function CampaignCardUI({ campaign, acting, onApprove, onPause, onEditInChat }: 
         </div>
       </div>
 
-      {/* Ad content */}
-      <div style={{ display: "grid", gridTemplateColumns: ad?.image_url ? "160px 1fr" : "1fr", gap: 0 }}>
-        {/* Creative thumbnail */}
-        {ad?.image_url && (
-          <div style={{ borderRight: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "rgba(0,0,0,0.2)" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={ad.image_url} alt="Creative" style={{ width: "100%", borderRadius: 8, objectFit: "cover", maxHeight: 140 }} />
-          </div>
-        )}
+      {/* Ad content — preview + details side by side */}
+      <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 0 }}>
 
-        {/* Copy + targeting */}
-        <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* Facebook ad mockup */}
+        <div style={{ borderRight: `1px solid ${T.border}`, padding: "20px 18px", background: "rgba(0,0,0,0.15)", display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={{ fontSize: 9, color: T.faint, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10, alignSelf: "flex-start" }}>Preview</div>
+          <AdMockup ad={ad} clientName={campaign.name.split("|")[0].trim()} imageUrl={ad?.image_url ?? null} />
+        </div>
+
+        {/* Copy + targeting details */}
+        <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 16 }}>
           {ad ? (
             <>
               {ad.headline && (
                 <div>
-                  <div style={{ fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Headline</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: T.text }}>{ad.headline}</div>
+                  <div style={{ fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>Headline</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: T.text, lineHeight: 1.4 }}>{ad.headline}</div>
                 </div>
               )}
               {ad.body && (
                 <div>
-                  <div style={{ fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Ad Copy</div>
-                  <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.6, maxWidth: 620 }}>{ad.body}</div>
+                  <div style={{ fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>Ad Copy</div>
+                  <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.7 }}>{ad.body}</div>
                 </div>
               )}
             </>
@@ -435,8 +434,14 @@ function CampaignCardUI({ campaign, acting, onApprove, onPause, onEditInChat }: 
 
           {adset && (
             <div>
-              <div style={{ fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Targeting</div>
+              <div style={{ fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>Targeting</div>
               <div style={{ fontSize: 12, color: T.muted }}>{adset.targeting}</div>
+            </div>
+          )}
+          {adset?.daily_budget != null && (
+            <div>
+              <div style={{ fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>Daily Budget</div>
+              <div style={{ fontSize: 13, color: T.text, fontWeight: 600 }}>${adset.daily_budget}/day</div>
             </div>
           )}
         </div>
@@ -473,6 +478,86 @@ function CampaignCardUI({ campaign, acting, onApprove, onPause, onEditInChat }: 
             {acting ? "Pausing…" : "Pause"}
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Facebook Ad Mockup ───────────────────────────────────────────────────────
+
+function AdMockup({ ad, clientName, imageUrl }: {
+  ad: AdCard | undefined;
+  clientName: string;
+  imageUrl: string | null;
+}) {
+  const initials = clientName.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
+
+  return (
+    <div style={{
+      width: "100%", maxWidth: 244,
+      background: "#fff", borderRadius: 10,
+      boxShadow: "0 2px 12px rgba(0,0,0,0.25)",
+      overflow: "hidden",
+      fontFamily: "system-ui, -apple-system, sans-serif",
+    }}>
+      {/* FB post header */}
+      <div style={{ padding: "10px 12px 6px", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{
+          width: 32, height: 32, borderRadius: "50%",
+          background: "linear-gradient(135deg,#f5a623,#f76b1c)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 11, fontWeight: 800, color: "#fff", flexShrink: 0,
+        }}>{initials}</div>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#1c1e21", lineHeight: 1.2 }}>{clientName}</div>
+          <div style={{ fontSize: 10, color: "#65676b", display: "flex", alignItems: "center", gap: 3 }}>
+            Sponsored ·
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="#65676b"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 1.5a5.5 5.5 0 110 11 5.5 5.5 0 010-11zM7 5v4.5l3.5 2 .75-1.3L8.5 8.8V5H7z"/></svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Primary text */}
+      {ad?.body && (
+        <div style={{ padding: "2px 12px 8px", fontSize: 11, color: "#1c1e21", lineHeight: 1.5 }}>
+          {ad.body.length > 90 ? ad.body.slice(0, 90) + "…" : ad.body}
+        </div>
+      )}
+
+      {/* Creative area */}
+      {imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={imageUrl} alt="Ad creative" style={{ width: "100%", display: "block", objectFit: "cover", maxHeight: 130 }} />
+      ) : (
+        <div style={{
+          width: "100%", height: 120,
+          background: "linear-gradient(135deg, #1a1d2e 0%, #2a2f45 50%, #1e2235 100%)",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6,
+        }}>
+          <div style={{ fontSize: 22, opacity: 0.4 }}>🖼</div>
+          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", textTransform: "uppercase" }}>Creative</div>
+        </div>
+      )}
+
+      {/* Headline + CTA */}
+      <div style={{ padding: "8px 12px 10px", background: "#f0f2f5", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#1c1e21", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 140 }}>
+            {ad?.headline ?? clientName}
+          </div>
+          <div style={{ fontSize: 10, color: "#65676b" }}>Learn more</div>
+        </div>
+        <div style={{
+          padding: "5px 10px", background: "#e4e6eb", borderRadius: 5,
+          fontSize: 10, fontWeight: 700, color: "#1c1e21", whiteSpace: "nowrap", flexShrink: 0,
+        }}>Learn More</div>
+      </div>
+
+      {/* Reaction bar */}
+      <div style={{ padding: "6px 12px", borderTop: "1px solid #e4e6eb", display: "flex", gap: 16 }}>
+        {["👍 Like", "💬 Comment", "↗ Share"].map(item => (
+          <div key={item} style={{ fontSize: 10, color: "#65676b", fontWeight: 600 }}>{item}</div>
+        ))}
       </div>
     </div>
   );
