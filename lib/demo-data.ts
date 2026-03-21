@@ -268,3 +268,42 @@ export const DEMO_CLIENTS_CONFIG = [
   { name: "Iron & Oak Fitness",       meta_ad_account_id: "act_demo_fitness",   vertical: "ecomm",  notes: "Demo — fitness equipment DTC" },
   { name: "Crestwood Financial",      meta_ad_account_id: "act_demo_finance",   vertical: "leads",  notes: "Demo — financial services, critical" },
 ] as const;
+
+// ─── Demo Creatives ────────────────────────────────────────────────────────────
+
+export type DemoCreative = {
+  id: string;
+  client_id: string;
+  name: string;
+  format: "image" | "video" | "carousel" | "story" | "reel";
+  status: "live" | "testing" | "fatigued" | "killed";
+  hook: string | null;
+  spend: number | null;
+  cpl: number | null;
+  roas: number | null;
+  ctr: number | null;
+  notes: string | null;
+  created_at: string;
+};
+
+const DEMO_CREATIVES_LEADS: DemoCreative[] = [
+  { id: "dc_l_001", client_id: "demo", name: "Storm Damage UGC — Homeowner Testimonial", format: "video",    status: "live",     hook: "My roof was gone in 20 minutes. Here's what I did next.", spend: 1840, cpl: 24.50, roas: null, ctr: 0.038, notes: "Top performer. Push more budget here. Works best with 35-55 homeowners.", created_at: "2026-02-01T00:00:00Z" },
+  { id: "dc_l_002", client_id: "demo", name: "Before/After Roof Replacement — Static",   format: "image",    status: "live",     hook: "Before vs After: See the difference a new roof makes.", spend: 1220, cpl: 31.00, roas: null, ctr: 0.029, notes: "Consistent performer. Good for retargeting audiences.", created_at: "2026-02-05T00:00:00Z" },
+  { id: "dc_l_003", client_id: "demo", name: "Free Inspection Offer — Carousel",         format: "carousel", status: "testing",  hook: "Your roof could be failing right now. Get a free inspection.", spend: 620,  cpl: 38.75, roas: null, ctr: 0.021, notes: "Testing with cold audiences. Too early to call.", created_at: "2026-03-01T00:00:00Z" },
+  { id: "dc_l_004", client_id: "demo", name: "Hail Season Alert — Video",                format: "video",    status: "fatigued", hook: "Hail season is here. Is your roof ready?", spend: 2100, cpl: 72.00, roas: null, ctr: 0.014, notes: "Crushed it in Jan. CPL spiked hard in Feb — frequency too high. Rest or refresh.", created_at: "2026-01-10T00:00:00Z" },
+  { id: "dc_l_005", client_id: "demo", name: "Price Anchor Ad — Static Image",           format: "image",    status: "killed",   hook: "Roof replacements starting at $4,999.", spend: 480,  cpl: 142.00, roas: null, ctr: 0.009, notes: "Price-forward messaging didn't land. Killed after 2 weeks.", created_at: "2026-01-20T00:00:00Z" },
+  { id: "dc_l_006", client_id: "demo", name: "Reels — 15s Crew At Work",                 format: "reel",     status: "testing",  hook: "Watch us replace a full roof in one day.", spend: 310,  cpl: 29.80, roas: null, ctr: 0.044, notes: "Early results look promising. Extend if CPL holds.", created_at: "2026-03-10T00:00:00Z" },
+];
+
+const DEMO_CREATIVES_ECOMM: DemoCreative[] = [
+  { id: "dc_e_001", client_id: "demo", name: "Summer Drop — Lifestyle Lookbook Video",    format: "video",    status: "live",     hook: "The drop you've been waiting for. Limited pieces.", spend: 3200, cpl: null, roas: 4.10, ctr: 0.047, notes: "Best performer this quarter. Scale carefully — audience still fresh.", created_at: "2026-02-01T00:00:00Z" },
+  { id: "dc_e_002", client_id: "demo", name: "DPA — Retargeting Catalog",                 format: "carousel", status: "live",     hook: null, spend: 2100, cpl: null, roas: 3.60, ctr: 0.038, notes: "DPA always on for retargeting. Steady ROAS, don't touch.", created_at: "2026-01-15T00:00:00Z" },
+  { id: "dc_e_003", client_id: "demo", name: "UGC Unboxing — Customer Review",            format: "video",    status: "live",     hook: "I wasn't expecting this quality at this price.", spend: 1850, cpl: null, roas: 3.20, ctr: 0.041, notes: "Authentic UGC outperforming branded content. Sourcing more creators.", created_at: "2026-02-10T00:00:00Z" },
+  { id: "dc_e_004", client_id: "demo", name: "Static Product Hero — White Background",    format: "image",    status: "fatigued", hook: "Shop the new collection.", spend: 1400, cpl: null, roas: 1.80, ctr: 0.018, notes: "ROAS dropped from 3.1 to 1.8 over 6 weeks. Audience exhausted.", created_at: "2026-01-01T00:00:00Z" },
+  { id: "dc_e_005", client_id: "demo", name: "Influencer Story — @thestyleloft",          format: "story",    status: "testing",  hook: "My honest review after 30 days.", spend: 720,  cpl: null, roas: 2.40, ctr: 0.033, notes: "Testing influencer format vs UGC. Need more data.", created_at: "2026-03-05T00:00:00Z" },
+  { id: "dc_e_006", client_id: "demo", name: "Promo — 20% Off Flash Sale",                format: "image",    status: "killed",   hook: "20% off everything. Today only.", spend: 560,  cpl: null, roas: 0.90, ctr: 0.022, notes: "Sale ads hurt brand perception and ROAS was sub-1. Won't repeat.", created_at: "2026-02-14T00:00:00Z" },
+];
+
+export function getDemoCreatives(vertical: string): DemoCreative[] {
+  return vertical === "ecomm" ? DEMO_CREATIVES_ECOMM : DEMO_CREATIVES_LEADS;
+}

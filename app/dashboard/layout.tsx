@@ -37,6 +37,7 @@ const NAV_ITEMS = [
   { label: "Overview", path: "/dashboard" },
   { label: "Campaigns", path: "/dashboard/campaigns" },
   { label: "Clients", path: "/dashboard/clients" },
+  { label: "Creatives", path: "/dashboard/creatives" },
   { label: "Reports", path: "/dashboard/reports" },
   { label: "Review", path: "/dashboard/review" },
   { label: "History", path: "/dashboard/history" },
