@@ -437,7 +437,7 @@ async function executeTool(
       }
     }
 
-    console.log("[create_ad_campaign] lead_form_id:", clean_lead_form_id, "destination:", resolved_destination, "existing_adset:", existing_adset_id ?? "none");
+    console.log("[create_ad_campaign] lead_form_id:", clean_lead_form_id, "destination:", resolved_destination, "existing_adset:", existing_adset_id ?? "none", "page_id:", pageId, "account:", adAccountId);
 
     // ── Path A: add ad to an existing ad set ──────────────────────────────
     if (existing_adset_id) {
