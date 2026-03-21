@@ -120,6 +120,55 @@ function generateRecommendations(clients: Client[], allMetrics: Record<string, C
   return recs;
 }
 
+// ─── Overview Anomaly Alerts ──────────────────────────────────────────────────
+
+interface OverviewAlert {
+  severity: "error" | "warning";
+  clientId: string;
+  clientName: string;
+  message: string;
+}
+
+function generateOverviewAlerts(
+  clients: Client[],
+  allMetrics: Record<string, ClientMetrics>,
+  computedDays: number,
+): OverviewAlert[] {
+  const alerts: OverviewAlert[] = [];
+  for (const client of clients) {
+    const m = allMetrics[client.id];
+    if (!m || m.status === "no_data") continue;
+
+    // Spending with no leads/purchases
+    if (client.vertical === "leads" && m.totalSpend > 80 && m.totalLeads === 0) {
+      alerts.push({ severity: "error", clientId: client.id, clientName: client.name, message: `Spending $${m.totalSpend.toFixed(0)} with zero leads` });
+    }
+
+    // CPL above target by >50%
+    if (client.cpl_target && m.avgCPL > 0 && m.avgCPL > client.cpl_target * 1.5) {
+      const pct = Math.round(((m.avgCPL - client.cpl_target) / client.cpl_target) * 100);
+      alerts.push({ severity: "error", clientId: client.id, clientName: client.name, message: `CPL $${m.avgCPL.toFixed(0)} is ${pct}% above $${client.cpl_target} target` });
+    }
+
+    // High frequency (ad fatigue)
+    const fatigued = m.topCampaigns.filter(c => c.frequency > 4);
+    if (fatigued.length > 0) {
+      alerts.push({ severity: "warning", clientId: client.id, clientName: client.name, message: `Ad fatigue — ${fatigued.length} campaign${fatigued.length > 1 ? "s" : ""} with frequency >${fatigued[0].frequency.toFixed(1)}x` });
+    }
+
+    // Budget overpacing
+    if (client.monthly_budget && computedDays > 0) {
+      const projected = (m.totalSpend / computedDays) * 30;
+      if (projected > client.monthly_budget * 1.15) {
+        const overage = Math.round(projected - client.monthly_budget);
+        alerts.push({ severity: "error", clientId: client.id, clientName: client.name, message: `Budget overpacing — projected $${overage.toLocaleString()} over monthly limit` });
+      }
+    }
+  }
+  // Errors first, then warnings
+  return alerts.sort((a, b) => (a.severity === "error" ? 0 : 1) - (b.severity === "error" ? 0 : 1));
+}
+
 const STATUS_CONFIG = {
   healthy:  { color: T.healthy,  bg: T.healthyBg,  label: "Healthy"   },
   warning:  { color: T.warning,  bg: T.warningBg,  label: "Attention" },
@@ -356,6 +405,7 @@ export default function DashboardPage() {
   const isCustom = activeRange === DATE_RANGES.length - 1;
   const rangeStart = isCustom ? customStart : DATE_RANGES[activeRange].start;
   const rangeEnd   = isCustom ? customEnd   : DATE_RANGES[activeRange].end;
+  const overviewComputedDays = Math.max(1, Math.round((new Date(rangeEnd).getTime() - new Date(rangeStart).getTime()) / 86400000));
 
   // Load snoozed from localStorage on mount
   useEffect(() => {
@@ -617,6 +667,32 @@ export default function DashboardPage() {
 
         {/* Client cards */}
         <div>
+          {/* Anomaly Alerts */}
+          {(() => {
+            const alerts = generateOverviewAlerts(clients, allMetrics, overviewComputedDays);
+            if (alerts.length === 0) return null;
+            return (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 8 }}>
+                  Alerts <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: alerts.some(a => a.severity === "error") ? T.critical : T.warning, borderRadius: 10, padding: "1px 7px", marginLeft: 6 }}>{alerts.length}</span>
+                </div>
+                {alerts.map((a, i) => (
+                  <div key={i}
+                    onClick={() => { const c = clients.find(x => x.id === a.clientId); if (c) handleSelectClient(c); }}
+                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", marginBottom: 6, background: a.severity === "error" ? "rgba(255,77,77,0.06)" : "rgba(232,184,75,0.06)", border: `1px solid ${a.severity === "error" ? "rgba(255,77,77,0.2)" : "rgba(232,184,75,0.2)"}`, borderRadius: 8, cursor: "pointer" }}
+                  >
+                    <span style={{ fontSize: 12, flexShrink: 0 }}>{a.severity === "error" ? "🔴" : "🟡"}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: a.severity === "error" ? T.critical : T.warning }}>{a.clientName}</span>
+                      <span style={{ fontSize: 12, color: T.muted }}> — {a.message}</span>
+                    </div>
+                    <span style={{ fontSize: 10, color: T.faint, flexShrink: 0 }}>→</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase" }}>Client Accounts</div>
             <div style={{ display: "flex", gap: 12 }}>
