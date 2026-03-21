@@ -151,16 +151,21 @@ function ClientCard({
   client,
   onSelect,
   onMetricsLoaded,
+  startDate,
+  endDate,
 }: {
   client: Client;
   onSelect: () => void;
   onMetricsLoaded: (id: string, m: ClientMetrics) => void;
+  startDate: string;
+  endDate: string;
 }) {
   const [metrics, setMetrics] = useState<ClientMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [hovered, setHovered] = useState(false);
 
   useEffect(() => {
+    setLoading(true);
     if (!client.meta_connected) {
       const m: ClientMetrics = { totalSpend: 0, totalLeads: 0, avgCPL: 0, campaignCount: 0, status: "no_data", alert: "Facebook not connected" };
       setMetrics(m);
@@ -169,9 +174,8 @@ function ClientCard({
       return;
     }
 
-    const today = new Date().toISOString().split("T")[0];
     const adAccountParam = client.meta_ad_account_id ? `&ad_account_id=${client.meta_ad_account_id}` : "";
-    fetch(`/api/agent/metrics/campaigns?client_id=${client.id}${adAccountParam}&startDate=${today}&endDate=${today}`)
+    fetch(`/api/agent/metrics/campaigns?client_id=${client.id}${adAccountParam}&startDate=${startDate}&endDate=${endDate}`)
       .then(r => r.json())
       .then(data => {
         const campaigns = (data.campaigns ?? []) as Array<{ spend: number; leads: number }>;
@@ -191,7 +195,7 @@ function ClientCard({
       })
       .finally(() => setLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client.id, client.meta_connected]);
+  }, [client.id, client.meta_connected, startDate, endDate]);
 
   const st = metrics ? STATUS_CONFIG[metrics.status] : STATUS_CONFIG.no_data;
   const isLeads = client.vertical === "leads";
@@ -291,6 +295,27 @@ export default function DashboardPage() {
   const [loadingDemo, setLoadingDemo] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [snoozed, setSnoozed] = useState<Set<string>>(new Set());
+
+  // ── Date range ─────────────────────────────────────────────────────────────
+  function daysAgo(n: number) {
+    return new Date(Date.now() - n * 86400000).toISOString().split("T")[0];
+  }
+  const todayStr = new Date().toISOString().split("T")[0];
+  const DATE_RANGES = [
+    { label: "Today", start: todayStr,     end: todayStr },
+    { label: "7d",    start: daysAgo(6),   end: todayStr },
+    { label: "30d",   start: daysAgo(29),  end: todayStr },
+    { label: "90d",   start: daysAgo(89),  end: todayStr },
+    { label: "Max",   start: daysAgo(364), end: todayStr },
+    { label: "Custom", start: "", end: "" },
+  ];
+  const [activeRange, setActiveRange] = useState(0); // index into DATE_RANGES
+  const [customStart, setCustomStart] = useState(daysAgo(29));
+  const [customEnd, setCustomEnd]     = useState(todayStr);
+
+  const isCustom = activeRange === DATE_RANGES.length - 1;
+  const rangeStart = isCustom ? customStart : DATE_RANGES[activeRange].start;
+  const rangeEnd   = isCustom ? customEnd   : DATE_RANGES[activeRange].end;
 
   // Load snoozed from localStorage on mount
   useEffect(() => {
@@ -433,13 +458,44 @@ export default function DashboardPage() {
   return (
     <div style={{ padding: "26px 28px", background: T.bg, minHeight: "calc(100vh - 52px)" }}>
 
-      {/* Greeting */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 22, fontWeight: 800, color: T.text, letterSpacing: "-0.5px" }}>{getGreeting()} 👋</div>
-        <div style={{ fontSize: 13, color: T.muted, marginTop: 4 }}>
-          {today}
-          {attentionCount > 0 && (
-            <> · <span style={{ color: T.critical }}>{attentionCount} account{attentionCount !== 1 ? "s" : ""} need attention</span></>
+      {/* Greeting + date range selector */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: T.text, letterSpacing: "-0.5px" }}>{getGreeting()} 👋</div>
+          <div style={{ fontSize: 13, color: T.muted, marginTop: 4 }}>
+            {today}
+            {attentionCount > 0 && (
+              <> · <span style={{ color: T.critical }}>{attentionCount} account{attentionCount !== 1 ? "s" : ""} need attention</span></>
+            )}
+          </div>
+        </div>
+
+        {/* Date range tabs */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: 3, gap: 2 }}>
+            {DATE_RANGES.map((r, i) => (
+              <button
+                key={r.label}
+                onClick={() => { setActiveRange(i); setAllMetrics({}); }}
+                style={{
+                  padding: "4px 11px", fontSize: 12, borderRadius: 6, border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: activeRange === i ? 700 : 400,
+                  background: activeRange === i ? T.accent : "transparent",
+                  color: activeRange === i ? "#fff" : T.muted,
+                  transition: "all 0.15s",
+                }}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+          {isCustom && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <input type="date" value={customStart} onChange={e => { setCustomStart(e.target.value); setAllMetrics({}); }}
+                style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 6, padding: "4px 8px", fontSize: 12, color: T.text, fontFamily: "inherit" }} />
+              <span style={{ color: T.muted, fontSize: 12 }}>→</span>
+              <input type="date" value={customEnd} onChange={e => { setCustomEnd(e.target.value); setAllMetrics({}); }}
+                style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 6, padding: "4px 8px", fontSize: 12, color: T.text, fontFamily: "inherit" }} />
+            </div>
           )}
         </div>
       </div>
@@ -448,14 +504,14 @@ export default function DashboardPage() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 28 }}>
         {[
           {
-            label: "Total Spend Today",
+            label: `Total Spend (${DATE_RANGES[activeRange].label})`,
             value: `$${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
             sub: `across ${clients.length} accounts`,
             color: T.text,
             border: T.border,
           },
           {
-            label: "Leads Today",
+            label: `Leads (${DATE_RANGES[activeRange].label})`,
             value: String(totalLeads),
             sub: `${clients.filter(c => c.vertical === "leads").length} lead gen accounts`,
             color: T.leads,
@@ -504,7 +560,7 @@ export default function DashboardPage() {
           {loadingClients ? (
             <div style={{ color: T.muted, fontSize: 13, padding: "40px 0", textAlign: "center" }}>Loading accounts…</div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
               {[...clients].sort((a, b) => {
                 // critical first, then warning, then healthy, then no_data
                 const order = { critical: 0, warning: 1, healthy: 2, no_data: 3 };
@@ -517,6 +573,8 @@ export default function DashboardPage() {
                   client={client}
                   onSelect={() => handleSelectClient(client)}
                   onMetricsLoaded={handleMetricsLoaded}
+                  startDate={rangeStart}
+                  endDate={rangeEnd}
                 />
               ))}
             </div>

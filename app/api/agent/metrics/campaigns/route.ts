@@ -21,10 +21,13 @@ export async function GET(req: NextRequest) {
   const adAccountIdParam = searchParams.get("ad_account_id");
   const clientId = searchParams.get("client_id");
 
-  // Demo mode — return static data instantly
+  // Demo mode — return scaled static data instantly
   const normalizedParam = adAccountIdParam?.startsWith("act_") ? adAccountIdParam : adAccountIdParam ? `act_${adAccountIdParam}` : null;
   if (isDemoAccount(normalizedParam)) {
-    return NextResponse.json({ campaigns: getDemoCampaigns(normalizedParam!) });
+    const start = new Date(startDate);
+    const end   = new Date(endDate);
+    const days  = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
+    return NextResponse.json({ campaigns: getDemoCampaigns(normalizedParam!, days) });
   }
 
   // Resolve token — use client's stored token if available, fall back to env var
