@@ -464,9 +464,8 @@ export async function createMetaCampaign(
         name: params.headline,
         description: params.description ?? "",
         call_to_action: callToAction,
+        link: params.destinationUrl ?? `https://www.facebook.com/${params.pageId}`,
       };
-      // Lead gen ads must NOT have a link field — the form is the destination
-      if (!isLeadAd) linkData.link = params.destinationUrl ?? `https://www.facebook.com/${params.pageId}`;
       objectStorySpec = { page_id: params.pageId, link_data: linkData };
     }
 
@@ -573,9 +572,8 @@ export async function addAdToAdSet(
         name: params.headline,
         description: params.description ?? "",
         call_to_action: callToAction,
+        link: params.destinationUrl ?? `https://www.facebook.com/${params.pageId}`,
       };
-      // Lead gen ads must NOT have a link field — the form is the destination
-      if (!isLeadAd) linkData.link = params.destinationUrl ?? `https://www.facebook.com/${params.pageId}`;
       objectStorySpec = { page_id: params.pageId, link_data: linkData };
     }
 
