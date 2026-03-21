@@ -64,22 +64,42 @@ export async function GET(req: NextRequest) {
 
   const timeRange = JSON.stringify({ since: startDate, until: endDate });
   const allRows: Record<string, unknown>[] = [];
+  // Map campaign_id → effective_status fetched separately
+  const statusMap: Record<string, string> = {};
 
   for (const accountId of accountIds) {
+    // Fetch insights (metrics only — effective_status is not a valid insights field)
     const url = new URL(`${META_BASE_URL}/${accountId}/insights`);
     url.searchParams.set("access_token", token);
     url.searchParams.set("level", "campaign");
-    url.searchParams.set("fields", ["campaign_id", "campaign_name", "effective_status", ...ALL_API_FIELDS].join(","));
+    url.searchParams.set("fields", ["campaign_id", "campaign_name", ...ALL_API_FIELDS].join(","));
     url.searchParams.set("time_range", timeRange);
     url.searchParams.set("limit", "50");
 
-    const res = await fetch(url.toString(), { cache: "no-store" });
-    const data = await res.json();
-    if (res.ok && !data.error) {
-      allRows.push(...(data.data ?? []));
-    } else {
-      console.error("[campaigns] Meta API error for", accountId, data.error);
-      return NextResponse.json({ campaigns: [], error: data.error?.message ?? `Meta API error ${res.status}` });
+    // Fetch campaign statuses separately from the campaigns edge
+    const statusUrl = new URL(`${META_BASE_URL}/${accountId}/campaigns`);
+    statusUrl.searchParams.set("access_token", token);
+    statusUrl.searchParams.set("fields", "id,effective_status");
+    statusUrl.searchParams.set("limit", "200");
+
+    const [insightsRes, statusRes] = await Promise.all([
+      fetch(url.toString(), { cache: "no-store" }),
+      fetch(statusUrl.toString(), { cache: "no-store" }),
+    ]);
+
+    const insightsData = await insightsRes.json();
+    if (!insightsRes.ok || insightsData.error) {
+      console.error("[campaigns] Meta API error for", accountId, insightsData.error);
+      return NextResponse.json({ campaigns: [], error: insightsData.error?.message ?? `Meta API error ${insightsRes.status}` });
+    }
+    allRows.push(...(insightsData.data ?? []));
+
+    // Build status map (best-effort — don't fail if this call errors)
+    if (statusRes.ok) {
+      const statusData = await statusRes.json();
+      for (const c of (statusData.data ?? []) as { id: string; effective_status: string }[]) {
+        statusMap[c.id] = c.effective_status;
+      }
     }
   }
 
@@ -92,11 +112,12 @@ export async function GET(req: NextRequest) {
     const ctr = parseFloat((row.ctr as string) ?? "0") / 100;
     const frequency = parseFloat((row.frequency as string) ?? "0");
     const cpl = leads > 0 ? spend / leads : 0;
+    const campaignId = row.campaign_id as string;
 
     return {
-      campaign_id: row.campaign_id as string,
+      campaign_id: campaignId,
       campaign_name: (row.campaign_name as string) ?? null,
-      status: (row.effective_status as string) ?? "UNKNOWN",
+      status: statusMap[campaignId] ?? "ACTIVE",
       spend: Number(spend.toFixed(2)),
       leads,
       cpl: Number(cpl.toFixed(2)),
