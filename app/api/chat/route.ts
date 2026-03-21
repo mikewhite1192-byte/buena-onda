@@ -7,7 +7,8 @@ import {
   pauseAdSet, scaleAdSet,
   pauseCampaign, enableCampaign, scaleCampaignBudget,
   pauseAd, enableAd, deleteAd,
-  createMetaCampaign, listLeadForms, resolveGeoLocations,
+  createMetaCampaign, addAdToAdSet, listCampaignsWithAdSets,
+  listLeadForms, resolveGeoLocations,
 } from "@/lib/meta/actions";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -123,11 +124,21 @@ const TOOLS: Anthropic.Tool[] = [
   },
   // ── Campaign creation ────────────────────────────────────────────────────
   {
+    name: "list_campaigns",
+    description: "List all active/paused campaigns and their ad sets for the current client. Call this first when the user wants to create a new ad, so they can choose to add it to an existing campaign/ad set or create a brand new campaign.",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
     name: "create_ad_campaign",
-    description: "Create a complete Meta ad campaign (campaign + ad set + ad creative + ad), all PAUSED for review. Supports lead gen (instant forms), traffic, and sales objectives. Supports state/region-level targeting and special ad categories.",
+    description: "Create a Meta ad (PAUSED for review). If existing_adset_id is provided, adds a new ad to that ad set only — no new campaign or ad set is created. Otherwise creates a full new campaign + ad set + ad.",
     input_schema: {
       type: "object" as const,
       properties: {
+        existing_adset_id: { type: "string", description: "If the user chose an existing ad set, pass its ID here. This skips campaign/adset creation and adds the ad directly to this ad set." },
         industry: { type: "string", description: "Industry or offer type, e.g. 'Final expense life insurance'" },
         target_avatar: { type: "string", description: "Description of the target audience" },
         locations: {
@@ -135,7 +146,7 @@ const TOOLS: Anthropic.Tool[] = [
           items: { type: "string" },
           description: "Countries (2-letter codes like 'US') OR US state/region names like 'Texas', 'Florida'. Mix is fine.",
         },
-        daily_budget_usd: { type: "number", description: "Daily budget in USD" },
+        daily_budget_usd: { type: "number", description: "Daily budget in USD. Only used when creating a new campaign. Ignored if existing_adset_id is provided." },
         creative_url: { type: "string", description: "Image: public URL or image_hash from 📎 upload. Video: public URL ending in .mp4/.mov/.avi (must be publicly accessible)." },
         destination_url: { type: "string", description: "Landing page URL. Required for TRAFFIC/SALES. Omit for lead gen." },
         lead_form_id: { type: "string", description: "Instant form ID for lead gen campaigns. Use list_lead_forms to get available forms." },
@@ -143,7 +154,7 @@ const TOOLS: Anthropic.Tool[] = [
         objective: {
           type: "string",
           enum: ["LEADS", "TRAFFIC", "SALES"],
-          description: "Campaign objective. Default: LEADS",
+          description: "Campaign objective. Default: LEADS. Only used when creating a new campaign.",
         },
         special_ad_categories: {
           type: "array",
@@ -152,8 +163,10 @@ const TOOLS: Anthropic.Tool[] = [
         },
         age_min: { type: "number", description: "Min age. Ignored for special ad category campaigns." },
         age_max: { type: "number", description: "Max age. Ignored for special ad category campaigns." },
+        headline: { type: "string", description: "Ad headline (agreed upon with user). Max 40 chars." },
+        primary_text: { type: "string", description: "Ad primary text (agreed upon with user). Max 150 chars." },
       },
-      required: ["industry", "target_avatar", "locations", "daily_budget_usd"],
+      required: ["industry", "creative_url"],
     },
   },
   // ── Client memory ─────────────────────────────────────────────────────────
@@ -299,6 +312,20 @@ async function executeTool(
     return r.data.map(f => `- **${f.name}** (ID: ${f.id}) — ${f.status}`).join("\n");
   }
 
+  // ── List campaigns ────────────────────────────────────────────────────────
+  if (name === "list_campaigns") {
+    const adAccountId = clientInfo?.meta_ad_account_id ?? process.env.META_AD_ACCOUNT_ID ?? "";
+    if (!adAccountId) return "No Meta Ad Account ID found. Select a client or set META_AD_ACCOUNT_ID.";
+    const r = await listCampaignsWithAdSets(adAccountId, metaToken);
+    if (!r.ok) return `Failed to fetch campaigns: ${r.error}`;
+    if (r.data.length === 0) return "No active or paused campaigns found. You'll need to create a new campaign.";
+    const lines = r.data.map(c => {
+      const adsetLines = c.adsets.map(a => `  - Ad Set: **${a.adset_name}** (ID: ${a.adset_id}) — ${a.status} — $${(a.daily_budget_cents / 100).toFixed(0)}/day`).join("\n");
+      return `**${c.campaign_name}** (ID: ${c.campaign_id}) — ${c.status}\n${adsetLines || "  (no ad sets)"}`;
+    });
+    return `Here are the current campaigns:\n\n${lines.join("\n\n")}\n\nWould you like to add the new ad to one of these existing ad sets, or create a brand new campaign?`;
+  }
+
   // ── Campaign creation ─────────────────────────────────────────────────────
   if (name === "create_ad_campaign") {
     const {
@@ -306,6 +333,7 @@ async function executeTool(
       destination_url, lead_form_id,
       objective = "LEADS", age_min = 25, age_max = 65,
       special_ad_categories,
+      existing_adset_id,
     } = input;
     // Use uploaded image hash from request if Claude didn't pass creative_url
     const creative_url = (input.creative_url as string | undefined) ?? imageHash ?? "";
@@ -325,39 +353,79 @@ async function executeTool(
       return "Please provide either a `lead_form_id` (for instant form campaigns) or a `destination_url` (for traffic/sales campaigns).";
     }
 
-    // Resolve geo locations — handles country codes AND state/region names
-    const rawLocations = locations as string[];
-    const { countries, regionKeys } = await resolveGeoLocations(rawLocations, metaToken);
-
-    // Generate ad copy
     const specialCats = (special_ad_categories as string[] | undefined) ?? [];
-    let copy = { headline: "", primary_text: "", description: "", cta_type: isLeadGen ? "SIGN_UP" : "LEARN_MORE" };
-    try {
-      const copyRes = await anthropic.messages.create({
-        model: "claude-sonnet-4-5",
-        max_tokens: 400,
-        system: "You write concise, high-converting Meta ad copy. Respond ONLY with valid JSON, no markdown.",
-        messages: [{
-          role: "user",
-          content: `Industry: ${industry}\nTarget: ${target_avatar}\nObjective: ${objective}${isLeadGen ? " (lead form — no URL)" : ""}\n\nJSON:\n{"headline":"<30 chars>","primary_text":"<150 chars>","description":"<30 chars>","cta_type":"${isLeadGen ? "SIGN_UP" : "LEARN_MORE"}"|"GET_QUOTE"|"APPLY_NOW"|"CONTACT_US"}`,
-        }],
-      });
-      const raw = (copyRes.content.find(b => b.type === "text") as Anthropic.TextBlock | undefined)?.text ?? "{}";
-      copy = { ...copy, ...JSON.parse(raw) };
-    } catch {
-      copy.headline = String(industry).slice(0, 30);
-      copy.primary_text = `${target_avatar}. Get your free quote today.`;
-    }
-
     const creativeStr = creative_url as string;
     const isHash = /^[a-f0-9]{32}$/i.test(creativeStr);
     const isVideo = !isHash && /\.(mp4|mov|avi|mkv|webm)(\?|$)/i.test(creativeStr);
+
+    // Use copy agreed upon in conversation; fall back to AI-generated only if not provided
+    const agreedHeadline = (input.headline as string | undefined)?.trim() ?? "";
+    const agreedPrimaryText = (input.primary_text as string | undefined)?.trim() ?? "";
+    let copy = { headline: agreedHeadline, primary_text: agreedPrimaryText, description: "", cta_type: isLeadGen ? "SIGN_UP" : "LEARN_MORE" };
+
+    if (!copy.headline || !copy.primary_text) {
+      try {
+        const copyRes = await anthropic.messages.create({
+          model: "claude-sonnet-4-5",
+          max_tokens: 400,
+          system: "You write concise, high-converting Meta ad copy. Respond ONLY with valid JSON, no markdown.",
+          messages: [{
+            role: "user",
+            content: `Industry: ${industry}\nTarget: ${target_avatar ?? ""}\nObjective: ${objective}${isLeadGen ? " (lead form — no URL)" : ""}\n\nJSON:\n{"headline":"<30 chars>","primary_text":"<150 chars>","description":"<30 chars>","cta_type":"${isLeadGen ? "SIGN_UP" : "LEARN_MORE"}"|"GET_QUOTE"|"APPLY_NOW"|"CONTACT_US"}`,
+          }],
+        });
+        const raw = (copyRes.content.find(b => b.type === "text") as Anthropic.TextBlock | undefined)?.text ?? "{}";
+        copy = { ...copy, ...JSON.parse(raw) };
+      } catch {
+        copy.headline = copy.headline || String(industry).slice(0, 30);
+        copy.primary_text = copy.primary_text || `Get your free quote today.`;
+      }
+    }
+
+    // ── Path A: add ad to an existing ad set ──────────────────────────────
+    if (existing_adset_id) {
+      const result = await addAdToAdSet({
+        adAccountId,
+        adSetId: existing_adset_id as string,
+        pageId,
+        adName: copy.headline || "Ad 1",
+        primaryText: copy.primary_text,
+        headline: copy.headline,
+        description: copy.description,
+        ctaType: copy.cta_type,
+        destinationUrl: destination_url as string | undefined,
+        leadFormId: lead_form_id as string | undefined,
+        imageHash: isHash ? creativeStr : undefined,
+        imageUrl: !isHash && !isVideo ? creativeStr : undefined,
+        videoUrl: isVideo ? creativeStr : undefined,
+        token: metaToken,
+      });
+
+      if (!result.ok) return `Failed to add ad: ${result.error}`;
+      const d = result.data;
+      return [
+        `Ad added to existing ad set — PAUSED for your review.`,
+        ``,
+        `**Ad Set ID:** ${d.adset_id}`,
+        `**Ad ID:** ${d.ad_id}`,
+        ``,
+        `**Copy:**`,
+        `Headline: ${copy.headline}`,
+        `Primary text: ${copy.primary_text}`,
+        `CTA: ${copy.cta_type}`,
+        ``,
+        `Head to the Ads tab to review and approve when ready.`,
+      ].filter(Boolean).join("\n");
+    }
+
+    // ── Path B: create a full new campaign ───────────────────────────────
+    const rawLocations = (locations as string[] | undefined) ?? [];
+    const { countries, regionKeys } = await resolveGeoLocations(rawLocations, metaToken);
 
     const objectiveUpper = String(objective).toUpperCase();
     const obj =
       objectiveUpper === "TRAFFIC" ? "OUTCOME_TRAFFIC" :
       objectiveUpper === "SALES"   ? "OUTCOME_SALES"   : "OUTCOME_LEADS";
-    // LEAD_GENERATION optimization requires an instant form; use OFFSITE_CONVERSIONS for URL-based leads
     const goal =
       objectiveUpper === "TRAFFIC"  ? "LINK_CLICKS" :
       objectiveUpper === "SALES"    ? "OFFSITE_CONVERSIONS" :
@@ -370,12 +438,12 @@ async function executeTool(
       pageId,
       pixelId: process.env.META_PIXEL_ID?.trim(),
       campaignName: `${industry} — ${date}`,
-      adSetName: `${target_avatar} · ${locationLabel}`,
+      adSetName: `${target_avatar ?? "Broad"} · ${locationLabel}`,
       adName: copy.headline || "Ad 1",
       objective: obj,
       optimizationGoal: goal,
       billingEvent: "IMPRESSIONS",
-      dailyBudgetCents: Math.round((daily_budget_usd as number) * 100),
+      dailyBudgetCents: Math.round(((daily_budget_usd as number) ?? 20) * 100),
       countries: countries.length ? countries : undefined,
       regionKeys: regionKeys.length ? regionKeys : undefined,
       ageMin: age_min as number,
@@ -404,14 +472,14 @@ async function executeTool(
       `**Ad ID:** ${d.ad_id}`,
       specialCats.length ? `**Special Category:** ${specialCats.join(", ")}` : "",
       isLeadGen ? `**Form:** ${lead_form_id}` : `**Destination:** ${destination_url}`,
-      `**Geo:** ${regionKeys.length ? regionKeys.map(r => r.name).join(", ") : countries.join(", ")}`,
+      rawLocations.length ? `**Geo:** ${regionKeys.length ? regionKeys.map(r => r.name).join(", ") : countries.join(", ")}` : "",
       ``,
       `**Copy:**`,
       `Headline: ${copy.headline}`,
       `Primary text: ${copy.primary_text}`,
       `CTA: ${copy.cta_type}`,
       ``,
-      `Review in Meta Ads Manager, then activate when ready.`,
+      `Head to the Ads tab to review and approve when ready.`,
     ].filter(Boolean).join("\n");
   }
 

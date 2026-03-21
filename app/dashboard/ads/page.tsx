@@ -837,7 +837,7 @@ function AdCreatorOverlay({ client, onClose }: {
     initiated.current = true;
     const vertical = client.vertical === "ecomm" ? "ecommerce/DTC" : "lead generation";
     sendMessage(
-      `I want to create a new Facebook ad for ${client.name}, a ${vertical} client. Here is how this should work: ask me questions one at a time to understand the objective, audience, targeting, and budget. Then BEFORE creating anything, brainstorm 3 headline options and 3 primary text options with me. Present them clearly and let me pick, mix, or ask for changes. Only call create_ad_campaign once I explicitly say I am happy with the copy and ready to create. Do not create the campaign until I give you the go-ahead. Start by asking about the campaign objective.`,
+      `I want to create a new Facebook ad for ${client.name}, a ${vertical} client. Here is how this should work: FIRST call list_campaigns to see if there are existing campaigns and ad sets we should add to — show me the options and ask if I want to add to an existing ad set or create a brand new campaign. This is the most important first step so we do not create unnecessary campaigns. Then ask questions one at a time to understand the offer, audience, and budget. BEFORE creating anything, brainstorm 3 headline options and 3 primary text options with me — present them clearly and let me pick, mix, or ask for changes. Only call create_ad_campaign once I explicitly say I am happy with the copy and ready to create. Do not create anything until I give the go-ahead.`,
       true
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps

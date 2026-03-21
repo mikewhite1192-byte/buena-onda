@@ -488,6 +488,153 @@ export async function createMetaCampaign(
   }
 }
 
+// ── addAdToAdSet ─────────────────────────────────────────────────────────────
+// Creates only a creative + ad inside an existing ad set (no new campaign/adset)
+
+export interface AddAdToAdSetParams {
+  adAccountId: string;
+  adSetId: string;
+  pageId: string;
+  adName: string;
+  primaryText: string;
+  headline: string;
+  description?: string;
+  ctaType: string;
+  destinationUrl?: string;
+  leadFormId?: string;
+  imageHash?: string;
+  imageUrl?: string;
+  videoId?: string;
+  videoUrl?: string;
+  token?: string;
+}
+
+export interface AddAdToAdSetResult {
+  adset_id: string;
+  ad_creative_id: string;
+  ad_id: string;
+  image_hash?: string;
+  video_id?: string;
+}
+
+export async function addAdToAdSet(
+  params: AddAdToAdSetParams
+): Promise<MetaResult<AddAdToAdSetResult>> {
+  try {
+    const acct = params.adAccountId.startsWith("act_") ? params.adAccountId : `act_${params.adAccountId}`;
+    const token = params.token;
+
+    // 1. Resolve creative
+    let imageHash = params.imageHash;
+    let videoId = params.videoId;
+
+    if (!videoId && params.videoUrl) {
+      const vidRes = await metaPost<{ id: string }>(`/${acct}/advideos`, {
+        file_url: params.videoUrl,
+        name: params.adName,
+      }, token);
+      videoId = vidRes.id;
+    } else if (!imageHash && params.imageUrl) {
+      const imgRes = await metaPost<{ images: Record<string, { hash: string }> }>(
+        `/${acct}/adimages`,
+        { url: params.imageUrl },
+        token,
+      );
+      const entries = Object.entries(imgRes.images ?? {});
+      if (entries.length === 0) throw new Error("Image upload returned no hash");
+      imageHash = entries[0][1].hash;
+    }
+
+    if (!imageHash && !videoId) throw new Error("No image or video creative provided");
+
+    // 2. Build object_story_spec
+    const isLeadAd = !!params.leadFormId;
+    const ctaValue = isLeadAd ? { lead_gen_form_id: params.leadFormId } : { link: params.destinationUrl };
+    const callToAction = { type: params.ctaType || (isLeadAd ? "SIGN_UP" : "LEARN_MORE"), value: ctaValue };
+
+    let objectStorySpec: Record<string, unknown>;
+    if (videoId) {
+      objectStorySpec = {
+        page_id: params.pageId,
+        video_data: { video_id: videoId, message: params.primaryText, title: params.headline, call_to_action: callToAction },
+      };
+    } else {
+      objectStorySpec = {
+        page_id: params.pageId,
+        link_data: {
+          image_hash: imageHash,
+          message: params.primaryText,
+          name: params.headline,
+          description: params.description ?? "",
+          call_to_action: callToAction,
+          link: params.destinationUrl ?? `https://www.facebook.com/${params.pageId}`,
+        },
+      };
+    }
+
+    // 3. Create creative
+    const creative = await metaPost<{ id: string }>(`/${acct}/adcreatives`, {
+      name: params.adName,
+      object_story_spec: objectStorySpec,
+    }, token);
+
+    // 4. Create ad in the existing ad set
+    const ad = await metaPost<{ id: string }>(`/${acct}/ads`, {
+      name: params.adName,
+      adset_id: params.adSetId,
+      creative: { creative_id: creative.id },
+      status: "PAUSED",
+    }, token);
+
+    return ok({ adset_id: params.adSetId, ad_creative_id: creative.id, ad_id: ad.id, image_hash: imageHash, video_id: videoId });
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+// ── listCampaignsWithAdSets ───────────────────────────────────────────────────
+
+export interface CampaignSummary {
+  campaign_id: string;
+  campaign_name: string;
+  status: string;
+  objective: string;
+  adsets: { adset_id: string; adset_name: string; status: string; daily_budget_cents: number }[];
+}
+
+export async function listCampaignsWithAdSets(
+  adAccountId: string,
+  token?: string,
+): Promise<MetaResult<CampaignSummary[]>> {
+  try {
+    const acct = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
+    const data = await metaGet<{ data: Array<{ id: string; name: string; status: string; objective: string; adsets?: { data: Array<{ id: string; name: string; status: string; daily_budget?: string }> } }> }>(
+      `/${acct}/campaigns`,
+      {
+        fields: "id,name,status,objective,adsets{id,name,status,daily_budget}",
+        filtering: JSON.stringify([{ field: "effective_status", operator: "IN", value: ["ACTIVE", "PAUSED"] }]),
+        limit: "50",
+      },
+      token,
+    );
+    const campaigns = (data.data ?? []).map(c => ({
+      campaign_id: c.id,
+      campaign_name: c.name,
+      status: c.status,
+      objective: c.objective,
+      adsets: (c.adsets?.data ?? []).map(a => ({
+        adset_id: a.id,
+        adset_name: a.name,
+        status: a.status,
+        daily_budget_cents: a.daily_budget ? parseInt(a.daily_budget, 10) : 0,
+      })),
+    }));
+    return ok(campaigns);
+  } catch (err) {
+    return fail(err);
+  }
+}
+
 // ── listLeadForms ─────────────────────────────────────────────────────────────
 
 export interface LeadForm {
