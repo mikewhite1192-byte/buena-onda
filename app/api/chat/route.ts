@@ -394,7 +394,10 @@ async function executeTool(
     const adAccountId = clientInfo?.meta_ad_account_id ?? process.env.META_AD_ACCOUNT_ID ?? "";
     if (!adAccountId) return "No Meta Ad Account ID found. Select a client or set META_AD_ACCOUNT_ID.";
 
-    const isLeadGen = !!lead_form_id;
+    // Strip any markdown bold formatting the AI may have included in the form ID
+    const clean_lead_form_id = lead_form_id ? String(lead_form_id).replace(/\*/g, "").trim() : undefined;
+    const isLeadGen = !!clean_lead_form_id;
+    (input as Record<string, unknown>).lead_form_id = clean_lead_form_id ?? null;
     // Fall back to client's saved website_url if AI didn't pass one
     const resolved_destination = (destination_url && !String(destination_url).includes("facebook.com") && !String(destination_url).includes("fb.com"))
       ? destination_url as string
@@ -434,6 +437,8 @@ async function executeTool(
       }
     }
 
+    console.log("[create_ad_campaign] lead_form_id:", clean_lead_form_id, "destination:", resolved_destination, "existing_adset:", existing_adset_id ?? "none");
+
     // ── Path A: add ad to an existing ad set ──────────────────────────────
     if (existing_adset_id) {
       const result = await addAdToAdSet({
@@ -446,7 +451,7 @@ async function executeTool(
         description: copy.description,
         ctaType: copy.cta_type,
         destinationUrl: destination_url as string | undefined,
-        leadFormId: lead_form_id as string | undefined,
+        leadFormId: clean_lead_form_id,
         imageHash: isHash ? creativeStr : undefined,
         imageUrl: !isHash && !isVideo ? creativeStr : undefined,
         videoUrl: isVideo ? creativeStr : undefined,
