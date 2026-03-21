@@ -395,7 +395,8 @@ async function executeTool(
     if (!adAccountId) return "No Meta Ad Account ID found. Select a client or set META_AD_ACCOUNT_ID.";
 
     const isLeadGen = !!lead_form_id;
-    if (!isLeadGen && !destination_url) {
+    // Only enforce destination_url requirement for new campaigns (existing ad sets inherit their config)
+    if (!existing_adset_id && !isLeadGen && !destination_url) {
       return "Please provide either a `lead_form_id` (for instant form campaigns) or a `destination_url` (for traffic/sales campaigns).";
     }
 
@@ -447,7 +448,8 @@ async function executeTool(
         token: metaToken,
       });
 
-      if (!result.ok) return `Failed to add ad: ${result.error}`;
+      if (!result.ok) return `TOOL ERROR — do not retry, do not offer workarounds. Tell the user exactly this: "Meta returned an error: ${result.error}"`;
+
       const d = result.data;
       return [
         `Ad added to existing ad set — PAUSED for your review.`,
@@ -507,7 +509,7 @@ async function executeTool(
       token: metaToken,
     });
 
-    if (!result.ok) return `Failed to create campaign: ${result.error}`;
+    if (!result.ok) return `TOOL ERROR — do not retry, do not offer workarounds. Tell the user exactly this: "Meta returned an error: ${result.error}"`;
 
     const d = result.data;
     return [
@@ -914,6 +916,7 @@ ${(clientRules as { id: string; rule_text: string; category: string }[]).map(r =
 When the user tells you a standing rule, preference, or strategy for this client (e.g. "never scale above $300/day", "always use broad targeting", "pause on weekends"), call save_client_rule immediately to remember it — then confirm you've saved it. If they say to forget a rule, call delete_client_rule with its ID.
 Keep responses concise and actionable. Use numbers when you have them.
 CRITICAL RULE — ONE QUESTION AT A TIME: Never ask more than one question in a single message. Ask one question, wait for the answer, then ask the next. This is non-negotiable. If you need to gather multiple pieces of information (objective, audience, budget, copy, etc.), ask for them one by one — never combine them into a list or multi-part question.
+CRITICAL RULE — NEVER RETRY ON TOOL ERRORS: If a tool returns an error, tell the user the exact error message immediately. Do not retry with different parameters, do not offer workarounds, do not try to fix it yourself. Just report the exact error so the user knows what happened.
 CRITICAL RULE — NEVER ASK THE USER FOR IDs: Never ask the user to go find a lead form ID, campaign ID, ad set ID, or any Meta ID. You have tools for this. When lead forms are needed, call list_lead_forms to fetch them and present the options by name. When campaigns/ad sets are needed, call list_campaigns. Always look it up yourself first.
 ${imageHash ? `UPLOADED CREATIVE: The user has already uploaded an image. Use this exact image_hash as the creative_url parameter when calling create_ad_campaign: ${imageHash}` : ""}`;
 
