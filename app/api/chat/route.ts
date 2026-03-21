@@ -903,6 +903,7 @@ ${clientInfo ? `CURRENT CLIENT:
 - Name: ${clientInfo.name}
 - Vertical: ${clientInfo.vertical}
 - Meta Ad Account: ${clientInfo.meta_ad_account_id}
+${clientInfo.website_url ? `- Website URL: ${clientInfo.website_url} — use this automatically as destination_url for all ads, never ask the user for it` : "- Website URL: not set — ask the user once and save it"}
 ` : ""}
 ${recentMetrics.length > 0 ? `LIVE CAMPAIGN DATA (last 7 days):
 ${JSON.stringify(recentMetrics, null, 2)}
