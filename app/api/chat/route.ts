@@ -328,7 +328,32 @@ async function executeTool(
       return `Couldn't find a Facebook Page for this ad account.${detail} You may need to refresh your access token in the .env file (META_ACCESS_TOKEN). Alternatively, save the Page ID in Clients settings.`;
     }
     const r = await listLeadForms(pageId, metaToken);
-    if (!r.ok) return `Failed to fetch lead forms: ${r.error}`;
+    if (!r.ok) {
+      // leads_retrieval permission missing — fall back to scraping form IDs from existing ads
+      const adAccountId = clientInfo?.meta_ad_account_id ?? process.env.META_AD_ACCOUNT_ID ?? "";
+      if (adAccountId) {
+        try {
+          const acct = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
+          const url = new URL(`https://graph.facebook.com/v21.0/${acct}/ads`);
+          url.searchParams.set("fields", "id,name,creative{object_story_spec}");
+          url.searchParams.set("filtering", JSON.stringify([{ field: "effective_status", operator: "IN", value: ["ACTIVE", "PAUSED"] }]));
+          url.searchParams.set("limit", "50");
+          url.searchParams.set("access_token", metaToken ?? "");
+          const res = await fetch(url.toString(), { cache: "no-store" });
+          const data = await res.json();
+          const formIds = new Map<string, string>();
+          for (const ad of data?.data ?? []) {
+            const formId = ad?.creative?.object_story_spec?.link_data?.call_to_action?.value?.lead_gen_form_id;
+            if (formId) formIds.set(formId, ad.name);
+          }
+          if (formIds.size > 0) {
+            const lines = [...formIds.entries()].map(([id, adName]) => `- Form ID: **${id}** (seen on ad: ${adName})`);
+            return `Found lead form IDs from existing ads:\n\n${lines.join("\n")}\n\nWhich form would you like to use?`;
+          }
+        } catch { /* fall through */ }
+      }
+      return `Failed to fetch lead forms: ${r.error}. The token may be missing the leads_retrieval permission. You can regenerate it at developers.facebook.com/tools/explorer with that permission checked.`;
+    }
     if (r.data.length === 0) return "No instant forms found on this page. Create one in Meta Ads Manager under your Page → Instant Forms.";
     return r.data.map(f => `- **${f.name}** (ID: ${f.id}) — ${f.status}`).join("\n");
   }
