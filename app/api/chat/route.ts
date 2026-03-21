@@ -156,6 +156,34 @@ const TOOLS: Anthropic.Tool[] = [
       required: ["industry", "target_avatar", "locations", "daily_budget_usd"],
     },
   },
+  // ── Client memory ─────────────────────────────────────────────────────────
+  {
+    name: "save_client_rule",
+    description: "Save a rule, preference, or strategy for the current client. Call this whenever the user tells you something like 'for this client we never go above $X', 'always use broad targeting', 'pause on weekends', or any other standing instruction they want remembered.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        rule_text: { type: "string", description: "The rule or preference in plain English, as stated by the user. Keep it concise and clear." },
+        category: {
+          type: "string",
+          enum: ["budget", "targeting", "creative", "strategy", "schedule", "general"],
+          description: "Category that best describes this rule.",
+        },
+      },
+      required: ["rule_text"],
+    },
+  },
+  {
+    name: "delete_client_rule",
+    description: "Remove a previously saved rule for the current client. Use when the user says to forget or remove a rule.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        rule_id: { type: "string", description: "The UUID of the rule to delete." },
+      },
+      required: ["rule_id"],
+    },
+  },
 ];
 
 async function executeTool(
@@ -163,7 +191,48 @@ async function executeTool(
   input: Record<string, unknown>,
   clientInfo?: { meta_ad_account_id?: string; meta_page_id?: string; meta_access_token?: string },
   imageHash?: string | null,
+  context?: { userId?: string; clientId?: string },
 ): Promise<string> {
+  // ── Client memory ─────────────────────────────────────────────────────────
+  if (name === "save_client_rule") {
+    if (!context?.userId || !context?.clientId) return "No client selected — cannot save rule.";
+    const ruleText = (input.rule_text as string)?.trim();
+    const category = (input.category as string) ?? "general";
+    if (!ruleText) return "No rule text provided.";
+    try {
+      await sql`
+        CREATE TABLE IF NOT EXISTS client_rules (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          owner_id text NOT NULL, client_id text NOT NULL,
+          rule_text text NOT NULL, category text NOT NULL DEFAULT 'general',
+          is_active boolean NOT NULL DEFAULT true, source text NOT NULL DEFAULT 'chat',
+          created_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+      await sql`
+        INSERT INTO client_rules (owner_id, client_id, rule_text, category, source)
+        VALUES (${context.userId}, ${context.clientId}, ${ruleText}, ${category}, 'chat')
+      `;
+      return `Saved rule: "${ruleText}"`;
+    } catch (err) {
+      return `Failed to save rule: ${err instanceof Error ? err.message : "unknown error"}`;
+    }
+  }
+
+  if (name === "delete_client_rule") {
+    if (!context?.userId || !context?.clientId) return "No client selected.";
+    const ruleId = input.rule_id as string;
+    if (!ruleId) return "No rule_id provided.";
+    try {
+      await sql`
+        UPDATE client_rules SET is_active = false
+        WHERE id = ${ruleId}::uuid AND client_id = ${context.clientId} AND owner_id = ${context.userId}
+      `;
+      return `Rule removed.`;
+    } catch {
+      return "Failed to remove rule.";
+    }
+  }
   const metaToken = clientInfo?.meta_access_token ?? process.env.META_ACCESS_TOKEN;
 
   // ── Ad set ────────────────────────────────────────────────────────────────
@@ -366,7 +435,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Pull live context
-  const [recentMetrics, recentActions, recentLearnings, client] = await Promise.all([
+  const [recentMetrics, recentActions, recentLearnings, client, clientRules] = await Promise.all([
     adAccountId ? sql`
       SELECT ad_set_name, ad_set_id, spend, leads, cpl, ctr, frequency, impressions, ad_status, date_recorded
       FROM ad_metrics
@@ -392,6 +461,11 @@ export async function POST(req: NextRequest) {
     clientId ? sql`
       SELECT name, vertical, meta_ad_account_id, meta_page_id, meta_access_token FROM clients WHERE id = ${clientId} LIMIT 1
     ` : Promise.resolve([]),
+    clientId ? sql`
+      SELECT id, rule_text, category FROM client_rules
+      WHERE client_id = ${clientId} AND owner_id = ${userId} AND is_active = true
+      ORDER BY created_at DESC LIMIT 30
+    `.catch(() => []) : Promise.resolve([]),
   ]);
 
   const clientInfo = client?.[0] as { name: string; vertical: string; meta_ad_account_id: string; meta_page_id?: string; meta_access_token?: string } | undefined;
@@ -718,6 +792,12 @@ ${JSON.stringify(recentActions, null, 2)}
 ${recentLearnings.length > 0 ? `ACTIVE LEARNED RULES:
 ${JSON.stringify(recentLearnings, null, 2)}
 ` : ""}
+${(clientRules as { id: string; rule_text: string; category: string }[]).length > 0 ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CLIENT RULES & PREFERENCES (always follow these):
+${(clientRules as { id: string; rule_text: string; category: string }[]).map(r => `- [${r.id}] (${r.category}) ${r.rule_text}`).join("\n")}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+` : ""}
+When the user tells you a standing rule, preference, or strategy for this client (e.g. "never scale above $300/day", "always use broad targeting", "pause on weekends"), call save_client_rule immediately to remember it — then confirm you've saved it. If they say to forget a rule, call delete_client_rule with its ID.
 Keep responses concise and actionable. Use numbers when you have them.
 ${imageHash ? `UPLOADED CREATIVE: The user has already uploaded an image. Use this exact image_hash as the creative_url parameter when calling create_ad_campaign: ${imageHash}` : ""}`;
 
@@ -754,6 +834,7 @@ ${imageHash ? `UPLOADED CREATIVE: The user has already uploaded an image. Use th
                 block.input as Record<string, unknown>,
                 clientInfo,
                 imageHash as string | null,
+                { userId, clientId },
               );
               return { type: "tool_result" as const, tool_use_id: block.id, content: result };
             })

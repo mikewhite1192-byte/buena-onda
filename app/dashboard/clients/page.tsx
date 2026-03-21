@@ -60,6 +60,15 @@ export default function ClientsPage() {
   const [discoveredAccounts, setDiscoveredAccounts] = useState<AdAccount[]>([]);
   const [pickingAccount, setPickingAccount] = useState(false);
 
+  // Client rules / memory panel
+  const [rulesClientId, setRulesClientId] = useState<string | null>(null);
+  const [rulesClientName, setRulesClientName] = useState("");
+  const [rules, setRules] = useState<{ id: string; rule_text: string; category: string; created_at: string }[]>([]);
+  const [rulesLoading, setRulesLoading] = useState(false);
+  const [newRule, setNewRule] = useState("");
+  const [newRuleCategory, setNewRuleCategory] = useState("general");
+  const [savingRule, setSavingRule] = useState(false);
+
   useEffect(() => {
     loadClients();
     // Handle OAuth callback params
@@ -208,6 +217,44 @@ export default function ClientsPage() {
     } catch {
       setError("Update failed");
     }
+  }
+
+  async function openRules(c: Client) {
+    setRulesClientId(c.id);
+    setRulesClientName(c.name);
+    setRulesLoading(true);
+    setRules([]);
+    setNewRule("");
+    try {
+      const res = await fetch(`/api/clients/${c.id}/rules`);
+      const data = await res.json();
+      setRules(data.rules ?? []);
+    } finally {
+      setRulesLoading(false);
+    }
+  }
+
+  async function saveRule() {
+    if (!newRule.trim() || !rulesClientId) return;
+    setSavingRule(true);
+    try {
+      const res = await fetch(`/api/clients/${rulesClientId}/rules`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rule_text: newRule.trim(), category: newRuleCategory, source: "manual" }),
+      });
+      const data = await res.json();
+      if (data.rule) setRules(r => [data.rule, ...r]);
+      setNewRule("");
+    } finally {
+      setSavingRule(false);
+    }
+  }
+
+  async function deleteRule(ruleId: string) {
+    if (!rulesClientId) return;
+    await fetch(`/api/clients/${rulesClientId}/rules/${ruleId}`, { method: "DELETE" });
+    setRules(r => r.filter(x => x.id !== ruleId));
   }
 
   return (
@@ -408,18 +455,15 @@ export default function ClientsPage() {
                 </button>
                 <button
                   onClick={() => openEdit(c)}
-                  style={{
-                    background: "transparent",
-                    border: "1px solid rgba(255,255,255,0.06)",
-                    borderRadius: 6,
-                    padding: "5px 10px",
-                    fontSize: 11,
-                    color: "#8b8fa8",
-                    cursor: "pointer",
-                    fontFamily: "'DM Mono', 'Fira Mono', monospace",
-                  }}
+                  style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, padding: "5px 10px", fontSize: 11, color: "#8b8fa8", cursor: "pointer", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}
                 >
                   Edit
+                </button>
+                <button
+                  onClick={() => openRules(c)}
+                  style={{ background: "transparent", border: "1px solid rgba(245,166,35,0.2)", borderRadius: 6, padding: "5px 10px", fontSize: 11, color: "#f5a623", cursor: "pointer", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}
+                >
+                  Memory
                 </button>
                 <button
                   onClick={() => handleDelete(c.id)}
@@ -623,6 +667,82 @@ export default function ClientsPage() {
               >
                 {saving ? "Saving..." : editingId ? "Save Changes" : "Add Client"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rules / Memory Panel */}
+      {rulesClientId && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={e => { if (e.target === e.currentTarget) setRulesClientId(null); }}
+        >
+          <div style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "28px 32px", width: 520, maxWidth: "92vw", maxHeight: "80vh", display: "flex", flexDirection: "column", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#f5a623" }}>Client Memory</h2>
+                <div style={{ fontSize: 11, color: "#8b8fa8", marginTop: 3 }}>{rulesClientName} · rules the AI always follows</div>
+              </div>
+              <button onClick={() => setRulesClientId(null)} style={{ background: "transparent", border: "none", color: "#8b8fa8", cursor: "pointer", fontSize: 18 }}>✕</button>
+            </div>
+
+            {/* Add rule */}
+            <div style={{ display: "flex", gap: 8, marginTop: 18, marginBottom: 16 }}>
+              <select
+                value={newRuleCategory}
+                onChange={e => setNewRuleCategory(e.target.value)}
+                style={{ background: "#0d0f14", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, padding: "7px 10px", fontSize: 11, color: "#8b8fa8", fontFamily: "inherit", flexShrink: 0 }}
+              >
+                <option value="general">General</option>
+                <option value="budget">Budget</option>
+                <option value="targeting">Targeting</option>
+                <option value="creative">Creative</option>
+                <option value="strategy">Strategy</option>
+                <option value="schedule">Schedule</option>
+              </select>
+              <input
+                value={newRule}
+                onChange={e => setNewRule(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") saveRule(); }}
+                placeholder="e.g. Never scale above $300/day"
+                style={{ flex: 1, background: "#0d0f14", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, padding: "7px 12px", fontSize: 12, color: "#e8eaf0", fontFamily: "inherit", outline: "none" }}
+              />
+              <button
+                onClick={saveRule}
+                disabled={savingRule || !newRule.trim()}
+                style={{ background: "rgba(245,166,35,0.15)", border: "1px solid rgba(245,166,35,0.3)", borderRadius: 6, padding: "7px 14px", fontSize: 12, color: "#f5a623", cursor: savingRule ? "not-allowed" : "pointer", fontFamily: "inherit", fontWeight: 600, opacity: savingRule || !newRule.trim() ? 0.5 : 1 }}
+              >
+                {savingRule ? "…" : "+ Add"}
+              </button>
+            </div>
+
+            {/* Rules list */}
+            <div style={{ overflowY: "auto", flex: 1 }}>
+              {rulesLoading ? (
+                <div style={{ fontSize: 12, color: "#8b8fa8", padding: "20px 0", textAlign: "center" }}>Loading…</div>
+              ) : rules.length === 0 ? (
+                <div style={{ border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 8, padding: "32px 0", textAlign: "center", color: "#5a5e72", fontSize: 12 }}>
+                  No rules yet. Tell the AI rules in the chat and they&apos;ll appear here automatically, or add one above.
+                </div>
+              ) : rules.map(rule => {
+                const catColor: Record<string, string> = { budget: "#f5a623", targeting: "#7b8cde", creative: "#c07ef0", strategy: "#2ecc71", schedule: "#e8b84b", general: "#8b8fa8" };
+                return (
+                  <div key={rule.id} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                    <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.06em", padding: "2px 6px", borderRadius: 4, background: (catColor[rule.category] ?? "#8b8fa8") + "20", color: catColor[rule.category] ?? "#8b8fa8", flexShrink: 0, marginTop: 2 }}>
+                      {rule.category}
+                    </span>
+                    <span style={{ flex: 1, fontSize: 12, color: "#e8eaf0", lineHeight: 1.5 }}>{rule.rule_text}</span>
+                    <button
+                      onClick={() => deleteRule(rule.id)}
+                      style={{ background: "transparent", border: "none", color: "#5a5e72", cursor: "pointer", fontSize: 14, padding: "0 4px", flexShrink: 0 }}
+                      title="Remove rule"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

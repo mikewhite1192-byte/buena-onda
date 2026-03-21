@@ -302,7 +302,7 @@ export default function CampaignsPage() {
   const [showCharts, setShowCharts] = useState(false);
   const [timeseries, setTimeseries] = useState<TimeseriesPoint[]>([]);
   const [tsLoading, setTsLoading] = useState(false);
-  const [chartMetric, setChartMetric] = useState<"spend" | "leads" | "cpl">("spend");
+  const [chartMetric, setChartMetric] = useState<"spend" | "leads" | "cpl" | "roas" | "purchases" | "cpa">("spend");
 
   const defaultCols = activeClient?.vertical === "ecomm" ? ECOMM_DEFAULT_COLUMNS : LEADS_DEFAULT_COLUMNS;
   const [visibleCols, setVisibleCols] = useState<Set<string>>(new Set(defaultCols));
@@ -562,12 +562,20 @@ export default function CampaignsPage() {
                 {/* Metric tabs */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#e8eaf0" }}>Trend Over Time</div>
-                  <div style={{ display: "flex", gap: 4 }}>
-                    {([
-                      { key: "spend", label: "Spend", color: "#f5a623" },
-                      { key: "leads", label: "Leads", color: "#7b8cde" },
-                      { key: "cpl",   label: "CPL",   color: "#2ecc71" },
-                    ] as { key: typeof chartMetric; label: string; color: string }[]).map(({ key, label }) => (
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const }}>
+                    {(activeClient?.vertical === "ecomm"
+                      ? ([
+                          { key: "spend"     as typeof chartMetric, label: "Spend",     color: "#f5a623" },
+                          { key: "purchases" as typeof chartMetric, label: "Purchases", color: "#7b8cde" },
+                          { key: "roas"      as typeof chartMetric, label: "ROAS",      color: "#2ecc71" },
+                          { key: "cpa"       as typeof chartMetric, label: "CPA",       color: "#c07ef0" },
+                        ])
+                      : ([
+                          { key: "spend" as typeof chartMetric, label: "Spend", color: "#f5a623" },
+                          { key: "leads" as typeof chartMetric, label: "Leads", color: "#7b8cde" },
+                          { key: "cpl"   as typeof chartMetric, label: "CPL",   color: "#2ecc71" },
+                        ])
+                    ).map(({ key, label, color: _c }) => (
                       <button
                         key={key}
                         onClick={() => setChartMetric(key)}
@@ -607,8 +615,9 @@ export default function CampaignsPage() {
                         tickLine={false}
                         axisLine={false}
                         tickFormatter={v =>
-                          chartMetric === "spend" ? `$${v >= 1000 ? `${(v/1000).toFixed(1)}k` : v.toFixed(0)}` :
+                          (chartMetric === "spend" || chartMetric === "cpa") ? `$${v >= 1000 ? `${(v/1000).toFixed(1)}k` : v.toFixed(0)}` :
                           chartMetric === "cpl"   ? `$${v.toFixed(0)}` :
+                          chartMetric === "roas"  ? `${v.toFixed(1)}x` :
                           String(v)
                         }
                         width={52}
@@ -622,16 +631,25 @@ export default function CampaignsPage() {
                         }}
                         formatter={(value) => {
                           const n = Number(value ?? 0);
-                          if (chartMetric === "spend" || chartMetric === "cpl") return [`$${n.toFixed(2)}`, chartMetric === "spend" ? "Spend" : "CPL"];
+                          if (chartMetric === "spend")     return [`$${n.toFixed(2)}`, "Spend"];
+                          if (chartMetric === "cpl")       return [`$${n.toFixed(2)}`, "CPL"];
+                          if (chartMetric === "cpa")       return [`$${n.toFixed(2)}`, "CPA"];
+                          if (chartMetric === "roas")      return [`${n.toFixed(2)}x`, "ROAS"];
+                          if (chartMetric === "purchases") return [n, "Purchases"];
                           return [n, "Leads"];
                         }}
                       />
                       <Line
                         type="monotone"
                         dataKey={chartMetric}
-                        stroke={chartMetric === "spend" ? "#f5a623" : chartMetric === "leads" ? "#7b8cde" : "#2ecc71"}
+                        stroke={
+                          chartMetric === "spend"     ? "#f5a623" :
+                          chartMetric === "leads" || chartMetric === "purchases" ? "#7b8cde" :
+                          chartMetric === "roas"      ? "#2ecc71" :
+                          chartMetric === "cpa"       ? "#c07ef0" : "#2ecc71"
+                        }
                         strokeWidth={2}
-                        dot={timeseries.length <= 30 ? { r: 3, fill: chartMetric === "spend" ? "#f5a623" : chartMetric === "leads" ? "#7b8cde" : "#2ecc71", strokeWidth: 0 } : false}
+                        dot={timeseries.length <= 30 ? { r: 3, strokeWidth: 0, fill: chartMetric === "spend" ? "#f5a623" : chartMetric === "leads" || chartMetric === "purchases" ? "#7b8cde" : chartMetric === "roas" ? "#2ecc71" : chartMetric === "cpa" ? "#c07ef0" : "#2ecc71" } : false}
                         activeDot={{ r: 5, strokeWidth: 0 }}
                       />
                     </LineChart>

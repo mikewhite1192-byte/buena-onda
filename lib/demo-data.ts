@@ -112,6 +112,10 @@ export interface TimeseriesPoint {
   cpl: number;
   impressions: number;
   clicks: number;
+  purchases: number;
+  purchase_value: number;
+  cpa: number;
+  roas: number;
 }
 
 // Day-of-week multipliers (0=Sun .. 6=Sat)
@@ -159,7 +163,14 @@ export function getDemoTimeseries(accountId: string, startDate: string, endDate:
     dayClicks      = Math.max(0, Math.round(dayClicks));
     const dayCpl   = dayLeads > 0 ? Number((daySpend / dayLeads).toFixed(2)) : 0;
 
-    points.push({ date: dateStr, spend: daySpend, leads: dayLeads, cpl: dayCpl, impressions: dayImpressions, clicks: dayClicks });
+    // For ecomm accounts, treat leads as purchases with avg order ~$85
+    const isEcomm = ["act_demo_ecomm","act_demo_beauty","act_demo_supps","act_demo_homegood","act_demo_fitness"].includes(accountId);
+    const purchases     = isEcomm ? dayLeads : 0;
+    const purchaseValue = isEcomm ? Number((purchases * (75 + seededRand(i * 13) * 40)).toFixed(2)) : 0;
+    const cpa           = purchases > 0 ? Number((daySpend / purchases).toFixed(2)) : 0;
+    const roas          = daySpend > 0 && purchaseValue > 0 ? Number((purchaseValue / daySpend).toFixed(2)) : 0;
+
+    points.push({ date: dateStr, spend: daySpend, leads: dayLeads, cpl: dayCpl, impressions: dayImpressions, clicks: dayClicks, purchases, purchase_value: purchaseValue, cpa, roas });
   }
 
   return points;

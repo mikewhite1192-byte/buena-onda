@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
   const url = new URL(`${META_BASE_URL}/${normalizedAccount}/insights`);
   url.searchParams.set("access_token", token);
   url.searchParams.set("level", "account");
-  url.searchParams.set("fields", "spend,actions,impressions,clicks");
+  url.searchParams.set("fields", "spend,actions,action_values,impressions,clicks");
   url.searchParams.set("time_range", timeRange);
   url.searchParams.set("time_increment", "1");
   url.searchParams.set("limit", "400");
@@ -58,13 +58,18 @@ export async function GET(req: NextRequest) {
     }
 
     const timeseries = (data.data ?? []).map((row: Record<string, unknown>) => {
-      const actions = row.actions as MetaActionRow[] | undefined;
-      const spend       = Number(parseFloat((row.spend as string) ?? "0").toFixed(2));
-      const leads       = parseInt(actions?.find(a => a.action_type === "lead")?.value ?? "0", 10);
-      const impressions = parseInt((row.impressions as string) ?? "0", 10);
-      const clicks      = parseInt((row.clicks as string) ?? "0", 10);
-      const cpl         = leads > 0 ? Number((spend / leads).toFixed(2)) : 0;
-      return { date: row.date_start as string, spend, leads, cpl, impressions, clicks };
+      const actions       = row.actions as MetaActionRow[] | undefined;
+      const actionValues  = row.action_values as MetaActionRow[] | undefined;
+      const spend         = Number(parseFloat((row.spend as string) ?? "0").toFixed(2));
+      const leads         = parseInt(actions?.find(a => a.action_type === "lead")?.value ?? "0", 10);
+      const purchases     = parseInt(actions?.find(a => a.action_type === "purchase")?.value ?? "0", 10);
+      const purchaseValue = parseFloat(actionValues?.find(a => a.action_type === "purchase")?.value ?? "0");
+      const impressions   = parseInt((row.impressions as string) ?? "0", 10);
+      const clicks        = parseInt((row.clicks as string) ?? "0", 10);
+      const cpl           = leads > 0 ? Number((spend / leads).toFixed(2)) : 0;
+      const cpa           = purchases > 0 ? Number((spend / purchases).toFixed(2)) : 0;
+      const roas          = spend > 0 ? Number((purchaseValue / spend).toFixed(2)) : 0;
+      return { date: row.date_start as string, spend, leads, cpl, impressions, clicks, purchases, purchase_value: purchaseValue, cpa, roas };
     });
 
     return NextResponse.json({ timeseries });
