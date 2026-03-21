@@ -439,16 +439,24 @@ async function executeTool(
 
     console.log("[create_ad_campaign] lead_form_id:", clean_lead_form_id, "destination:", resolved_destination, "existing_adset:", existing_adset_id ?? "none", "page_id:", pageId, "account:", adAccountId);
 
-    // Auto-accept Lead Gen ToS on the page if this is a lead gen campaign
+    // Auto-accept Lead Gen ToS — try both page-level and ad-account-level endpoints
     if (isLeadGen || clean_lead_form_id) {
-      try {
-        const tosUrl = new URL(`https://graph.facebook.com/v21.0/${pageId}/leadgen_tos_acceptance`);
-        tosUrl.searchParams.set("access_token", metaToken ?? "");
-        const tosRes = await fetch(tosUrl.toString(), { method: "POST", cache: "no-store" });
-        const tosData = await tosRes.json();
-        console.log("[leadgen_tos] acceptance result:", JSON.stringify(tosData));
-      } catch (e) {
-        console.log("[leadgen_tos] acceptance attempt failed:", e);
+      const acct = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
+      for (const tosPath of [`/${pageId}/leadgen_tos_acceptance`, `/${acct}/leadgen_tos_acceptance`]) {
+        try {
+          const tosUrl = new URL(`https://graph.facebook.com/v21.0${tosPath}`);
+          tosUrl.searchParams.set("access_token", metaToken ?? "");
+          const tosRes = await fetch(tosUrl.toString(), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tos_version: 2 }),
+            cache: "no-store",
+          });
+          const tosData = await tosRes.json();
+          console.log("[leadgen_tos]", tosPath, JSON.stringify(tosData));
+        } catch (e) {
+          console.log("[leadgen_tos] failed:", tosPath, e);
+        }
       }
     }
 
