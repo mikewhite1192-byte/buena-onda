@@ -47,7 +47,9 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
   const [clients, setClients] = useState<Client[]>([]);
   const [localActive, setLocalActive] = useState<Client | null>(null);
   const [showSwitcher, setShowSwitcher] = useState(false);
+  const [clientSearch, setClientSearch] = useState("");
   const switcherRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchClients();
@@ -57,6 +59,7 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
     function handler(e: MouseEvent) {
       if (switcherRef.current && !switcherRef.current.contains(e.target as Node)) {
         setShowSwitcher(false);
+        setClientSearch("");
       }
     }
     document.addEventListener("mousedown", handler);
@@ -80,12 +83,14 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
   function selectClient(client: Client) {
     setLocalActive(client);
     setShowSwitcher(false);
+    setClientSearch("");
     setActiveClient({
       id: client.id,
       name: client.name,
       meta_ad_account_id: client.meta_ad_account_id,
       vertical: client.vertical,
     });
+    router.push("/dashboard/campaigns");
   }
 
   const vertColor = localActive ? (localActive.vertical === "leads" ? T.leads : T.ecomm) : T.muted;
@@ -181,74 +186,17 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
           </button>
 
           {showSwitcher && (
-            <div style={{
-              position: "absolute",
-              top: "calc(100% + 6px)",
-              right: 0,
-              zIndex: 200,
-              background: "#13151d",
-              border: `1px solid ${T.border}`,
-              borderRadius: 10,
-              overflow: "hidden",
-              minWidth: 240,
-              boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-            }}>
-              {clients.length === 0 ? (
-                <div style={{ padding: "16px", fontSize: 12, color: T.muted, textAlign: "center" }}>
-                  No clients yet.{" "}
-                  <span
-                    style={{ color: T.accent, cursor: "pointer" }}
-                    onClick={() => { setShowSwitcher(false); router.push("/dashboard/clients"); }}
-                  >
-                    Add one →
-                  </span>
-                </div>
-              ) : (
-                <>
-                  <div style={{ padding: "8px 12px 4px", fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                    Your Clients
-                  </div>
-                  {clients.map((client) => {
-                    const vc = client.vertical === "leads" ? T.leads : T.ecomm;
-                    return (
-                      <div
-                        key={client.id}
-                        onClick={() => selectClient(client)}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 10,
-                          padding: "10px 12px",
-                          cursor: "pointer",
-                          background: localActive?.id === client.id ? "rgba(245,166,35,0.08)" : "transparent",
-                          borderLeft: localActive?.id === client.id ? `2px solid ${T.accent}` : "2px solid transparent",
-                          transition: "background 0.1s",
-                        }}
-                      >
-                        <span style={{ width: 7, height: 7, borderRadius: "50%", background: client.status === "active" ? vc : T.faint, flexShrink: 0 }} />
-                        <div style={{ flex: 1, overflow: "hidden" }}>
-                          <div style={{ fontSize: 13, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {client.name}
-                          </div>
-                          <div style={{ fontSize: 10, color: T.muted, marginTop: 1 }}>
-                            {client.vertical}
-                          </div>
-                        </div>
-                        {localActive?.id === client.id && (
-                          <span style={{ color: T.accent, fontSize: 12 }}>✓</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                  <div
-                    style={{ padding: "10px 12px", borderTop: `1px solid ${T.border}`, fontSize: 12, color: T.muted, cursor: "pointer" }}
-                    onClick={() => { setShowSwitcher(false); router.push("/dashboard/clients"); }}
-                  >
-                    Manage clients →
-                  </div>
-                </>
-              )}
-            </div>
+            <ClientSwitcherDropdown
+              clients={clients}
+              localActive={localActive}
+              clientSearch={clientSearch}
+              setClientSearch={setClientSearch}
+              searchRef={searchRef}
+              selectClient={selectClient}
+              onManage={() => { setShowSwitcher(false); setClientSearch(""); router.push("/dashboard/clients"); }}
+              onAddClient={() => { setShowSwitcher(false); router.push("/dashboard/clients"); }}
+              T={T}
+            />
           )}
         </div>
 
@@ -284,6 +232,85 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
 
       <ChatBubble />
       <TourCard />
+    </div>
+  );
+}
+
+interface DropdownProps {
+  clients: Client[];
+  localActive: Client | null;
+  clientSearch: string;
+  setClientSearch: (v: string) => void;
+  searchRef: React.RefObject<HTMLInputElement>;
+  selectClient: (c: Client) => void;
+  onManage: () => void;
+  onAddClient: () => void;
+  T: Record<string, string>;
+}
+
+function ClientSwitcherDropdown({ clients, localActive, clientSearch, setClientSearch, searchRef, selectClient, onManage, onAddClient, T }: DropdownProps) {
+  const filtered = clientSearch.trim()
+    ? clients.filter(c => c.name.toLowerCase().includes(clientSearch.toLowerCase()))
+    : clients;
+
+  if (clients.length === 0) {
+    return (
+      <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 200, background: "#13151d", border: `1px solid ${T.border}`, borderRadius: 10, minWidth: 240, boxShadow: "0 8px 32px rgba(0,0,0,0.5)", padding: "16px", fontSize: 12, color: T.muted, textAlign: "center" }}>
+        No clients yet.{" "}
+        <span style={{ color: T.accent, cursor: "pointer" }} onClick={onAddClient}>Add one →</span>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 200, background: "#13151d", border: `1px solid ${T.border}`, borderRadius: 10, minWidth: 240, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
+      {/* Search */}
+      <div style={{ padding: "8px 10px 6px" }}>
+        <input
+          ref={searchRef}
+          value={clientSearch}
+          onChange={e => setClientSearch(e.target.value)}
+          placeholder="Search clients…"
+          autoFocus
+          style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: `1px solid ${T.border}`, borderRadius: 6, padding: "6px 10px", fontSize: 12, color: T.text, fontFamily: "inherit", outline: "none", boxSizing: "border-box" }}
+        />
+      </div>
+
+      {/* Client list */}
+      <div style={{ maxHeight: 300, overflowY: "auto" }}>
+        {filtered.length === 0 ? (
+          <div style={{ padding: "12px", fontSize: 12, color: T.muted, textAlign: "center" }}>No clients match</div>
+        ) : filtered.map(client => {
+          const vc = client.vertical === "leads" ? T.leads : T.ecomm;
+          const isActive = localActive?.id === client.id;
+          return (
+            <div
+              key={client.id}
+              onClick={() => selectClient(client)}
+              style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", cursor: "pointer", background: isActive ? "rgba(245,166,35,0.08)" : "transparent", borderLeft: isActive ? `2px solid ${T.accent}` : "2px solid transparent" }}
+              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
+              onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
+            >
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: client.status === "active" ? vc : T.faint, flexShrink: 0 }} />
+              <div style={{ flex: 1, overflow: "hidden" }}>
+                <div style={{ fontSize: 13, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{client.name}</div>
+                <div style={{ fontSize: 10, color: T.muted, marginTop: 1 }}>{client.vertical}</div>
+              </div>
+              {isActive && <span style={{ color: T.accent, fontSize: 12 }}>✓</span>}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer */}
+      <div
+        style={{ padding: "10px 12px", borderTop: `1px solid ${T.border}`, fontSize: 12, color: T.muted, cursor: "pointer" }}
+        onClick={onManage}
+        onMouseEnter={e => e.currentTarget.style.color = T.text}
+        onMouseLeave={e => e.currentTarget.style.color = T.muted}
+      >
+        Manage clients →
+      </div>
     </div>
   );
 }

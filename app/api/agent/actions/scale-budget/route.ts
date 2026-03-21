@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { neon } from "@neondatabase/serverless";
 import { isDemoAccount } from "@/lib/demo-data";
+import { logAction } from "@/lib/action-log";
 
 const sql = neon(process.env.DATABASE_URL!);
 const META_BASE = "https://graph.facebook.com/v21.0";
@@ -27,11 +28,11 @@ export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { campaignId, clientId, pct = 20 } = await req.json();
+  const { campaignId, clientId, campaignName, pct = 20 } = await req.json();
   if (!campaignId || !clientId) return NextResponse.json({ error: "campaignId and clientId required" }, { status: 400 });
 
-  // Fetch client token
-  const [client] = await sql`SELECT meta_access_token, meta_ad_account_id FROM clients WHERE id = ${clientId} AND owner_id = ${userId} LIMIT 1`;
+  // Fetch client
+  const [client] = await sql`SELECT meta_access_token, meta_ad_account_id, name FROM clients WHERE id = ${clientId} AND owner_id = ${userId} LIMIT 1`;
   if (!client) return NextResponse.json({ error: "Client not found" }, { status: 404 });
 
   // Demo — simulate success (still enforce 7-day rule for realism)
@@ -48,6 +49,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Budget can only be increased once every 7 days. Next allowed: ${nextAllowed.toLocaleDateString()}` }, { status: 429 });
     }
     await sql`INSERT INTO campaign_budget_changes (campaign_id, client_id, pct) VALUES (${campaignId}, ${clientId}, ${pct})`;
+    await logAction({ ownerId: userId, clientId, clientName: client.name as string, actionType: "scale_budget", description: `Increased budget 20% on "${campaignName ?? campaignId}"`, campaignId, campaignName: campaignName ?? undefined });
     return NextResponse.json({ success: true, campaignId, budgetIncreased: pct, demo: true });
   }
 
@@ -94,6 +96,6 @@ export async function POST(req: NextRequest) {
 
   // Record the change
   await sql`INSERT INTO campaign_budget_changes (campaign_id, client_id, old_budget, new_budget, pct) VALUES (${campaignId}, ${clientId}, ${currentBudget / 100}, ${newBudget / 100}, ${pct})`;
-
+  await logAction({ ownerId: userId, clientId, clientName: client.name as string, actionType: "scale_budget", description: `Increased budget 20% on "${campaignName ?? campaignId}" ($${(currentBudget/100).toFixed(0)} → $${(newBudget/100).toFixed(0)}/day)`, campaignId, campaignName: campaignName ?? undefined, metaBefore: { daily_budget: currentBudget / 100 }, metaAfter: { daily_budget: newBudget / 100 } });
   return NextResponse.json({ success: true, campaignId, oldBudget: currentBudget / 100, newBudget: newBudget / 100, pct });
 }

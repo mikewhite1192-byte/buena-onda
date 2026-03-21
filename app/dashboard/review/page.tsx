@@ -1,54 +1,31 @@
 "use client";
 
-// app/dashboard/review/page.tsx
+// app/dashboard/review/page.tsx — AI-built campaign review queue
 import { useEffect, useState } from "react";
 
-type ActionType = "scale" | "pause" | "creative_brief" | "flag_review";
+const T = {
+  bg: "#0d0f14", surface: "#161820", surfaceAlt: "#1e2130", border: "rgba(255,255,255,0.06)",
+  accent: "#f5a623", accentBg: "rgba(245,166,35,0.12)", text: "#e8eaf0", muted: "#8b8fa8",
+  faint: "#5a5e72", critical: "#ff4d4d", warning: "#e8b84b", healthy: "#2ecc71", info: "#7b8cde",
+};
 
-interface AgentAction {
-  id: number;
-  ad_set_id: string;
-  ad_account_id: string;
-  action_type: ActionType;
-  action_details: Record<string, unknown>;
-  status: string;
+interface PendingCampaign {
+  id: string;
+  client_id: string;
+  client_name: string;
+  campaign_name: string;
+  objective: string;
+  daily_budget: number;
+  targeting_summary: string;
+  ad_copy: string;
+  creative_description: string;
+  special_ad_category: string | null;
+  status: "pending" | "approved" | "rejected";
+  notes: string | null;
   created_at: string;
-  vertical: "leads" | "ecomm" | null;
 }
 
-const ACTION_LABELS: Record<ActionType, string> = {
-  scale: "Scale Budget",
-  pause: "Pause Ad Set",
-  creative_brief: "New Creative Brief",
-  flag_review: "Review",
-};
-
-const ACTION_COLORS: Record<ActionType, string> = {
-  scale: "#2A8C8A",
-  pause: "#E8705A",
-  creative_brief: "#8B6FE8",
-  flag_review: "#F5A623",
-};
-
-function formatDetails(action: AgentAction): string {
-  const d = action.action_details;
-  if (action.action_type === "scale") {
-    return `$${d.current_budget}/day → $${d.new_budget}/day (+${Math.round((d.increase_pct as number) * 100)}%)`;
-  }
-  if (action.action_type === "pause") {
-    return `CPL exceeded cap`;
-  }
-  if (action.action_type === "creative_brief") {
-    const trigger = d.trigger as string;
-    const value = d.value as number;
-    return trigger === "frequency"
-      ? `Frequency ${value?.toFixed(2)} — audience fatigued`
-      : `CTR ${((value ?? 0) * 100).toFixed(2)}% — creative dying`;
-  }
-  return JSON.stringify(d);
-}
-
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 60) return `${mins}m ago`;
@@ -58,329 +35,209 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function ReviewPage() {
-  const [actions, setActions] = useState<AgentAction[]>([]);
+  const [campaigns, setCampaigns] = useState<PendingCampaign[]>([]);
   const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState<Record<number, boolean>>({});
-  const [resolved, setResolved] = useState<Record<number, "approved" | "rejected">>({});
-  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
+  const [editingNotes, setEditingNotes] = useState<string | null>(null);
+  const [notesInput, setNotesInput] = useState("");
+  const [acting, setActing] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchActions();
-  }, []);
+  useEffect(() => { loadCampaigns(); }, []);
 
-  async function fetchActions() {
-    try {
-      const res = await fetch("/api/agent/actions");
-      const data = await res.json();
-      setActions(data.actions ?? []);
-    } catch {
-      setError("Failed to load actions.");
-    } finally {
-      setLoading(false);
-    }
+  async function loadCampaigns() {
+    setLoading(true);
+    const res = await fetch("/api/review/campaigns");
+    const data = await res.json();
+    setCampaigns(data.campaigns ?? []);
+    setLoading(false);
   }
 
-  async function handleDecision(id: number, decision: "approved" | "rejected") {
-    setProcessing((p) => ({ ...p, [id]: true }));
+  async function handleAction(id: string, action: "approved" | "rejected", notes?: string) {
+    setActing(id);
     try {
-      const res = await fetch(`/api/agent/actions/${id}`, {
+      await fetch(`/api/review/campaigns/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ decision }),
+        body: JSON.stringify({ status: action, notes: notes ?? null }),
       });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Unknown error");
-      }
-      setResolved((r) => ({ ...r, [id]: decision }));
-    } catch (err) {
-      alert(`Error: ${err instanceof Error ? err.message : "Unknown error"}`);
+      await loadCampaigns();
     } finally {
-      setProcessing((p) => ({ ...p, [id]: false }));
+      setActing(null);
+      setEditingNotes(null);
     }
   }
 
-  const pending = actions.filter((a) => !resolved[a.id]);
-  const done = actions.filter((a) => resolved[a.id]);
+  const filtered = filter === "all" ? campaigns : campaigns.filter(c => c.status === filter);
+  const pendingCount = campaigns.filter(c => c.status === "pending").length;
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#0a0f0f",
-        fontFamily: "'DM Mono', 'Fira Mono', monospace",
-        color: "#e8f4f4",
-        padding: "40px 24px",
-      }}
-    >
+    <div style={{ padding: "32px 40px", maxWidth: 900, margin: "0 auto", fontFamily: "'DM Mono','Fira Mono',monospace" }}>
+
       {/* Header */}
-      <div style={{ maxWidth: 760, margin: "0 auto" }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 8 }}>
-          <h1
-            style={{
-              fontSize: 28,
-              fontWeight: 700,
-              color: "#2A8C8A",
-              margin: 0,
-              letterSpacing: "-0.5px",
-              fontFamily: "'DM Mono', monospace",
-            }}
-          >
-            Agent Review
-          </h1>
-          {!loading && (
-            <span
-              style={{
-                fontSize: 13,
-                color: "#4a7a7a",
-                background: "#0f1f1f",
-                border: "1px solid #1a3535",
-                borderRadius: 4,
-                padding: "2px 8px",
-              }}
-            >
-              {pending.length} pending
-            </span>
-          )}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: T.text }}>Campaign Review</h1>
+          <div style={{ fontSize: 12, color: T.muted, marginTop: 4 }}>
+            AI-built campaigns waiting for your approval before going live
+          </div>
         </div>
-        <p style={{ color: "#4a7a7a", fontSize: 13, margin: "0 0 40px" }}>
-          Actions flagged by the agent for your approval before execution.
-        </p>
-
-        {/* Error */}
-        {error && (
-          <div
-            style={{
-              background: "#2a0f0f",
-              border: "1px solid #E8705A44",
-              borderRadius: 8,
-              padding: "14px 18px",
-              color: "#E8705A",
-              marginBottom: 24,
-              fontSize: 13,
-            }}
-          >
-            {error}
+        {pendingCount > 0 && (
+          <div style={{ background: T.accentBg, border: `1px solid ${T.accent}40`, borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, color: T.accent }}>
+            {pendingCount} pending
           </div>
-        )}
-
-        {/* Loading */}
-        {loading && (
-          <div style={{ color: "#4a7a7a", fontSize: 13, padding: "40px 0", textAlign: "center" }}>
-            Loading flagged actions...
-          </div>
-        )}
-
-        {/* Empty state */}
-        {!loading && pending.length === 0 && done.length === 0 && (
-          <div
-            style={{
-              border: "1px dashed #1a3535",
-              borderRadius: 12,
-              padding: "60px 24px",
-              textAlign: "center",
-              color: "#4a7a7a",
-            }}
-          >
-            <div style={{ fontSize: 32, marginBottom: 12 }}>✓</div>
-            <div style={{ fontSize: 14 }}>No actions pending review.</div>
-            <div style={{ fontSize: 12, marginTop: 6 }}>
-              The agent is running clean. Check back after the next loop cycle.
-            </div>
-          </div>
-        )}
-
-        {/* Pending Actions */}
-        {pending.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 40 }}>
-            {pending.map((action) => (
-              <ActionCard
-                key={action.id}
-                action={action}
-                processing={!!processing[action.id]}
-                onApprove={() => handleDecision(action.id, "approved")}
-                onReject={() => handleDecision(action.id, "rejected")}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Resolved this session */}
-        {done.length > 0 && (
-          <>
-            <div
-              style={{
-                fontSize: 11,
-                color: "#2a4a4a",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                marginBottom: 12,
-              }}
-            >
-              Resolved this session
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {done.map((action) => (
-                <div
-                  key={action.id}
-                  style={{
-                    background: "#0d1818",
-                    border: "1px solid #141f1f",
-                    borderRadius: 10,
-                    padding: "14px 18px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    opacity: 0.5,
-                  }}
-                >
-                  <div style={{ fontSize: 13, color: "#4a7a7a" }}>
-                    <span style={{ color: "#2a5a5a", marginRight: 10 }}>
-                      {ACTION_LABELS[action.action_type]}
-                    </span>
-                    {action.ad_set_id}
-                  </div>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color: resolved[action.id] === "approved" ? "#2A8C8A" : "#E8705A",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.08em",
-                    }}
-                  >
-                    {resolved[action.id]}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </>
         )}
       </div>
+
+      {/* Filter tabs */}
+      <div style={{ display: "flex", gap: 2, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: 3, marginBottom: 24, width: "fit-content" }}>
+        {(["pending", "approved", "rejected", "all"] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setFilter(tab)}
+            style={{ padding: "5px 14px", fontSize: 12, borderRadius: 6, border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: filter === tab ? 700 : 400, background: filter === tab ? T.accent : "transparent", color: filter === tab ? "#fff" : T.muted, transition: "all 0.15s", textTransform: "capitalize" }}
+          >
+            {tab}
+            {tab === "pending" && pendingCount > 0 && (
+              <span style={{ marginLeft: 6, background: "#fff", color: T.accent, borderRadius: 8, padding: "0 5px", fontSize: 10, fontWeight: 800 }}>{pendingCount}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Campaign list */}
+      {loading ? (
+        <div style={{ textAlign: "center", color: T.muted, fontSize: 13, padding: "40px 0" }}>Loading…</div>
+      ) : filtered.length === 0 ? (
+        <div style={{ border: `1px dashed ${T.border}`, borderRadius: 10, padding: "60px 0", textAlign: "center", color: T.muted, fontSize: 13 }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>✨</div>
+          {filter === "pending"
+            ? "No campaigns pending review. Ask the AI to build campaigns in the chat and they'll appear here."
+            : `No ${filter} campaigns.`}
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {filtered.map(campaign => {
+            const isPending = campaign.status === "pending";
+            const statusColor = campaign.status === "approved" ? T.healthy : campaign.status === "rejected" ? T.critical : T.warning;
+            return (
+              <div
+                key={campaign.id}
+                style={{ background: T.surface, border: `1px solid ${isPending ? T.accent + "30" : T.border}`, borderRadius: 12, overflow: "hidden" }}
+              >
+                {/* Card header */}
+                <div style={{ padding: "16px 20px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{campaign.campaign_name}</span>
+                      <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 4, background: statusColor + "18", color: statusColor, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>
+                        {campaign.status}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: T.muted, marginTop: 3 }}>
+                      {campaign.client_name} · {timeAgo(campaign.created_at)}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: T.accent }}>${campaign.daily_budget}/day</div>
+                </div>
+
+                {/* Campaign details */}
+                <div style={{ padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                  <Detail label="Objective" value={campaign.objective} />
+                  <Detail label="Daily Budget" value={`$${campaign.daily_budget}/day`} />
+                  <Detail label="Targeting" value={campaign.targeting_summary} />
+                  {campaign.special_ad_category && <Detail label="Special Category" value={campaign.special_ad_category} warn />}
+                </div>
+
+                <div style={{ padding: "0 20px 16px" }}>
+                  <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase" as const, letterSpacing: "0.06em", marginBottom: 6 }}>Ad Copy</div>
+                  <div style={{ fontSize: 13, color: T.text, background: T.surfaceAlt, borderRadius: 8, padding: "12px 14px", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                    {campaign.ad_copy}
+                  </div>
+                </div>
+
+                {campaign.creative_description && (
+                  <div style={{ padding: "0 20px 16px" }}>
+                    <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase" as const, letterSpacing: "0.06em", marginBottom: 6 }}>Creative</div>
+                    <div style={{ fontSize: 13, color: T.muted, background: T.surfaceAlt, borderRadius: 8, padding: "10px 14px" }}>
+                      {campaign.creative_description}
+                    </div>
+                  </div>
+                )}
+
+                {campaign.notes && (
+                  <div style={{ margin: "0 20px 16px", padding: "10px 14px", background: "rgba(255,77,77,0.06)", border: "1px solid rgba(255,77,77,0.15)", borderRadius: 8, fontSize: 12, color: T.muted }}>
+                    <span style={{ color: T.critical, fontWeight: 600 }}>Notes: </span>{campaign.notes}
+                  </div>
+                )}
+
+                {/* Actions */}
+                {isPending && (
+                  <div style={{ padding: "12px 20px 16px", borderTop: `1px solid ${T.border}`, display: "flex", gap: 8 }}>
+                    <button
+                      onClick={() => handleAction(campaign.id, "approved")}
+                      disabled={acting === campaign.id}
+                      style={{ flex: 1, padding: "9px 0", fontSize: 12, fontWeight: 700, borderRadius: 7, border: "none", background: T.healthy + "18", color: T.healthy, cursor: acting === campaign.id ? "not-allowed" : "pointer", fontFamily: "inherit" }}
+                    >
+                      {acting === campaign.id ? "…" : "✓ Approve & Launch"}
+                    </button>
+                    <button
+                      onClick={() => { setEditingNotes(campaign.id); setNotesInput(""); }}
+                      disabled={acting === campaign.id}
+                      style={{ flex: 1, padding: "9px 0", fontSize: 12, fontWeight: 600, borderRadius: 7, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, cursor: "pointer", fontFamily: "inherit" }}
+                    >
+                      ✏️ Request Changes
+                    </button>
+                    <button
+                      onClick={() => { setEditingNotes(`reject:${campaign.id}`); setNotesInput(""); }}
+                      disabled={acting === campaign.id}
+                      style={{ flex: 1, padding: "9px 0", fontSize: 12, fontWeight: 600, borderRadius: 7, border: `1px solid rgba(255,77,77,0.2)`, background: "rgba(255,77,77,0.06)", color: T.critical, cursor: "pointer", fontFamily: "inherit" }}
+                    >
+                      ✕ Reject
+                    </button>
+                  </div>
+                )}
+
+                {/* Notes input for changes/reject */}
+                {(editingNotes === campaign.id || editingNotes === `reject:${campaign.id}`) && (
+                  <div style={{ padding: "0 20px 16px" }}>
+                    <textarea
+                      value={notesInput}
+                      onChange={e => setNotesInput(e.target.value)}
+                      placeholder={editingNotes === `reject:${campaign.id}` ? "Why are you rejecting this campaign?" : "What needs to change?"}
+                      rows={3}
+                      autoFocus
+                      style={{ width: "100%", background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, color: T.text, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" as const }}
+                    />
+                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                      <button
+                        onClick={() => handleAction(campaign.id, "rejected", notesInput)}
+                        style={{ padding: "7px 18px", fontSize: 12, fontWeight: 600, borderRadius: 7, border: "none", background: editingNotes === `reject:${campaign.id}` ? T.critical + "20" : T.accentBg, color: editingNotes === `reject:${campaign.id}` ? T.critical : T.accent, cursor: "pointer", fontFamily: "inherit" }}
+                      >
+                        {editingNotes === `reject:${campaign.id}` ? "Reject" : "Send for Changes"}
+                      </button>
+                      <button
+                        onClick={() => setEditingNotes(null)}
+                        style={{ padding: "7px 14px", fontSize: 12, borderRadius: 7, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, cursor: "pointer", fontFamily: "inherit" }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
 
-// ─── Action Card ──────────────────────────────────────────────────────────────
-
-function ActionCard({
-  action,
-  processing,
-  onApprove,
-  onReject,
-}: {
-  action: AgentAction;
-  processing: boolean;
-  onApprove: () => void;
-  onReject: () => void;
-}) {
-  const color = ACTION_COLORS[action.action_type] ?? "#2A8C8A";
-
+function Detail({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
   return (
-    <div
-      style={{
-        background: "#0d1818",
-        border: "1px solid #1a2f2f",
-        borderLeft: `3px solid ${color}`,
-        borderRadius: 10,
-        padding: "18px 20px",
-        transition: "border-color 0.2s",
-      }}
-    >
-      {/* Top row */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 10,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color,
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              background: `${color}18`,
-              border: `1px solid ${color}33`,
-              borderRadius: 4,
-              padding: "2px 8px",
-            }}
-          >
-            {ACTION_LABELS[action.action_type]}
-          </span>
-          {action.vertical && (
-            <span
-              style={{
-                fontSize: 11,
-                color: "#4a7a7a",
-                background: "#0f1f1f",
-                border: "1px solid #1a3535",
-                borderRadius: 4,
-                padding: "2px 8px",
-              }}
-            >
-              {action.vertical}
-            </span>
-          )}
-        </div>
-        <span style={{ fontSize: 11, color: "#2a4a4a" }}>{timeAgo(action.created_at)}</span>
-      </div>
-
-      {/* Ad Set ID */}
-      <div style={{ fontSize: 12, color: "#2A8C8A", marginBottom: 6, fontFamily: "monospace" }}>
-        {action.ad_set_id}
-      </div>
-
-      {/* Details */}
-      <div style={{ fontSize: 13, color: "#8ab8b8", marginBottom: 16 }}>
-        {formatDetails(action)}
-      </div>
-
-      {/* Buttons */}
-      <div style={{ display: "flex", gap: 8 }}>
-        <button
-          onClick={onApprove}
-          disabled={processing}
-          style={{
-            flex: 1,
-            padding: "9px 0",
-            background: processing ? "#0f2020" : "#0B5C5C",
-            border: "1px solid #2A8C8A44",
-            borderRadius: 6,
-            color: processing ? "#4a7a7a" : "#e8f4f4",
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: processing ? "not-allowed" : "pointer",
-            fontFamily: "'DM Mono', monospace",
-            transition: "background 0.15s",
-          }}
-        >
-          {processing ? "Executing..." : "✓ Approve"}
-        </button>
-        <button
-          onClick={onReject}
-          disabled={processing}
-          style={{
-            flex: 1,
-            padding: "9px 0",
-            background: "transparent",
-            border: "1px solid #E8705A44",
-            borderRadius: 6,
-            color: processing ? "#4a7a7a" : "#E8705A",
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: processing ? "not-allowed" : "pointer",
-            fontFamily: "'DM Mono', monospace",
-            transition: "all 0.15s",
-          }}
-        >
-          ✕ Reject
-        </button>
-      </div>
+    <div>
+      <div style={{ fontSize: 10, color: T.muted, textTransform: "uppercase" as const, letterSpacing: "0.06em", marginBottom: 3 }}>{label}</div>
+      <div style={{ fontSize: 13, color: warn ? T.warning : T.text }}>{value}</div>
     </div>
   );
 }

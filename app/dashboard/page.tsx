@@ -437,7 +437,7 @@ export default function DashboardPage() {
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ campaignId: rec.targetCampaignId, clientId: rec.clientId }),
+        body: JSON.stringify({ campaignId: rec.targetCampaignId, clientId: rec.clientId, campaignName: rec.targetCampaignName }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Action failed");
