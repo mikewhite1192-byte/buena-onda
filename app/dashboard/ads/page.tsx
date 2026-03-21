@@ -829,8 +829,7 @@ function AdCreatorOverlay({ client, onClose }: {
     } finally {
       setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, loading, client]);
+  }, [messages, loading, client, creative]);
 
   // Auto-start the conversation
   useEffect(() => {
