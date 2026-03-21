@@ -303,6 +303,10 @@ export default function CampaignsPage() {
   const [timeseries, setTimeseries] = useState<TimeseriesPoint[]>([]);
   const [tsLoading, setTsLoading] = useState(false);
   const [chartMetric, setChartMetric] = useState<"spend" | "leads" | "cpl" | "roas" | "purchases" | "cpa">("spend");
+  const isEcomm = activeClient?.vertical === "ecomm";
+
+  // Reset chart metric when switching between leads and ecomm clients
+  useEffect(() => { setChartMetric("spend"); }, [isEcomm]);
 
   const defaultCols = activeClient?.vertical === "ecomm" ? ECOMM_DEFAULT_COLUMNS : LEADS_DEFAULT_COLUMNS;
   const [visibleCols, setVisibleCols] = useState<Set<string>>(new Set(defaultCols));
@@ -563,7 +567,7 @@ export default function CampaignsPage() {
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#e8eaf0" }}>Trend Over Time</div>
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const }}>
-                    {(activeClient?.vertical === "ecomm"
+                    {(isEcomm
                       ? ([
                           { key: "spend"     as typeof chartMetric, label: "Spend",     color: "#f5a623" },
                           { key: "purchases" as typeof chartMetric, label: "Purchases", color: "#7b8cde" },
