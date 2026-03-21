@@ -252,6 +252,7 @@ export default function DashboardPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loadingClients, setLoadingClients] = useState(true);
   const [allMetrics, setAllMetrics] = useState<Record<string, ClientMetrics>>({});
+  const [loadingDemo, setLoadingDemo] = useState(false);
 
   useEffect(() => {
     fetch("/api/clients")
@@ -263,6 +264,18 @@ export default function DashboardPage() {
   const handleMetricsLoaded = useCallback((id: string, m: ClientMetrics) => {
     setAllMetrics(prev => ({ ...prev, [id]: m }));
   }, []);
+
+  async function loadDemo() {
+    setLoadingDemo(true);
+    try {
+      await fetch("/api/demo/seed", { method: "POST" });
+      const res = await fetch("/api/clients");
+      const data = await res.json();
+      setClients(data.clients ?? []);
+    } finally {
+      setLoadingDemo(false);
+    }
+  }
 
   function handleSelectClient(client: Client) {
     setActiveClient({
@@ -315,12 +328,21 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          <a
-            href="/dashboard/clients"
-            style={{ display: "inline-block", padding: "13px 32px", borderRadius: 10, background: "rgba(245,166,35,0.15)", border: "1px solid rgba(245,166,35,0.4)", color: T.accent, fontSize: 13, fontWeight: 700, textDecoration: "none", fontFamily: "inherit" }}
-          >
-            Add Your First Client →
-          </a>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+            <a
+              href="/dashboard/clients"
+              style={{ display: "inline-block", padding: "13px 32px", borderRadius: 10, background: "rgba(245,166,35,0.15)", border: "1px solid rgba(245,166,35,0.4)", color: T.accent, fontSize: 13, fontWeight: 700, textDecoration: "none", fontFamily: "inherit" }}
+            >
+              Add Your First Client →
+            </a>
+            <button
+              onClick={loadDemo}
+              disabled={loadingDemo}
+              style={{ padding: "13px 24px", borderRadius: 10, background: "transparent", border: `1px solid ${T.border}`, color: T.muted, fontSize: 13, fontWeight: 600, cursor: loadingDemo ? "not-allowed" : "pointer", fontFamily: "inherit" }}
+            >
+              {loadingDemo ? "Loading…" : "🎯 Try Demo"}
+            </button>
+          </div>
         </div>
       </div>
     );

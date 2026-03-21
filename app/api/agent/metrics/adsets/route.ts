@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { ALL_API_FIELDS } from "@/lib/meta/metric-definitions";
+import { isDemoAccount, getDemoAdSets } from "@/lib/demo-data";
 
 const META_BASE_URL = "https://graph.facebook.com/v21.0";
 
@@ -14,11 +15,18 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const campaignId = searchParams.get("campaignId");
+  const adAccountId = searchParams.get("ad_account_id");
   const today = new Date().toISOString().split("T")[0];
   const startDate = searchParams.get("startDate") ?? new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0];
   const endDate = searchParams.get("endDate") ?? today;
 
   if (!campaignId) return NextResponse.json({ error: "campaignId required" }, { status: 400 });
+
+  // Demo mode
+  const normalizedAccount = adAccountId?.startsWith("act_") ? adAccountId : adAccountId ? `act_${adAccountId}` : null;
+  if (isDemoAccount(normalizedAccount) || campaignId.startsWith("demo_")) {
+    return NextResponse.json({ ad_sets: getDemoAdSets(campaignId) });
+  }
 
   const token = process.env.META_ACCESS_TOKEN;
   if (!token) return NextResponse.json({ error: "Missing META_ACCESS_TOKEN" }, { status: 500 });

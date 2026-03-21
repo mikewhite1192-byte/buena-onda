@@ -12,7 +12,7 @@ export async function GET() {
   const rows = await sql`
     SELECT id, name, meta_ad_account_id, meta_page_id, vertical, status,
            whatsapp_number, notes, created_at,
-           CASE WHEN meta_access_token IS NOT NULL AND meta_token_expires_at > NOW() THEN true ELSE false END as meta_connected,
+           CASE WHEN (meta_access_token IS NOT NULL AND meta_token_expires_at > NOW()) OR meta_ad_account_id LIKE 'act_demo%' THEN true ELSE false END as meta_connected,
            meta_token_expires_at
     FROM clients
     WHERE owner_id = ${userId}

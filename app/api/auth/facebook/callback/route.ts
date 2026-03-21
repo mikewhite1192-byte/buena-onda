@@ -50,29 +50,43 @@ export async function GET(req: NextRequest) {
     const expiresIn = (llData.expires_in as number) ?? 5184000; // default 60 days
     const expiresAt = new Date(Date.now() + expiresIn * 1000);
 
-    // Auto-discover ad account if client doesn't have one
-    const acctRes = await fetch(
-      `https://graph.facebook.com/v21.0/me/adaccounts?fields=id,name,account_status&access_token=${longToken}&limit=10`
-    );
-    const acctData = await acctRes.json();
-    const activeAccounts = (acctData.data ?? []).filter((a: { account_status: number }) => a.account_status === 1);
+    // Auto-discover ad accounts and pages
+    const [acctRes, pagesRes] = await Promise.all([
+      fetch(`https://graph.facebook.com/v21.0/me/adaccounts?fields=id,name,account_status&access_token=${longToken}&limit=25`),
+      fetch(`https://graph.facebook.com/v21.0/me/accounts?fields=id,name,access_token&access_token=${longToken}&limit=25`),
+    ]);
+    const [acctData, pagesData] = await Promise.all([acctRes.json(), pagesRes.json()]);
 
-    // Save token to DB; auto-fill ad account if only one active and field is empty
+    const activeAccounts = (acctData.data ?? []).filter((a: { account_status: number }) => a.account_status === 1);
+    const pages = pagesData.data ?? [];
+
+    // Auto-fill page ID if only one page
+    const autoPageId = pages.length === 1 ? pages[0].id : null;
+
+    // Save token + auto-fill where possible
     if (activeAccounts.length === 1) {
       await sql`
         UPDATE clients SET
           meta_access_token = ${longToken},
           meta_token_expires_at = ${expiresAt.toISOString()},
-          meta_ad_account_id = COALESCE(NULLIF(meta_ad_account_id, ''), ${activeAccounts[0].id})
+          meta_ad_account_id = COALESCE(NULLIF(meta_ad_account_id, ''), ${activeAccounts[0].id}),
+          meta_page_id = COALESCE(NULLIF(meta_page_id, ''), ${autoPageId})
         WHERE id = ${clientId}
       `;
     } else {
       await sql`
         UPDATE clients SET
           meta_access_token = ${longToken},
-          meta_token_expires_at = ${expiresAt.toISOString()}
+          meta_token_expires_at = ${expiresAt.toISOString()},
+          meta_page_id = COALESCE(NULLIF(meta_page_id, ''), ${autoPageId})
         WHERE id = ${clientId}
       `;
+    }
+
+    // If multiple ad accounts, send them back so user can pick
+    if (activeAccounts.length > 1) {
+      const encoded = Buffer.from(JSON.stringify(activeAccounts)).toString("base64url");
+      return NextResponse.redirect(`${BASE_URL}/dashboard/clients?connected=${clientId}&accounts=${encoded}`);
     }
 
     return NextResponse.redirect(`${BASE_URL}/dashboard/clients?connected=${clientId}`);

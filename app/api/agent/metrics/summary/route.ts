@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { neon } from "@neondatabase/serverless";
+import { isDemoAccount, getDemoSummary } from "@/lib/demo-data";
 
 const sql = neon(process.env.DATABASE_URL!);
 
@@ -12,6 +13,12 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const adAccountId = searchParams.get("ad_account_id");
   const days = parseInt(searchParams.get("days") ?? "30");
+
+  // Demo mode
+  const normalizedAccount = adAccountId?.startsWith("act_") ? adAccountId : adAccountId ? `act_${adAccountId}` : null;
+  if (isDemoAccount(normalizedAccount)) {
+    return NextResponse.json(getDemoSummary(normalizedAccount!));
+  }
 
   // Latest snapshot per ad set, then aggregate
   const summary = await sql`

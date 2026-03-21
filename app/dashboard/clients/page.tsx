@@ -17,6 +17,12 @@ interface Client {
   meta_token_expires_at: string | null;
 }
 
+interface AdAccount {
+  id: string;
+  name: string;
+  account_status: number;
+}
+
 function getTokenStatus(c: Client): "connected" | "expiring" | "disconnected" {
   if (!c.meta_connected) return "disconnected";
   if (c.meta_token_expires_at) {
@@ -42,25 +48,39 @@ const VERTICAL_COLORS = { leads: "#f5a623", ecomm: "#8B6FE8" };
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingDemo, setLoadingDemo] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  // Account picker for multiple ad accounts discovered via OAuth
+  const [accountPickerClientId, setAccountPickerClientId] = useState<string | null>(null);
+  const [discoveredAccounts, setDiscoveredAccounts] = useState<AdAccount[]>([]);
+  const [pickingAccount, setPickingAccount] = useState(false);
 
   useEffect(() => {
     loadClients();
     // Handle OAuth callback params
     const params = new URLSearchParams(window.location.search);
     const connected = params.get("connected");
+    const accounts = params.get("accounts");
     const oauthError = params.get("error");
-    if (connected) {
-      setSuccessMsg("Facebook account connected successfully.");
-      window.history.replaceState({}, "", window.location.pathname);
+    window.history.replaceState({}, "", window.location.pathname);
+    if (connected && accounts) {
+      try {
+        const decoded = JSON.parse(Buffer.from(accounts, "base64").toString()) as AdAccount[];
+        setAccountPickerClientId(connected);
+        setDiscoveredAccounts(decoded);
+        setSuccessMsg("Facebook connected! Select which ad account to use.");
+      } catch {
+        setSuccessMsg("Facebook account connected successfully.");
+      }
+    } else if (connected) {
+      setSuccessMsg("Facebook account connected and ad account auto-detected.");
     } else if (oauthError) {
       setError(`Facebook connection failed: ${oauthError}`);
-      window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
 
@@ -143,6 +163,39 @@ export default function ClientsPage() {
     }
   }
 
+  async function loadDemo() {
+    setLoadingDemo(true);
+    try {
+      await fetch("/api/demo/seed", { method: "POST" });
+      await loadClients();
+      setSuccessMsg("Demo account loaded — explore with sample data.");
+    } catch {
+      setError("Failed to load demo");
+    } finally {
+      setLoadingDemo(false);
+    }
+  }
+
+  async function selectAdAccount(accountId: string) {
+    if (!accountPickerClientId) return;
+    setPickingAccount(true);
+    try {
+      await fetch(`/api/clients/${accountPickerClientId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ meta_ad_account_id: accountId }),
+      });
+      setAccountPickerClientId(null);
+      setDiscoveredAccounts([]);
+      setSuccessMsg("Ad account saved successfully.");
+      await loadClients();
+    } catch {
+      setError("Failed to save ad account");
+    } finally {
+      setPickingAccount(false);
+    }
+  }
+
   async function toggleStatus(c: Client) {
     const next = c.status === "active" ? "paused" : "active";
     try {
@@ -169,22 +222,40 @@ export default function ClientsPage() {
             {clients.length} client{clients.length !== 1 ? "s" : ""}
           </div>
         </div>
-        <button
-          onClick={openAdd}
-          style={{
-            background: "#f5a623",
-            color: "#fff",
-            border: "none",
-            borderRadius: 7,
-            padding: "8px 18px",
-            fontSize: 13,
-            fontWeight: 600,
-            fontFamily: "'DM Mono', 'Fira Mono', monospace",
-            cursor: "pointer",
-          }}
-        >
-          + Add Client
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={loadDemo}
+            disabled={loadingDemo}
+            style={{
+              background: "transparent",
+              border: "1px solid #2a3a2a",
+              borderRadius: 7,
+              padding: "8px 14px",
+              fontSize: 12,
+              color: "#4ade80",
+              cursor: loadingDemo ? "not-allowed" : "pointer",
+              fontFamily: "'DM Mono', 'Fira Mono', monospace",
+            }}
+          >
+            {loadingDemo ? "Loading..." : "🎯 Demo"}
+          </button>
+          <button
+            onClick={openAdd}
+            style={{
+              background: "#f5a623",
+              color: "#fff",
+              border: "none",
+              borderRadius: 7,
+              padding: "8px 18px",
+              fontSize: 13,
+              fontWeight: 600,
+              fontFamily: "'DM Mono', 'Fira Mono', monospace",
+              cursor: "pointer",
+            }}
+          >
+            + Add Client
+          </button>
+        </div>
       </div>
 
       {/* Success banner */}
@@ -214,6 +285,24 @@ export default function ClientsPage() {
           fontSize: 13,
         }}>
           No clients yet. Add your first client to get started.
+          <div style={{ marginTop: 20 }}>
+            <button
+              onClick={loadDemo}
+              disabled={loadingDemo}
+              style={{
+                background: "transparent",
+                border: "1px solid #2a3a2a",
+                borderRadius: 7,
+                padding: "7px 16px",
+                fontSize: 12,
+                color: "#4ade80",
+                cursor: loadingDemo ? "not-allowed" : "pointer",
+                fontFamily: "'DM Mono', 'Fira Mono', monospace",
+              }}
+            >
+              {loadingDemo ? "Loading..." : "🎯 Try with demo data"}
+            </button>
+          </div>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -240,6 +329,11 @@ export default function ClientsPage() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ fontSize: 14, fontWeight: 600, color: "#e8eaf0" }}>{c.name}</span>
+                  {c.meta_ad_account_id === "act_demo" && (
+                    <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 4, background: "#0a2a0a", color: "#4ade80", fontWeight: 700, letterSpacing: "0.06em" }}>
+                      DEMO
+                    </span>
+                  )}
                   <span style={{
                     fontSize: 10,
                     padding: "2px 7px",
@@ -348,6 +442,53 @@ export default function ClientsPage() {
         </div>
       )}
 
+      {/* Account Picker Modal */}
+      {accountPickerClientId && discoveredAccounts.length > 0 && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={(e) => { if (e.target === e.currentTarget) { setAccountPickerClientId(null); setDiscoveredAccounts([]); } }}
+        >
+          <div style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "28px 32px", width: 480, maxWidth: "90vw" }}>
+            <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 700, color: "#e8eaf0", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
+              Select Ad Account
+            </h2>
+            <p style={{ margin: "0 0 20px", fontSize: 12, color: "#8b8fa8", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
+              Multiple active ad accounts found. Choose which one to use for this client.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {discoveredAccounts.map((acct) => (
+                <button
+                  key={acct.id}
+                  onClick={() => selectAdAccount(acct.id)}
+                  disabled={pickingAccount}
+                  style={{
+                    background: "#0d0f14",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: 8,
+                    padding: "12px 16px",
+                    cursor: pickingAccount ? "not-allowed" : "pointer",
+                    textAlign: "left",
+                    fontFamily: "'DM Mono', 'Fira Mono', monospace",
+                    transition: "border-color 0.15s",
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = "#f5a623")}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)")}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#e8eaf0" }}>{acct.name}</div>
+                  <div style={{ fontSize: 11, color: "#8b8fa8", marginTop: 2 }}>{acct.id}</div>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => { setAccountPickerClientId(null); setDiscoveredAccounts([]); }}
+              style={{ marginTop: 16, background: "transparent", border: "none", color: "#8b8fa8", fontSize: 12, cursor: "pointer", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}
+            >
+              Skip for now
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Add/Edit Form Modal */}
       {showForm && (
         <div
@@ -386,7 +527,7 @@ export default function ClientsPage() {
                 />
               </Field>
 
-              <Field label="Meta Ad Account ID" hint="Found in Meta Business Suite → Ad Accounts">
+              <Field label="Meta Ad Account ID" hint="Optional — auto-discovered when you connect Facebook. Or find it in Meta Business Suite → Ad Accounts">
                 <input
                   value={form.meta_ad_account_id}
                   onChange={(e) => setForm({ ...form, meta_ad_account_id: e.target.value })}
@@ -395,7 +536,7 @@ export default function ClientsPage() {
                 />
               </Field>
 
-              <Field label="Facebook Page ID" hint="Found on your Facebook Page → About (bottom of page)">
+              <Field label="Facebook Page ID" hint="Optional — auto-discovered when you connect Facebook. Or find it on your Facebook Page → About">
                 <input
                   value={form.meta_page_id}
                   onChange={(e) => setForm({ ...form, meta_page_id: e.target.value })}

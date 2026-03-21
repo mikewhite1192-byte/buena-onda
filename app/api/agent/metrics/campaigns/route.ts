@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { ALL_API_FIELDS } from "@/lib/meta/metric-definitions";
 import getDb from "@/lib/db";
+import { isDemoAccount, getDemoCampaigns } from "@/lib/demo-data";
 
 const META_BASE_URL = "https://graph.facebook.com/v21.0";
 
@@ -19,6 +20,12 @@ export async function GET(req: NextRequest) {
   const endDate = searchParams.get("endDate") ?? today;
   const adAccountIdParam = searchParams.get("ad_account_id");
   const clientId = searchParams.get("client_id");
+
+  // Demo mode — return static data instantly
+  const normalizedParam = adAccountIdParam?.startsWith("act_") ? adAccountIdParam : adAccountIdParam ? `act_${adAccountIdParam}` : null;
+  if (isDemoAccount(normalizedParam)) {
+    return NextResponse.json({ campaigns: getDemoCampaigns(normalizedParam!) });
+  }
 
   // Resolve token — use client's stored token if available, fall back to env var
   let token = process.env.META_ACCESS_TOKEN ?? "";
