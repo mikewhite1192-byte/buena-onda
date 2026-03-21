@@ -304,8 +304,22 @@ async function executeTool(
 
   // ── List lead forms ───────────────────────────────────────────────────────
   if (name === "list_lead_forms") {
-    const pageId = ((input.page_id as string | undefined) ?? clientInfo?.meta_page_id ?? process.env.META_PAGE_ID ?? "").trim();
-    if (!pageId) return "No page ID available. Provide it or set META_PAGE_ID.";
+    let pageId = ((input.page_id as string | undefined) ?? clientInfo?.meta_page_id ?? process.env.META_PAGE_ID ?? "").trim();
+
+    // Auto-resolve page ID from the ad account if not explicitly set
+    if (!pageId && clientInfo?.meta_ad_account_id) {
+      try {
+        const acct = clientInfo.meta_ad_account_id.startsWith("act_") ? clientInfo.meta_ad_account_id : `act_${clientInfo.meta_ad_account_id}`;
+        const url = new URL(`https://graph.facebook.com/v21.0/${acct}/promote_pages`);
+        url.searchParams.set("fields", "id,name");
+        url.searchParams.set("access_token", metaToken ?? "");
+        const res = await fetch(url.toString(), { cache: "no-store" });
+        const data = await res.json();
+        pageId = data?.data?.[0]?.id ?? "";
+      } catch { /* fall through */ }
+    }
+
+    if (!pageId) return "I couldn't find a Facebook Page linked to this ad account. Add your Page ID in Clients settings and try again.";
     const r = await listLeadForms(pageId, metaToken);
     if (!r.ok) return `Failed to fetch lead forms: ${r.error}`;
     if (r.data.length === 0) return "No instant forms found on this page. Create one in Meta Ads Manager under your Page → Instant Forms.";
