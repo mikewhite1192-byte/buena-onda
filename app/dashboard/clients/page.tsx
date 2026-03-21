@@ -18,6 +18,7 @@ interface Client {
   cpl_target: number | null;
   roas_target: number | null;
   monthly_budget: number | null;
+  website_url: string | null;
 }
 
 interface AdAccount {
@@ -47,6 +48,7 @@ const EMPTY_FORM = {
   cpl_target: "",
   roas_target: "",
   monthly_budget: "",
+  website_url: "",
 };
 
 const VERTICAL_COLORS = { leads: "#f5a623", ecomm: "#8B6FE8" };
@@ -131,6 +133,7 @@ export default function ClientsPage() {
       cpl_target: c.cpl_target != null ? String(c.cpl_target) : "",
       roas_target: c.roas_target != null ? String(c.roas_target) : "",
       monthly_budget: c.monthly_budget != null ? String(c.monthly_budget) : "",
+      website_url: c.website_url ?? "",
     });
     setEditingId(c.id);
     setShowForm(true);
@@ -604,6 +607,15 @@ export default function ClientsPage() {
                   value={form.meta_page_id}
                   onChange={(e) => setForm({ ...form, meta_page_id: e.target.value })}
                   placeholder="123456789012345"
+                  style={inputStyle}
+                />
+              </Field>
+
+              <Field label="Website URL" hint="Used automatically on all ads — Meta requires an external URL even for lead gen campaigns">
+                <input
+                  value={form.website_url}
+                  onChange={(e) => setForm({ ...form, website_url: e.target.value })}
+                  placeholder="https://coveredbymike.com"
                   style={inputStyle}
                 />
               </Field>

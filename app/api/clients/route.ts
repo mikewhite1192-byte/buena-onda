@@ -13,13 +13,14 @@ export async function GET() {
     ALTER TABLE clients
       ADD COLUMN IF NOT EXISTS cpl_target     DECIMAL(10,2),
       ADD COLUMN IF NOT EXISTS roas_target    DECIMAL(10,2),
-      ADD COLUMN IF NOT EXISTS monthly_budget DECIMAL(12,2)
+      ADD COLUMN IF NOT EXISTS monthly_budget DECIMAL(12,2),
+      ADD COLUMN IF NOT EXISTS website_url    TEXT
   `;
 
   const rows = await sql`
     SELECT id, name, meta_ad_account_id, meta_page_id, vertical, status,
            whatsapp_number, notes, created_at,
-           cpl_target, roas_target, monthly_budget,
+           cpl_target, roas_target, monthly_budget, website_url,
            CASE WHEN (meta_access_token IS NOT NULL AND meta_token_expires_at > NOW()) OR meta_ad_account_id LIKE 'act_demo%' THEN true ELSE false END as meta_connected,
            meta_token_expires_at
     FROM clients
@@ -36,14 +37,14 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { name, meta_ad_account_id, meta_page_id, vertical, whatsapp_number, notes, status } = body;
+  const { name, meta_ad_account_id, meta_page_id, vertical, whatsapp_number, notes, status, website_url } = body;
 
   if (!name?.trim()) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
   }
 
   const rows = await sql`
-    INSERT INTO clients (owner_id, name, meta_ad_account_id, meta_page_id, vertical, whatsapp_number, notes, status)
+    INSERT INTO clients (owner_id, name, meta_ad_account_id, meta_page_id, vertical, whatsapp_number, notes, status, website_url)
     VALUES (
       ${userId},
       ${name.trim()},
@@ -52,9 +53,10 @@ export async function POST(req: NextRequest) {
       ${vertical ?? "leads"},
       ${whatsapp_number ?? null},
       ${notes ?? null},
-      ${status ?? "active"}
+      ${status ?? "active"},
+      ${website_url ?? null}
     )
-    RETURNING id, name, meta_ad_account_id, meta_page_id, vertical, status, whatsapp_number, notes, created_at
+    RETURNING id, name, meta_ad_account_id, meta_page_id, vertical, status, whatsapp_number, notes, created_at, website_url
   `;
 
   return NextResponse.json({ client: rows[0] }, { status: 201 });

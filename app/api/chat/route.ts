@@ -202,7 +202,7 @@ const TOOLS: Anthropic.Tool[] = [
 async function executeTool(
   name: string,
   input: Record<string, unknown>,
-  clientInfo?: { meta_ad_account_id?: string; meta_page_id?: string; meta_access_token?: string },
+  clientInfo?: { meta_ad_account_id?: string; meta_page_id?: string; meta_access_token?: string; website_url?: string },
   imageHash?: string | null,
   context?: { userId?: string; clientId?: string },
 ): Promise<string> {
@@ -395,9 +395,15 @@ async function executeTool(
     if (!adAccountId) return "No Meta Ad Account ID found. Select a client or set META_AD_ACCOUNT_ID.";
 
     const isLeadGen = !!lead_form_id;
-    if (!destination_url || String(destination_url).includes("facebook.com") || String(destination_url).includes("fb.com")) {
-      return "destination_url must be an external website URL (not Facebook). Please ask the user for their landing page or website URL (e.g. https://coveredbymike.com/life-insurance).";
+    // Fall back to client's saved website_url if AI didn't pass one
+    const resolved_destination = (destination_url && !String(destination_url).includes("facebook.com") && !String(destination_url).includes("fb.com"))
+      ? destination_url as string
+      : clientInfo?.website_url ?? null;
+    if (!resolved_destination) {
+      return "destination_url is required. Ask the user for their website or landing page URL (e.g. https://coveredbymike.com). It will be saved to their client profile so you never need to ask again.";
     }
+    // Use the resolved URL for all downstream calls
+    (input as Record<string, unknown>).destination_url = resolved_destination;
 
     const specialCats = (special_ad_categories as string[] | undefined) ?? [];
     const creativeStr = creative_url as string;
@@ -574,7 +580,7 @@ export async function POST(req: NextRequest) {
       LIMIT 10
     ` : Promise.resolve([]),
     clientId ? sql`
-      SELECT name, vertical, meta_ad_account_id, meta_page_id, meta_access_token FROM clients WHERE id = ${clientId} LIMIT 1
+      SELECT name, vertical, meta_ad_account_id, meta_page_id, meta_access_token, website_url FROM clients WHERE id = ${clientId} LIMIT 1
     ` : Promise.resolve([]),
     clientId ? sql`
       SELECT id, rule_text, category FROM client_rules
@@ -583,7 +589,7 @@ export async function POST(req: NextRequest) {
     `.catch(() => []) : Promise.resolve([]),
   ]);
 
-  const clientInfo = client?.[0] as { name: string; vertical: string; meta_ad_account_id: string; meta_page_id?: string; meta_access_token?: string } | undefined;
+  const clientInfo = client?.[0] as { name: string; vertical: string; meta_ad_account_id: string; meta_page_id?: string; meta_access_token?: string; website_url?: string } | undefined;
 
   const encoder = new TextEncoder();
   function sseChunk(text: string) {

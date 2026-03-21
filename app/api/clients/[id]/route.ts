@@ -14,7 +14,7 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await req.json();
-  const { name, meta_ad_account_id, meta_page_id, vertical, whatsapp_number, notes, status, cpl_target, roas_target, monthly_budget } = body;
+  const { name, meta_ad_account_id, meta_page_id, vertical, whatsapp_number, notes, status, cpl_target, roas_target, monthly_budget, website_url } = body;
 
   const rows = await sql`
     UPDATE clients SET
@@ -25,11 +25,12 @@ export async function PATCH(
       whatsapp_number    = COALESCE(${whatsapp_number ?? null}, whatsapp_number),
       notes              = COALESCE(${notes ?? null}, notes),
       status             = COALESCE(${status ?? null}, status),
+      website_url        = COALESCE(${website_url ?? null}, website_url),
       cpl_target         = CASE WHEN ${cpl_target ?? null}::decimal IS NOT NULL THEN ${cpl_target ?? null}::decimal ELSE cpl_target END,
       roas_target        = CASE WHEN ${roas_target ?? null}::decimal IS NOT NULL THEN ${roas_target ?? null}::decimal ELSE roas_target END,
       monthly_budget     = CASE WHEN ${monthly_budget ?? null}::decimal IS NOT NULL THEN ${monthly_budget ?? null}::decimal ELSE monthly_budget END
     WHERE id = ${id} AND owner_id = ${userId}
-    RETURNING id, name, meta_ad_account_id, meta_page_id, vertical, status, whatsapp_number, notes, created_at, cpl_target, roas_target, monthly_budget
+    RETURNING id, name, meta_ad_account_id, meta_page_id, vertical, status, whatsapp_number, notes, created_at, cpl_target, roas_target, monthly_budget, website_url
   `;
 
   if (rows.length === 0) {
