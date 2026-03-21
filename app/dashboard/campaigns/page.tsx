@@ -184,6 +184,71 @@ function BudgetPacingCard({ spend, budget }: { spend: number; budget: number | n
   );
 }
 
+// ─── Aggregate all campaigns into one synthetic MetricRow for stat cards ──────
+
+type AggRow = MetricRow & { raw_metrics: Record<string, unknown> };
+
+function buildAggregateRow(campaigns: CampaignMetric[]): AggRow {
+  const spend       = campaigns.reduce((s, c) => s + c.spend, 0);
+  const impressions = campaigns.reduce((s, c) => s + c.impressions, 0);
+  const clicks      = campaigns.reduce((s, c) => s + c.clicks, 0);
+  const leads       = campaigns.reduce((s, c) => s + c.leads, 0);
+  const cpl         = leads > 0 ? spend / leads : 0;
+  const frequency   = campaigns.length > 0 ? campaigns.reduce((s, c) => s + c.frequency, 0) / campaigns.length : 0;
+  const ctr         = campaigns.length > 0 ? campaigns.reduce((s, c) => s + c.ctr, 0) / campaigns.length : 0;
+  const cpm         = impressions > 0 ? (spend / impressions) * 1000 : 0;
+  const cpc         = clicks > 0 ? spend / clicks : 0;
+
+  type ActionRow = { action_type: string; value: string };
+  const actionsMap: Record<string, number> = {};
+  const actionValuesMap: Record<string, number> = {};
+  const videoSumMap: Record<string, Record<string, number>> = {};
+  let reach = 0;
+
+  for (const c of campaigns) {
+    const raw = c.raw_metrics as Record<string, unknown>;
+    reach += parseInt(String(raw.reach ?? "0")) || 0;
+
+    const acts = raw.actions as ActionRow[] | undefined;
+    if (acts) for (const a of acts) actionsMap[a.action_type] = (actionsMap[a.action_type] ?? 0) + parseFloat(a.value);
+
+    const avs = raw.action_values as ActionRow[] | undefined;
+    if (avs) for (const a of avs) actionValuesMap[a.action_type] = (actionValuesMap[a.action_type] ?? 0) + parseFloat(a.value);
+
+    for (const field of ["video_play_actions","video_continuous_2_sec_watched_actions","video_thruplay_watched_actions",
+      "video_p25_watched_actions","video_p50_watched_actions","video_p75_watched_actions",
+      "video_p95_watched_actions","video_p100_watched_actions","video_avg_time_watched_actions"]) {
+      const arr = raw[field] as ActionRow[] | undefined;
+      if (arr) {
+        if (!videoSumMap[field]) videoSumMap[field] = {};
+        for (const v of arr) videoSumMap[field][v.action_type] = (videoSumMap[field][v.action_type] ?? 0) + parseFloat(v.value);
+      }
+    }
+  }
+
+  const actions       = Object.entries(actionsMap).map(([action_type, v]) => ({ action_type, value: String(v) }));
+  const action_values = Object.entries(actionValuesMap).map(([action_type, v]) => ({ action_type, value: String(v) }));
+  const cost_per_action_type = Object.entries(actionsMap)
+    .filter(([, n]) => n > 0).map(([action_type, n]) => ({ action_type, value: String(spend / n) }));
+  const purchaseValue = actionValuesMap["purchase"] ?? 0;
+  const purchase_roas = spend > 0 && purchaseValue > 0
+    ? [{ action_type: "omni_purchase", value: String(purchaseValue / spend) }] : [];
+  const videoFields: Record<string, ActionRow[]> = {};
+  for (const [f, map] of Object.entries(videoSumMap))
+    videoFields[f] = Object.entries(map).map(([action_type, v]) => ({ action_type, value: String(v) }));
+
+  return {
+    spend, impressions, leads, cpl, ctr, frequency,
+    raw_metrics: {
+      spend: String(spend), impressions: String(impressions), reach: String(reach),
+      clicks: String(clicks), unique_clicks: String(clicks),
+      frequency: String(frequency), ctr: String(ctr), cpm: String(cpm), cpc: String(cpc),
+      actions, action_values, cost_per_action_type, purchase_roas,
+      ...videoFields,
+    },
+  };
+}
+
 const btnStyle = (active: boolean) => ({
   padding: "5px 12px", fontSize: 12, borderRadius: 5,
   border: active ? "1px solid #f5a623" : "1px solid rgba(255,255,255,0.06)",
@@ -191,6 +256,92 @@ const btnStyle = (active: boolean) => ({
   color: active ? "#e8eaf0" : "#8b8fa8",
   cursor: "pointer" as const, fontFamily: "'DM Mono', 'Fira Mono', monospace", transition: "all 0.15s",
 });
+
+// ─── Stat Card Picker Modal ───────────────────────────────────────────────────
+
+function StatCardPickerModal({ visible, onChange, onClose, onReset }: {
+  visible: string[];
+  onChange: (keys: string[]) => void;
+  onClose: () => void;
+  onReset: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [activeGroup, setActiveGroup] = useState(METRIC_GROUPS[0].group);
+
+  const filteredGroups = METRIC_GROUPS.map(g => ({
+    ...g,
+    subgroups: g.subgroups.map(s => ({
+      ...s,
+      metrics: s.metrics.filter(m => !search || m.label.toLowerCase().includes(search.toLowerCase())),
+    })).filter(s => s.metrics.length > 0),
+  })).filter(g => g.subgroups.length > 0);
+
+  function toggle(key: string) {
+    const next = visible.includes(key) ? visible.filter(k => k !== key) : [...visible, key];
+    onChange(next);
+    localStorage.setItem("visibleStatCards", JSON.stringify(next));
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, width: 780, maxHeight: "85vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+        <div style={{ padding: "20px 24px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#f5a623" }}>Customize Stat Cards</div>
+            <div style={{ fontSize: 12, color: "#8b8fa8", marginTop: 4 }}>{visible.length} cards selected</div>
+          </div>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#8b8fa8", cursor: "pointer", fontSize: 18 }}>✕</button>
+        </div>
+
+        <div style={{ padding: "12px 24px", borderBottom: "1px solid #13151d" }}>
+          <input type="text" placeholder="Search metrics..."
+            value={search} onChange={e => setSearch(e.target.value)}
+            style={{ width: "100%", background: "#0d0f14", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, color: "#e8eaf0", fontSize: 13, fontFamily: "'DM Mono', 'Fira Mono', monospace", padding: "7px 12px", outline: "none", boxSizing: "border-box" as const }}
+          />
+        </div>
+
+        <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+          <div style={{ width: 180, borderRight: "1px solid #13151d", padding: "12px 0", overflowY: "auto", flexShrink: 0 }}>
+            {filteredGroups.map(g => (
+              <div key={g.group} onClick={() => setActiveGroup(g.group)}
+                style={{ padding: "8px 16px", fontSize: 12, cursor: "pointer", color: activeGroup === g.group ? "#f5a623" : "#8b8fa8", background: activeGroup === g.group ? "rgba(245,166,35,0.06)" : "transparent", borderLeft: activeGroup === g.group ? "2px solid #f5a623" : "2px solid transparent" }}>
+                {g.group}
+              </div>
+            ))}
+          </div>
+
+          <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px" }}>
+            {filteredGroups.map(g =>
+              (search ? true : g.group === activeGroup) && (
+                <div key={g.group}>
+                  {g.subgroups.map(sub => (
+                    <div key={sub.name} style={{ marginBottom: 20 }}>
+                      <div style={{ fontSize: 11, color: "#5a5e72", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>{sub.name}</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        {sub.metrics.map(m => (
+                          <label key={m.key} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, color: visible.includes(m.key) ? "#e8eaf0" : "#8b8fa8" }}>
+                            <input type="checkbox" checked={visible.includes(m.key)} onChange={() => toggle(m.key)} style={{ accentColor: "#f5a623", cursor: "pointer" }} />
+                            {m.label}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+          </div>
+        </div>
+
+        <div style={{ padding: "16px 24px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <button onClick={onReset} style={{ ...btnStyle(false), padding: "6px 14px" }}>Reset to default</button>
+          <button onClick={onClose} style={{ ...btnStyle(true), padding: "8px 20px" }}>Apply</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ─── Column Picker Modal ──────────────────────────────────────────────────────
 
@@ -312,22 +463,8 @@ function ColumnPickerModal({
   );
 }
 
-// ─── Stat Card Config ─────────────────────────────────────────────────────────
-
-const STAT_CARD_OPTIONS = [
-  { key: "spend",       label: "Total Spend",    vertical: "both"  },
-  { key: "leads",       label: "Total Leads",    vertical: "leads" },
-  { key: "purchases",   label: "Purchases",      vertical: "ecomm" },
-  { key: "cpl",         label: "Avg CPL",        vertical: "leads" },
-  { key: "roas",        label: "Overall ROAS",   vertical: "ecomm" },
-  { key: "ctr",         label: "Avg CTR",        vertical: "both"  },
-  { key: "frequency",   label: "Avg Frequency",  vertical: "both"  },
-  { key: "impressions", label: "Impressions",    vertical: "both"  },
-  { key: "campaigns",   label: "Campaign Count", vertical: "both"  },
-] as const;
-
 const LEADS_DEFAULT_STAT_CARDS = ["spend", "leads", "cpl", "ctr", "frequency"];
-const ECOMM_DEFAULT_STAT_CARDS  = ["spend", "purchases", "roas", "ctr", "frequency"];
+const ECOMM_DEFAULT_STAT_CARDS  = ["spend", "purchases", "purchase_roas", "ctr", "frequency"];
 
 function getDefaultStatCards(vertical: string) {
   return vertical === "ecomm" ? ECOMM_DEFAULT_STAT_CARDS : LEADS_DEFAULT_STAT_CARDS;
@@ -343,7 +480,7 @@ export default function CampaignsPage() {
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [presets, setPresets] = useState<Preset[]>([]);
   const [showColModal, setShowColModal] = useState(false);
-  const [showStatCustomizer, setShowStatCustomizer] = useState(false);
+  const [showStatCardModal, setShowStatCardModal] = useState(false);
   const [visibleStatCards, setVisibleStatCards] = useState<string[]>(() => {
     if (typeof window === "undefined") return LEADS_DEFAULT_STAT_CARDS;
     const saved = localStorage.getItem("visibleStatCards");
@@ -519,11 +656,6 @@ export default function CampaignsPage() {
 
   // Summary totals from campaign data
   const totalSpend = campaigns.reduce((s, c) => s + c.spend, 0);
-  const totalLeads = campaigns.reduce((s, c) => s + c.leads, 0);
-  const avgCpl = totalLeads > 0 ? totalSpend / totalLeads : 0;
-  const avgCtr = campaigns.length > 0 ? campaigns.reduce((s, c) => s + c.ctr, 0) / campaigns.length : 0;
-  const avgFreq = campaigns.length > 0 ? campaigns.reduce((s, c) => s + c.frequency, 0) / campaigns.length : 0;
-  const totalImpressions = campaigns.reduce((s, c) => s + c.impressions, 0);
 
   const visibleColsArray = Array.from(visibleCols);
   const colTemplate = `280px ${visibleColsArray.map(() => "120px").join(" ")}`;
@@ -546,6 +678,18 @@ export default function CampaignsPage() {
       {showColModal && (
         <ColumnPickerModal visibleCols={visibleCols} onChange={setVisibleCols} onClose={() => setShowColModal(false)}
           onSavePreset={savePreset} presets={presets} onLoadPreset={loadPreset} onDeletePreset={deletePreset} />
+      )}
+      {showStatCardModal && (
+        <StatCardPickerModal
+          visible={visibleStatCards}
+          onChange={setVisibleStatCards}
+          onClose={() => setShowStatCardModal(false)}
+          onReset={() => {
+            const def = getDefaultStatCards(activeClient?.vertical ?? "leads");
+            setVisibleStatCards(def);
+            localStorage.setItem("visibleStatCards", JSON.stringify(def));
+          }}
+        />
       )}
 
       <div style={{ maxWidth: 1200, margin: "0 auto" }}>
@@ -610,93 +754,53 @@ export default function CampaignsPage() {
             {/* Budget Pacing — full width */}
             <BudgetPacingCard spend={totalSpend} budget={activeClient?.monthly_budget ?? null} />
 
-            {/* Stat Cards header + customizer */}
+            {/* Stat Cards header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, marginTop: activeClient?.monthly_budget ? 16 : 0 }}>
               <span style={{ fontSize: 11, color: "#5a5e72", letterSpacing: "0.08em", textTransform: "uppercase" }}>Performance</span>
-              <div style={{ position: "relative" }}>
-                <button
-                  onClick={() => setShowStatCustomizer(v => !v)}
-                  style={{ ...btnStyle(showStatCustomizer), padding: "3px 10px", fontSize: 11, display: "flex", alignItems: "center", gap: 5 }}
-                >
-                  ⚙ Customize
-                </button>
-                {showStatCustomizer && (
-                  <div style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 200, background: "#161820", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "14px 16px", width: 220, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
-                    <div style={{ fontSize: 11, color: "#5a5e72", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>Visible Cards</div>
-                    {STAT_CARD_OPTIONS.filter(o => o.vertical === "both" || o.vertical === (isEcomm ? "ecomm" : "leads")).map(opt => (
-                      <label key={opt.key} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, color: visibleStatCards.includes(opt.key) ? "#e8eaf0" : "#5a5e72", marginBottom: 8 }}>
-                        <input type="checkbox" checked={visibleStatCards.includes(opt.key)}
-                          onChange={() => {
-                            const next = visibleStatCards.includes(opt.key)
-                              ? visibleStatCards.filter(k => k !== opt.key)
-                              : [...visibleStatCards, opt.key];
-                            setVisibleStatCards(next);
-                            localStorage.setItem("visibleStatCards", JSON.stringify(next));
-                          }}
-                          style={{ accentColor: "#f5a623", cursor: "pointer" }}
-                        />
-                        {opt.label}
-                      </label>
-                    ))}
-                    <button
-                      onClick={() => {
-                        const def = getDefaultStatCards(activeClient?.vertical ?? "leads");
-                        setVisibleStatCards(def);
-                        localStorage.setItem("visibleStatCards", JSON.stringify(def));
-                      }}
-                      style={{ ...btnStyle(false), padding: "4px 10px", fontSize: 11, marginTop: 4, width: "100%" }}
-                    >
-                      Reset to default
-                    </button>
-                  </div>
-                )}
-              </div>
+              <button
+                onClick={() => setShowStatCardModal(true)}
+                style={{ ...btnStyle(false), padding: "3px 10px", fontSize: 11 }}
+              >
+                ⚙ Customize
+              </button>
             </div>
 
-            {/* Stat Cards grid */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 12 }}>
-              {visibleStatCards.includes("spend") && (
-                <StatCard label="Total Spend" value={`$${totalSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} sub={`${computedDays}d window`} />
-              )}
-              {visibleStatCards.includes("leads") && !isEcomm && (
-                <StatCard label="Total Leads" value={String(totalLeads)} />
-              )}
-              {visibleStatCards.includes("purchases") && isEcomm && (
-                <StatCard label="Purchases" value={String(campaigns.reduce((s, c) => {
-                  const arr = (c.raw_metrics as Record<string,unknown>)?.actions as {action_type:string;value:string}[]|undefined;
-                  return s + parseInt(arr?.find(a=>a.action_type==="purchase")?.value??"0");
-                }, 0))} />
-              )}
-              {visibleStatCards.includes("cpl") && !isEcomm && (
-                <StatCard label="Avg CPL" value={`$${avgCpl.toFixed(2)}`}
-                  valueColor={cplStatusColor(avgCpl, activeClient?.cpl_target ?? null)}
-                  target={activeClient?.cpl_target ? `$${activeClient.cpl_target}` : undefined} />
-              )}
-              {visibleStatCards.includes("roas") && isEcomm && (() => {
-                const totalPurchaseValue = campaigns.reduce((s, c) => {
-                  const avArr = (c.raw_metrics as Record<string,unknown>)?.action_values as {action_type:string;value:string}[]|undefined;
-                  return s + parseFloat(avArr?.find(a=>a.action_type==="purchase")?.value??"0");
-                }, 0);
-                const overallRoas = totalSpend > 0 ? totalPurchaseValue / totalSpend : 0;
-                return (
-                  <StatCard label="Overall ROAS" value={`${overallRoas.toFixed(2)}x`}
-                    valueColor={roasStatusColor(overallRoas, activeClient?.roas_target ?? null)}
-                    target={activeClient?.roas_target ? `${activeClient.roas_target}x` : undefined} />
-                );
-              })()}
-              {visibleStatCards.includes("ctr") && (
-                <StatCard label="Avg CTR" value={`${(avgCtr * 100).toFixed(2)}%`} />
-              )}
-              {visibleStatCards.includes("frequency") && (
-                <StatCard label="Avg Frequency" value={avgFreq.toFixed(2)} sub={avgFreq > 3 ? "⚠ high" : "ok"} />
-              )}
-              {visibleStatCards.includes("impressions") && (
-                <StatCard label="Impressions" value={totalImpressions.toLocaleString()} />
-              )}
-              {visibleStatCards.includes("campaigns") && (
-                <StatCard label="Campaigns" value={String(campaigns.length)} />
-              )}
-            </div>
+            {/* Stat Cards grid — dynamic from any metric */}
+            {(() => {
+              const aggRow = buildAggregateRow(campaigns);
+              return (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 12 }}>
+                  {visibleStatCards.map(key => {
+                    const def = METRIC_BY_KEY[key];
+                    if (!def) return null;
+                    const rawVal = formatRowValue(key, aggRow);
+                    // Special: CPL color vs target
+                    if (key === "cpl" && activeClient?.cpl_target) {
+                      return <StatCard key={key} label={def.label} value={rawVal}
+                        valueColor={cplStatusColor(aggRow.cpl, activeClient.cpl_target)}
+                        target={`$${activeClient.cpl_target}`} />;
+                    }
+                    // Special: ROAS color vs target
+                    if (key === "purchase_roas" && activeClient?.roas_target) {
+                      const roasNum = parseFloat(rawVal) || 0;
+                      return <StatCard key={key} label={def.label} value={rawVal}
+                        valueColor={roasStatusColor(roasNum, activeClient.roas_target)}
+                        target={`${activeClient.roas_target}x`} />;
+                    }
+                    // Special: frequency warning
+                    if (key === "frequency") {
+                      return <StatCard key={key} label={def.label} value={rawVal}
+                        sub={aggRow.frequency > 3 ? "⚠ high" : "ok"} />;
+                    }
+                    // Special: spend — add window sub
+                    if (key === "spend") {
+                      return <StatCard key={key} label={def.label} value={rawVal} sub={`${computedDays}d window`} />;
+                    }
+                    return <StatCard key={key} label={def.label} value={rawVal} />;
+                  })}
+                </div>
+              );
+            })()}
 
             {/* Charts toggle */}
             <div style={{ marginBottom: 24 }}>
