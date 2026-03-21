@@ -4,7 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { neon } from "@neondatabase/serverless";
 
-async function ensureTable(sql: ReturnType<typeof neon>) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function ensureTable(sql: any) {
   await sql`
     CREATE TABLE IF NOT EXISTS creatives (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
