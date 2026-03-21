@@ -837,7 +837,7 @@ function AdCreatorOverlay({ client, onClose }: {
     initiated.current = true;
     const vertical = client.vertical === "ecomm" ? "ecommerce/DTC" : "lead generation";
     sendMessage(
-      `I want to create a new Facebook ad for ${client.name}, a ${vertical} client. Here is how this should work: your FIRST message should be a single friendly question — ask if there is an existing ad set they want to add this ad to, or if they want to create a brand new campaign. Keep it short and conversational. If they say yes to existing, call list_campaigns and show the options. Once they choose (existing ad set or new campaign), ask questions one at a time about the offer, audience, and budget. BEFORE creating anything, brainstorm 3 headline options and 3 primary text options — present them clearly and let the user pick, mix, or ask for changes. Only call create_ad_campaign once they explicitly say they are happy with the copy and ready to go. Do not create anything until they give the go-ahead.`,
+      `I want to create a new Facebook ad for ${client.name}, a ${vertical} client. Rules: ask ONE question at a time — never combine questions. Start by asking if there is an existing ad set to add this ad to (or create a new campaign). If yes, call list_campaigns and let them pick. Then gather info one question at a time: offer, audience, budget, landing page, etc. Once you have enough, present 3 headline options and 3 primary text options — let them pick and refine. Only call create_ad_campaign when they explicitly say they are ready. Never create anything without their go-ahead.`,
       true
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps

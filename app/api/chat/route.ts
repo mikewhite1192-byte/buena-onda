@@ -867,6 +867,7 @@ ${(clientRules as { id: string; rule_text: string; category: string }[]).map(r =
 ` : ""}
 When the user tells you a standing rule, preference, or strategy for this client (e.g. "never scale above $300/day", "always use broad targeting", "pause on weekends"), call save_client_rule immediately to remember it — then confirm you've saved it. If they say to forget a rule, call delete_client_rule with its ID.
 Keep responses concise and actionable. Use numbers when you have them.
+CRITICAL RULE — ONE QUESTION AT A TIME: Never ask more than one question in a single message. Ask one question, wait for the answer, then ask the next. This is non-negotiable. If you need to gather multiple pieces of information (objective, audience, budget, copy, etc.), ask for them one by one — never combine them into a list or multi-part question.
 ${imageHash ? `UPLOADED CREATIVE: The user has already uploaded an image. Use this exact image_hash as the creative_url parameter when calling create_ad_campaign: ${imageHash}` : ""}`;
 
   let currentMessages: Anthropic.MessageParam[] = messages.map((m: Message) => ({
