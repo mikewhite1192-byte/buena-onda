@@ -158,6 +158,32 @@ function StatCard({ label, value, sub, valueColor, target }: { label: string; va
   );
 }
 
+function BudgetPacingCard({ spend, budget }: { spend: number; budget: number | null }) {
+  if (!budget) return null;
+  const pct = Math.min((spend / budget) * 100, 100);
+  const overBudget = spend > budget;
+  const barColor = overBudget ? "#ff4d4d" : pct >= 85 ? "#e8b84b" : "#2ecc71";
+  const label = overBudget
+    ? `$${(spend - budget).toLocaleString(undefined, { maximumFractionDigits: 0 })} over`
+    : `$${(budget - spend).toLocaleString(undefined, { maximumFractionDigits: 0 })} left`;
+  return (
+    <div style={{ background: "#161820", border: `1px solid ${barColor}22`, borderRadius: 10, padding: "18px 20px", gridColumn: "span 2" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <div style={{ fontSize: 11, color: "#5a5e72", letterSpacing: "0.08em", textTransform: "uppercase" }}>Budget Pacing</div>
+        <div style={{ fontSize: 11, color: barColor }}>{label}</div>
+      </div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 10 }}>
+        <div style={{ fontSize: 22, fontWeight: 700, color: barColor }}>${spend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+        <div style={{ fontSize: 12, color: "#5a5e72" }}>/ ${budget.toLocaleString()} budget</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: barColor, marginLeft: "auto" }}>{pct.toFixed(1)}%</div>
+      </div>
+      <div style={{ height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${pct}%`, background: barColor, borderRadius: 3, transition: "width 0.4s ease" }} />
+      </div>
+    </div>
+  );
+}
+
 const btnStyle = (active: boolean) => ({
   padding: "5px 12px", fontSize: 12, borderRadius: 5,
   border: active ? "1px solid #f5a623" : "1px solid rgba(255,255,255,0.06)",
@@ -556,6 +582,7 @@ export default function CampaignsPage() {
           <>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12, flex: 1 }}>
+                <BudgetPacingCard spend={totalSpend} budget={activeClient?.monthly_budget ?? null} />
                 <StatCard label="Total Spend" value={`$${totalSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} sub={`${computedDays}d window`} />
                 <StatCard label="Total Leads" value={String(totalLeads)} />
                 {(() => {

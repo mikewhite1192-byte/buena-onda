@@ -562,12 +562,14 @@ export default function ClientsPage() {
             background: "#161820",
             border: "1px solid rgba(255,255,255,0.06)",
             borderRadius: 12,
-            padding: "28px 32px",
             width: 480,
             maxWidth: "90vw",
             maxHeight: "90vh",
-            overflowY: "auto",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
           }}>
+            <div style={{ padding: "28px 32px", overflowY: "auto", flex: 1 }}>
             <h2 style={{ margin: "0 0 20px", fontSize: 16, fontWeight: 700, color: "#e8eaf0", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
               {editingId ? "Edit Client" : "Add Client"}
             </h2>
@@ -686,8 +688,9 @@ export default function ClientsPage() {
                 </Field>
               )}
             </div>
+            </div>
 
-            <div style={{ display: "flex", gap: 10, marginTop: 24, justifyContent: "flex-end" }}>
+            <div style={{ padding: "16px 32px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: 10, justifyContent: "flex-end", flexShrink: 0 }}>
               <button
                 onClick={() => setShowForm(false)}
                 style={{
