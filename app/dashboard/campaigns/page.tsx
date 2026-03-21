@@ -599,6 +599,7 @@ export default function CampaignsPage() {
   const { activeClient } = useActiveClient();
 
   const [campaigns, setCampaigns] = useState<CampaignMetric[]>([]);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [presets, setPresets] = useState<Preset[]>([]);
@@ -679,6 +680,7 @@ export default function CampaignsPage() {
   const fetchData = useCallback(async () => {
     if (!activeClient) return;
     setLoading(true);
+    setApiError(null);
     const adAccountParam = activeClient.meta_ad_account_id ? `&ad_account_id=${activeClient.meta_ad_account_id}` : "";
     const clientParam = activeClient.id ? `&client_id=${activeClient.id}` : "";
     try {
@@ -689,7 +691,9 @@ export default function CampaignsPage() {
       const [campaignsData, presetsData] = await Promise.all([campaignsRes.json(), presetsRes.json()]);
       if (campaignsData.error) {
         console.error("[campaigns] API error:", campaignsData.error);
-        alert(`Meta API error: ${campaignsData.error}`);
+        setApiError(campaignsData.error);
+      } else {
+        setApiError(null);
       }
       setCampaigns(campaignsData.campaigns ?? []);
       setPresets(presetsData.presets ?? []);
@@ -700,8 +704,9 @@ export default function CampaignsPage() {
       setAdSetLevelData({});
       setExpandedAdSets(new Set());
       setAdLevelData({});
-    } catch {
+    } catch (err) {
       setCampaigns([]);
+      setApiError(err instanceof Error ? err.message : "Network error fetching campaigns");
     } finally {
       setLoading(false);
       setLastRefreshed(new Date());
@@ -927,8 +932,15 @@ export default function CampaignsPage() {
         {loading ? (
           <div style={{ color: "#8b8fa8", fontSize: 13, marginBottom: 32 }}>Loading metrics...</div>
         ) : campaigns.length === 0 ? (
-          <div style={{ border: "1px dashed #1a3535", borderRadius: 10, padding: "40px 24px", textAlign: "center", color: "#8b8fa8", marginBottom: 32 }}>
-            <div style={{ fontSize: 13 }}>No campaign data for this period.</div>
+          <div style={{ border: `1px dashed ${apiError ? "#7f1d1d" : "#1a3535"}`, borderRadius: 10, padding: "40px 24px", textAlign: "center", color: "#8b8fa8", marginBottom: 32 }}>
+            {apiError ? (
+              <>
+                <div style={{ fontSize: 13, color: "#f87171", marginBottom: 8 }}>Meta API error</div>
+                <div style={{ fontSize: 12, color: "#fca5a5", maxWidth: 600, margin: "0 auto", wordBreak: "break-word" }}>{apiError}</div>
+              </>
+            ) : (
+              <div style={{ fontSize: 13 }}>No campaign data for this period.</div>
+            )}
           </div>
         ) : (
           <>
