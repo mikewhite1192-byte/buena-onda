@@ -628,6 +628,38 @@ export default function CampaignsPage() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [search, setSearch] = useState("");
 
+  // Report sharing
+  const [reportLink, setReportLink] = useState<string | null>(null);
+  const [generatingReport, setGeneratingReport] = useState(false);
+
+  async function generateReport() {
+    if (!activeClient || campaigns.length === 0) return;
+    setGeneratingReport(true);
+    try {
+      const totalSpend = campaigns.reduce((s, c) => s + c.spend, 0);
+      const totalLeads = campaigns.reduce((s, c) => s + c.leads, 0);
+      const avgCpl = totalLeads > 0 ? totalSpend / totalLeads : 0;
+      const avgCtr = campaigns.length > 0 ? campaigns.reduce((s, c) => s + c.ctr, 0) / campaigns.length : 0;
+      const totalImpressions = campaigns.reduce((s, c) => s + c.impressions, 0);
+      const snapshot = {
+        vertical: activeClient.vertical,
+        totalSpend, totalLeads, avgCpl, avgCtr, totalImpressions,
+        cplTarget: activeClient.cpl_target ?? null,
+        roasTarget: activeClient.roas_target ?? null,
+        campaigns: campaigns.map(c => ({ campaign_id: c.campaign_id, campaign_name: c.campaign_name, status: c.status, spend: c.spend, leads: c.leads, cpl: c.cpl, ctr: c.ctr, impressions: c.impressions })),
+      };
+      const res = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_id: activeClient.id, client_name: activeClient.name, start_date: startDate, end_date: endDate, snapshot }),
+      });
+      const data = await res.json();
+      if (data.token) setReportLink(`${window.location.origin}/report/${data.token}`);
+    } finally {
+      setGeneratingReport(false);
+    }
+  }
+
   // Charts
   const [showCharts, setShowCharts] = useState(false);
   const [timeseries, setTimeseries] = useState<TimeseriesPoint[]>([]);
@@ -839,8 +871,33 @@ export default function CampaignsPage() {
             </div>
           </div>
 
-          {/* Date range */}
+          {/* Date range + Share Report */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              {/* Share Report button + link */}
+              {campaigns.length > 0 && (
+                reportLink ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(46,204,113,0.08)", border: "1px solid rgba(46,204,113,0.25)", borderRadius: 6, padding: "3px 10px" }}>
+                    <span style={{ fontSize: 11, color: "#2ecc71" }}>Link ready:</span>
+                    <input
+                      readOnly value={reportLink}
+                      onFocus={e => e.target.select()}
+                      style={{ background: "transparent", border: "none", color: "#e8eaf0", fontSize: 11, fontFamily: "'DM Mono', monospace", outline: "none", width: 220 }}
+                    />
+                    <button onClick={() => { navigator.clipboard.writeText(reportLink); }} style={{ ...btnStyle(false), padding: "1px 8px", fontSize: 10 }}>Copy</button>
+                    <button onClick={() => setReportLink(null)} style={{ background: "transparent", border: "none", color: "#5a5e72", cursor: "pointer", fontSize: 12 }}>✕</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={generateReport}
+                    disabled={generatingReport}
+                    style={{ ...btnStyle(false), padding: "3px 10px", fontSize: 11, opacity: generatingReport ? 0.6 : 1, borderColor: "rgba(46,204,113,0.3)", color: "#2ecc71" }}
+                  >
+                    {generatingReport ? "Generating..." : "↗ Share Report"}
+                  </button>
+                )
+              )}
+            </div>
             <div style={{ display: "flex", gap: 6 }}>
               {([{ key: "today", label: "1D" }, { key: "7d", label: "7D" }, { key: "30d", label: "30D" }, { key: "90d", label: "90D" }, { key: "max", label: "MAX" }, { key: "custom", label: "Custom" }] as { key: typeof datePreset; label: string }[]).map(({ key, label }) => (
                 <button key={key} style={btnStyle(datePreset === key)} onClick={() => {
