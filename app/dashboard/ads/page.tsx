@@ -324,7 +324,7 @@ export default function AdsPage() {
             </div>
             <div style={{ fontSize: 13, marginBottom: 24 }}>
               {tab === "pending"
-                ? "Ask the AI to create an ad and it will appear here for review before going live."
+                ? "Ask Buena Onda to create an ad and it will appear here for review before going live."
                 : "Approve a pending campaign or create a new one with the AI."}
             </div>
             <button
@@ -545,9 +545,34 @@ function AdCreatorOverlay({ client, onClose }: {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [spec, setSpec] = useState<AdSpec>({ headline: "", body: "", objective: "", budget: "", targeting: "", created: false });
+  const [creative, setCreative] = useState<{ imageHash: string; preview: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const initiated = useRef(false);
+
+  async function handleFileUpload(file: File) {
+    setUploading(true);
+    try {
+      // Compress client-side
+      const preview = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target?.result as string);
+        reader.readAsDataURL(file);
+      });
+      const formData = new FormData();
+      formData.append("file", file);
+      if (client.meta_ad_account_id) formData.append("ad_account_id", client.meta_ad_account_id);
+      const res = await fetch("/api/agent/creative/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.image_hash) {
+        setCreative({ imageHash: data.image_hash, preview });
+      }
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const sendMessage = useCallback(async (content: string, isAuto = false) => {
     if ((!content.trim()) || loading) return;
@@ -571,7 +596,7 @@ function AdCreatorOverlay({ client, onClose }: {
           messages: historyForApi,
           clientId: client.id,
           adAccountId: client.meta_ad_account_id,
-          imageHash: null,
+          imageHash: creative?.imageHash ?? null,
           isOnboarding: false,
         }),
       });
@@ -691,7 +716,29 @@ function AdCreatorOverlay({ client, onClose }: {
 
             {/* Input */}
             <div style={{ padding: "16px 24px 20px", borderTop: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
-              <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+              {/* Creative preview strip */}
+              {creative && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: "8px 12px" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={creative.preview} alt="Creative" style={{ width: 40, height: 40, borderRadius: 5, objectFit: "cover" }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 11, color: T.green, fontWeight: 600 }}>✓ Creative uploaded</div>
+                    <div style={{ fontSize: 10, color: T.faint }}>Will be used when the campaign is created</div>
+                  </div>
+                  <button onClick={() => setCreative(null)} style={{ background: "transparent", border: "none", color: T.faint, cursor: "pointer", fontSize: 16, lineHeight: 1 }}>×</button>
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                {/* Attach creative */}
+                <input ref={fileInputRef} type="file" accept="image/*,video/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); e.target.value = ""; }} />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  title="Attach creative"
+                  style={{ width: 46, height: 46, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: creative ? T.green : T.muted, fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                >
+                  {uploading ? "…" : "📎"}
+                </button>
                 <textarea
                   ref={inputRef}
                   value={input}
@@ -720,9 +767,9 @@ function AdCreatorOverlay({ client, onClose }: {
             {/* Mockup */}
             <div style={{ display: "flex", justifyContent: "center" }}>
               <AdMockup
-                ad={{ id: "preview", name: "preview", status: "PAUSED", body: spec.body || null, headline: spec.headline || null, image_url: null }}
+                ad={{ id: "preview", name: "preview", status: "PAUSED", body: spec.body || null, headline: spec.headline || null, image_url: creative?.preview ?? null }}
                 clientName={client.name}
-                imageUrl={null}
+                imageUrl={creative?.preview ?? null}
               />
             </div>
 

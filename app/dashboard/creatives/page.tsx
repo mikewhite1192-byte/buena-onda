@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useActiveClient } from "@/lib/context/client-context";
-import { isDemoAccount, getDemoCreatives } from "@/lib/demo-data";
+import { isDemoAccount } from "@/lib/demo-data";
 
 const T = {
   bg: "#0d0f14",
@@ -13,69 +13,68 @@ const T = {
   text: "#e8eaf0",
   muted: "#8b8fa8",
   faint: "#5a5e72",
+  green: "#2ecc71",
+  greenBg: "rgba(46,204,113,0.12)",
+  red: "#ff4d4d",
 };
-
-type CreativeStatus = "live" | "testing" | "fatigued" | "killed";
-type CreativeFormat = "image" | "video" | "carousel" | "story" | "reel";
 
 interface Creative {
   id: string;
-  client_id: string;
   name: string;
-  format: CreativeFormat;
-  status: CreativeStatus;
-  hook: string | null;
-  spend: number | null;
+  status: "ACTIVE" | "PAUSED" | "ARCHIVED" | "DELETED";
+  spend: number;
+  impressions: number;
+  clicks: number;
+  ctr: number;
   cpl: number | null;
   roas: number | null;
-  ctr: number | null;
-  notes: string | null;
-  created_at: string;
+  purchases: number;
+  leads: number;
+  frequency: number;
+  thumbnail_url: string | null;
+  body: string | null;
+  headline: string | null;
+  format: string;
+  campaign_name: string | null;
+  adset_name: string | null;
 }
 
-const STATUS_CONFIG: Record<CreativeStatus, { label: string; color: string; bg: string }> = {
-  live:     { label: "Live",     color: "#2ecc71", bg: "rgba(46,204,113,0.12)" },
-  testing:  { label: "Testing",  color: "#f5a623", bg: "rgba(245,166,35,0.12)" },
-  fatigued: { label: "Fatigued", color: "#e8b84b", bg: "rgba(232,184,75,0.12)" },
-  killed:   { label: "Killed",   color: "#8b8fa8", bg: "rgba(139,143,168,0.12)" },
-};
+type SortKey = "spend" | "cpl" | "roas" | "ctr" | "impressions";
+type StatusFilter = "all" | "ACTIVE" | "PAUSED";
 
-const FORMAT_CONFIG: Record<CreativeFormat, { label: string; color: string }> = {
-  image:    { label: "Image",    color: "#7b8cde" },
-  video:    { label: "Video",    color: "#c07ef0" },
-  carousel: { label: "Carousel", color: "#5bc8af" },
-  story:    { label: "Story",    color: "#f08080" },
-  reel:     { label: "Reel",     color: "#f5a623" },
-};
+// ─── Demo data ────────────────────────────────────────────────────────────────
 
-const ALL_STATUSES: CreativeStatus[] = ["live", "testing", "fatigued", "killed"];
-const ALL_FORMATS: CreativeFormat[] = ["image", "video", "carousel", "story", "reel"];
+const DEMO_CREATIVES_LEADS: Creative[] = [
+  { id: "d1", name: "Storm Damage UGC — Homeowner Testimonial", status: "ACTIVE",  spend: 1840, impressions: 148200, clicks: 5634, ctr: 0.038, cpl: 24.50, roas: null, purchases: 0, leads: 75, frequency: 2.4, thumbnail_url: null, body: "My roof was gone in 20 minutes. Here's what I did next.", headline: "Free Roof Inspection — Book Today", format: "VIDEO", campaign_name: "Summit | Storm Season | Lead Gen", adset_name: "Homeowners 35–65 | San Diego" },
+  { id: "d2", name: "Before/After Roof Replacement — Static",   status: "ACTIVE",  spend: 1220, impressions: 92400,  clicks: 2682, ctr: 0.029, cpl: 31.00, roas: null, purchases: 0, leads: 39, frequency: 2.1, thumbnail_url: null, body: "Before vs After: See the difference a new roof makes.", headline: "Book a Free Inspection This Week", format: "IMAGE", campaign_name: "Summit | Homeowners LAL", adset_name: "LAL 1% Past Customers" },
+  { id: "d3", name: "Free Inspection Offer — Carousel",         status: "ACTIVE",  spend: 620,  impressions: 54800,  clicks: 1151, ctr: 0.021, cpl: 38.75, roas: null, purchases: 0, leads: 16, frequency: 1.8, thumbnail_url: null, body: "Your roof could be failing right now. Get a free inspection.", headline: "Get Your Free Roofing Quote", format: "CAROUSEL", campaign_name: "Summit | Free Quote | Retargeting", adset_name: "Website Visitors 30d" },
+  { id: "d4", name: "Hail Season Alert — Video",                status: "PAUSED",  spend: 2100, impressions: 186000, clicks: 2604, ctr: 0.014, cpl: 72.00, roas: null, purchases: 0, leads: 29, frequency: 5.2, thumbnail_url: null, body: "Hail season is here. Is your roof ready?", headline: "Same-Week Inspections Available", format: "VIDEO", campaign_name: "Summit | Hail Season", adset_name: "Homeowners Broad 35–65" },
+  { id: "d5", name: "Price Anchor Ad — Static Image",           status: "PAUSED",  spend: 480,  impressions: 41200,  clicks: 371,  ctr: 0.009, cpl: 142.00, roas: null, purchases: 0, leads: 3, frequency: 3.1, thumbnail_url: null, body: "Roof replacements starting at $4,999.", headline: "Affordable Roofing — Get a Quote", format: "IMAGE", campaign_name: "Summit | Price Anchor Test", adset_name: "Homeowners 45–65 | High Income" },
+  { id: "d6", name: "Reels — 15s Crew At Work",                 status: "ACTIVE",  spend: 310,  impressions: 28400,  clicks: 1249, ctr: 0.044, cpl: 29.80, roas: null, purchases: 0, leads: 10, frequency: 1.5, thumbnail_url: null, body: "Watch us replace a full roof in one day.", headline: "Summit Roofing — San Diego's Best", format: "VIDEO", campaign_name: "Summit | Reels Test", adset_name: "Broad | 35–65" },
+];
 
-const EMPTY_FORM = {
-  name: "", format: "image" as CreativeFormat, status: "testing" as CreativeStatus,
-  hook: "", spend: "", cpl: "", roas: "", ctr: "", notes: "",
-};
+const DEMO_CREATIVES_ECOMM: Creative[] = [
+  { id: "e1", name: "Summer Drop — Lifestyle Lookbook Video",  status: "ACTIVE", spend: 3200, impressions: 284000, clicks: 13348, ctr: 0.047, cpl: null, roas: 4.10, purchases: 58, leads: 0, frequency: 2.1, thumbnail_url: null, body: "The drop you've been waiting for. Limited pieces.", headline: "Shop the Summer Collection", format: "VIDEO", campaign_name: "Urban Threads | Summer Drop | DPA", adset_name: "Broad LAL 1%" },
+  { id: "e2", name: "DPA — Retargeting Catalog",               status: "ACTIVE", spend: 2100, impressions: 198000, clicks: 7524, ctr: 0.038, cpl: null, roas: 3.60, purchases: 42, leads: 0, frequency: 3.2, thumbnail_url: null, body: null, headline: null, format: "CAROUSEL", campaign_name: "Urban Threads | Retargeting 7d", adset_name: "Website Visitors 7d" },
+  { id: "e3", name: "UGC Unboxing — Customer Review",          status: "ACTIVE", spend: 1850, impressions: 165000, clicks: 6765, ctr: 0.041, cpl: null, roas: 3.20, purchases: 33, leads: 0, frequency: 2.6, thumbnail_url: null, body: "I wasn't expecting this quality at this price.", headline: "See Why Everyone's Talking About Us", format: "VIDEO", campaign_name: "Urban Threads | Lookalike | Broad", adset_name: "LAL 2% Past Customers" },
+  { id: "e4", name: "Static Product Hero — White Background",  status: "PAUSED", spend: 1400, impressions: 134000, clicks: 2412, ctr: 0.018, cpl: null, roas: 1.80, purchases: 14, leads: 0, frequency: 4.8, thumbnail_url: null, body: "Shop the new collection.", headline: "New Arrivals — Shop Now", format: "IMAGE", campaign_name: "Urban Threads | Brand | Cold", adset_name: "Interest Targeting | Fashion" },
+  { id: "e5", name: "Influencer Story — @thestyleloft",        status: "ACTIVE", spend: 720,  impressions: 68400,  clicks: 2257, ctr: 0.033, cpl: null, roas: 2.40, purchases: 12, leads: 0, frequency: 1.9, thumbnail_url: null, body: "My honest review after 30 days.", headline: "Honest Review — Worth It?", format: "VIDEO", campaign_name: "Urban Threads | Influencer Test", adset_name: "Lookalike @thestyleloft" },
+  { id: "e6", name: "Promo — 20% Off Flash Sale",              status: "PAUSED", spend: 560,  impressions: 48200,  clicks: 1060, ctr: 0.022, cpl: null, roas: 0.90, purchases: 4, leads: 0, frequency: 2.3, thumbnail_url: null, body: "20% off everything. Today only.", headline: "Flash Sale — 20% Off Sitewide", format: "IMAGE", campaign_name: "Urban Threads | Promo | Flash Sale", adset_name: "Past Purchasers + LAL" },
+];
 
-function fmt$(n: number | null) {
-  if (!n) return "—";
-  return `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-function fmtRoas(n: number | null) { return n ? `${n.toFixed(2)}x` : "—"; }
-function fmtCtr(n: number | null) { return n ? `${(n * 100).toFixed(2)}%` : "—"; }
+function fmt$(n: number) { return `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
+function fmtK(n: number) { return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n); }
+
+const FORMAT_ICONS: Record<string, string> = { VIDEO: "▶", IMAGE: "🖼", CAROUSEL: "⊞", STORY: "◻", REEL: "▶" };
 
 export default function CreativesPage() {
   const { activeClient } = useActiveClient();
   const [creatives, setCreatives] = useState<Creative[]>([]);
   const [loading, setLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<CreativeStatus | "all">("all");
-  const [showModal, setShowModal] = useState(false);
-  const [editCreative, setEditCreative] = useState<Creative | null>(null);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [sortBy, setSortBy] = useState<SortKey>("spend");
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"performance" | "spend" | "newest">("performance");
-  const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (activeClient?.id) fetchCreatives();
@@ -83,121 +82,52 @@ export default function CreativesPage() {
   }, [activeClient?.id]);
 
   async function fetchCreatives() {
-    if (!activeClient?.id) return;
+    if (!activeClient) return;
     if (isDemoAccount(activeClient.meta_ad_account_id)) {
-      setCreatives(getDemoCreatives(activeClient.vertical) as Creative[]);
+      setCreatives(activeClient.vertical === "ecomm" ? DEMO_CREATIVES_ECOMM : DEMO_CREATIVES_LEADS);
       return;
     }
     setLoading(true);
+    setError(null);
     try {
-      const res = await fetch(`/api/clients/${activeClient.id}/creatives`);
+      const res = await fetch(`/api/agent/creatives?adAccountId=${activeClient.meta_ad_account_id}&startDate=${getStartDate()}&endDate=${getToday()}`);
       const data = await res.json();
+      if (data.error) throw new Error(data.error);
       setCreatives(data.creatives ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load creatives");
     } finally {
       setLoading(false);
     }
   }
 
-  function openAdd() {
-    setEditCreative(null);
-    setForm(EMPTY_FORM);
-    setShowModal(true);
-  }
-
-  function openEdit(c: Creative) {
-    setEditCreative(c);
-    setForm({
-      name: c.name,
-      format: c.format,
-      status: c.status,
-      hook: c.hook ?? "",
-      spend: c.spend != null ? String(c.spend) : "",
-      cpl: c.cpl != null ? String(c.cpl) : "",
-      roas: c.roas != null ? String(c.roas) : "",
-      ctr: c.ctr != null ? String(Number(c.ctr) * 100) : "",
-      notes: c.notes ?? "",
-    });
-    setShowModal(true);
-  }
-
-  async function handleSave() {
-    if (!activeClient?.id || !form.name.trim()) return;
-    setSaving(true);
-    try {
-      const payload = {
-        name: form.name.trim(),
-        format: form.format,
-        status: form.status,
-        hook: form.hook.trim() || null,
-        spend: form.spend ? parseFloat(form.spend) : null,
-        cpl: form.cpl ? parseFloat(form.cpl) : null,
-        roas: form.roas ? parseFloat(form.roas) : null,
-        ctr: form.ctr ? parseFloat(form.ctr) / 100 : null,
-        notes: form.notes.trim() || null,
-      };
-
-      if (editCreative) {
-        await fetch(`/api/clients/${activeClient.id}/creatives/${editCreative.id}`, {
-          method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
-        });
-      } else {
-        await fetch(`/api/clients/${activeClient.id}/creatives`, {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
-        });
-      }
-      setShowModal(false);
-      fetchCreatives();
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDelete(id: string) {
-    if (!activeClient?.id) return;
-    setDeleting(id);
-    try {
-      await fetch(`/api/clients/${activeClient.id}/creatives/${id}`, { method: "DELETE" });
-      setCreatives(prev => prev.filter(c => c.id !== id));
-    } finally {
-      setDeleting(null);
-    }
-  }
+  function getToday() { return new Date().toISOString().split("T")[0]; }
+  function getStartDate() { return new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0]; }
 
   const isEcomm = activeClient?.vertical === "ecomm";
 
-  // Determine top producers — top 3 by performance metric (must have result data)
-  const withPerf = creatives
-    .filter(c => isEcomm ? c.roas != null : c.cpl != null)
-    .sort((a, b) => isEcomm
-      ? (b.roas ?? 0) - (a.roas ?? 0)   // higher ROAS = better
-      : (a.cpl ?? 0) - (b.cpl ?? 0)     // lower CPL = better
-    );
-  const topProducerIds = new Set(withPerf.slice(0, 3).map(c => c.id));
+  // Top producers
+  const withPerf = [...creatives].filter(c => isEcomm ? c.roas != null : c.cpl != null);
+  const sorted4Rank = withPerf.sort((a, b) => isEcomm ? (b.roas ?? 0) - (a.roas ?? 0) : (a.cpl ?? 99999) - (b.cpl ?? 99999));
+  const topIds = new Set(sorted4Rank.slice(0, 3).map(c => c.id));
 
-  function sortCreatives(list: Creative[]) {
-    if (sortBy === "performance") {
-      return [...list].sort((a, b) => {
-        // top producers always first, then by metric
-        const aTop = topProducerIds.has(a.id) ? 0 : 1;
-        const bTop = topProducerIds.has(b.id) ? 0 : 1;
-        if (aTop !== bTop) return aTop - bTop;
-        return isEcomm
-          ? (b.roas ?? -1) - (a.roas ?? -1)
-          : (a.cpl ?? 99999) - (b.cpl ?? 99999);
-      });
-    }
-    if (sortBy === "spend") return [...list].sort((a, b) => (b.spend ?? 0) - (a.spend ?? 0));
-    return [...list].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }
+  const filtered = [...creatives]
+    .filter(c => statusFilter === "all" || c.status === statusFilter)
+    .filter(c => !search.trim() || c.name.toLowerCase().includes(search.toLowerCase()) || (c.body ?? "").toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      if (sortBy === "spend") return b.spend - a.spend;
+      if (sortBy === "cpl") return (a.cpl ?? 99999) - (b.cpl ?? 99999);
+      if (sortBy === "roas") return (b.roas ?? 0) - (a.roas ?? 0);
+      if (sortBy === "ctr") return b.ctr - a.ctr;
+      if (sortBy === "impressions") return b.impressions - a.impressions;
+      return 0;
+    });
 
-  const filtered = sortCreatives(
-    creatives
-      .filter(c => statusFilter === "all" || c.status === statusFilter)
-      .filter(c => !search.trim() || c.name.toLowerCase().includes(search.toLowerCase()) || (c.hook ?? "").toLowerCase().includes(search.toLowerCase()))
-  );
-
-  const counts: Record<string, number> = { all: creatives.length };
-  ALL_STATUSES.forEach(s => { counts[s] = creatives.filter(c => c.status === s).length; });
+  const counts = {
+    all: creatives.length,
+    ACTIVE: creatives.filter(c => c.status === "ACTIVE").length,
+    PAUSED: creatives.filter(c => c.status === "PAUSED").length,
+  };
 
   if (!activeClient) {
     return (
@@ -205,7 +135,7 @@ export default function CreativesPage() {
         <div style={{ textAlign: "center", color: T.muted }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>🎨</div>
           <div style={{ fontSize: 16, fontWeight: 600, color: T.text, marginBottom: 6 }}>No client selected</div>
-          <div style={{ fontSize: 13 }}>Select a client from the top nav to view their creatives.</div>
+          <div style={{ fontSize: 13 }}>Select a client from the top nav.</div>
         </div>
       </div>
     );
@@ -213,108 +143,58 @@ export default function CreativesPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, fontFamily: "'DM Mono', 'Fira Mono', monospace", color: T.text, padding: "32px 28px" }}>
-      <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, gap: 16, flexWrap: "wrap" }}>
           <div>
-            <div style={{ fontSize: 11, color: T.faint, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>
-              Creative Library
-            </div>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: T.text, margin: 0, letterSpacing: "-0.3px" }}>
-              {activeClient.name}
-            </h1>
-            <div style={{ fontSize: 12, color: T.muted, marginTop: 4 }}>
-              {creatives.length} creative{creatives.length !== 1 ? "s" : ""} tracked
-            </div>
+            <div style={{ fontSize: 11, color: T.faint, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>Creative Library</div>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: T.text, margin: 0 }}>{activeClient.name}</h1>
+            <div style={{ fontSize: 12, color: T.muted, marginTop: 4 }}>{creatives.length} ads · last 30 days</div>
           </div>
-          <button
-            onClick={openAdd}
-            style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 18px", background: T.accent, border: "none", borderRadius: 8, color: "#0d0f14", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}
-          >
-            + Add Creative
+          <button onClick={fetchCreatives} style={{ padding: "8px 16px", background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, color: T.muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+            ↻ Refresh
           </button>
         </div>
 
-        {/* Filter bar */}
+        {/* Filters */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
           {/* Status tabs */}
-          <div style={{ display: "flex", gap: 4, background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: 4 }}>
-            {(["all", ...ALL_STATUSES] as const).map(s => {
+          <div style={{ display: "flex", gap: 3, background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: 4 }}>
+            {(["all", "ACTIVE", "PAUSED"] as StatusFilter[]).map(s => {
               const active = statusFilter === s;
-              const cfg = s === "all" ? null : STATUS_CONFIG[s];
+              const color = s === "ACTIVE" ? T.green : s === "PAUSED" ? T.muted : T.accent;
+              const bg = s === "ACTIVE" ? T.greenBg : s === "PAUSED" ? "rgba(139,143,168,0.12)" : T.accentBg;
               return (
-                <button
-                  key={s}
-                  onClick={() => setStatusFilter(s)}
-                  style={{
-                    padding: "5px 12px", borderRadius: 5, border: "none", fontSize: 11, fontWeight: active ? 600 : 400,
-                    background: active ? (cfg ? cfg.bg : T.accentBg) : "transparent",
-                    color: active ? (cfg ? cfg.color : T.accent) : T.muted,
-                    cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
-                  }}
-                >
-                  {s === "all" ? "All" : STATUS_CONFIG[s].label}
-                  <span style={{ marginLeft: 5, fontSize: 10, opacity: 0.7 }}>{counts[s] ?? 0}</span>
+                <button key={s} onClick={() => setStatusFilter(s)} style={{ padding: "5px 12px", borderRadius: 5, border: "none", fontSize: 11, fontWeight: active ? 600 : 400, background: active ? bg : "transparent", color: active ? color : T.muted, cursor: "pointer", fontFamily: "inherit" }}>
+                  {s === "all" ? "All" : s.charAt(0) + s.slice(1).toLowerCase()} <span style={{ fontSize: 10, opacity: 0.7 }}>{counts[s]}</span>
                 </button>
               );
             })}
           </div>
 
           {/* Search */}
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search creatives…"
-            style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 7, padding: "7px 12px", fontSize: 12, color: T.text, fontFamily: "inherit", outline: "none", width: 200 }}
-          />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search ads…" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 7, padding: "7px 12px", fontSize: 12, color: T.text, fontFamily: "inherit", outline: "none", width: 180 }} />
 
           {/* Sort */}
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 11, color: T.faint }}>Sort:</span>
-            <div style={{ display: "flex", gap: 4, background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: 4 }}>
+            <div style={{ display: "flex", gap: 3, background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: 4 }}>
               {([
-                { value: "performance", label: isEcomm ? "Best ROAS" : "Best CPL" },
-                { value: "spend",       label: "Most Spend" },
-                { value: "newest",      label: "Newest" },
-              ] as const).map(opt => (
-                <button
-                  key={opt.value}
-                  onClick={() => setSortBy(opt.value)}
-                  style={{
-                    padding: "5px 11px", borderRadius: 5, border: "none", fontSize: 11,
-                    fontWeight: sortBy === opt.value ? 600 : 400,
-                    background: sortBy === opt.value ? T.accentBg : "transparent",
-                    color: sortBy === opt.value ? T.accent : T.muted,
-                    cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
-                  }}
-                >{opt.label}</button>
+                { v: "spend",      l: "Spend" },
+                { v: isEcomm ? "roas" : "cpl", l: isEcomm ? "Best ROAS" : "Best CPL" },
+                { v: "ctr",        l: "CTR" },
+                { v: "impressions",l: "Reach" },
+              ] as { v: SortKey; l: string }[]).map(({ v, l }) => (
+                <button key={v} onClick={() => setSortBy(v)} style={{ padding: "5px 10px", borderRadius: 5, border: "none", fontSize: 11, fontWeight: sortBy === v ? 600 : 400, background: sortBy === v ? T.accentBg : "transparent", color: sortBy === v ? T.accent : T.muted, cursor: "pointer", fontFamily: "inherit" }}>{l}</button>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Empty state */}
-        {!loading && filtered.length === 0 && (
-          <div style={{ textAlign: "center", padding: "80px 20px", color: T.muted }}>
-            <div style={{ fontSize: 40, marginBottom: 14 }}>🎨</div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: T.text, marginBottom: 6 }}>
-              {creatives.length === 0 ? "No creatives yet" : "No creatives match this filter"}
-            </div>
-            <div style={{ fontSize: 13 }}>
-              {creatives.length === 0
-                ? "Add your first creative to start tracking what's working."
-                : "Try a different status or search term."}
-            </div>
-            {creatives.length === 0 && (
-              <button
-                onClick={openAdd}
-                style={{ marginTop: 20, padding: "9px 20px", background: T.accentBg, border: `1px solid ${T.accent}`, borderRadius: 8, color: T.accent, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
-              >
-                + Add Creative
-              </button>
-            )}
-          </div>
+        {/* Error */}
+        {error && (
+          <div style={{ background: "rgba(255,77,77,0.08)", border: "1px solid rgba(255,77,77,0.2)", borderRadius: 10, padding: "14px 18px", fontSize: 13, color: T.red, marginBottom: 20 }}>{error}</div>
         )}
 
         {/* Loading */}
@@ -325,251 +205,89 @@ export default function CreativesPage() {
           </div>
         )}
 
-        {/* Cards grid */}
+        {/* Empty */}
+        {!loading && !error && filtered.length === 0 && (
+          <div style={{ textAlign: "center", padding: "80px 20px", color: T.muted }}>
+            <div style={{ fontSize: 40, marginBottom: 14 }}>🎨</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: T.text, marginBottom: 6 }}>
+              {creatives.length === 0 ? "No ads found for this account" : "No ads match this filter"}
+            </div>
+            <div style={{ fontSize: 13 }}>
+              {creatives.length === 0 ? "Run some campaigns and they'll appear here with performance data." : "Try a different filter."}
+            </div>
+          </div>
+        )}
+
+        {/* Grid */}
         {!loading && filtered.length > 0 && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 14 }}>
             {filtered.map(c => (
-              <CreativeCard
-                key={c.id}
-                creative={c}
-                isEcomm={activeClient.vertical === "ecomm"}
-                isTopProducer={topProducerIds.has(c.id)}
-                onEdit={() => openEdit(c)}
-                onDelete={() => handleDelete(c.id)}
-                isDeleting={deleting === c.id}
-              />
+              <CreativeCard key={c.id} creative={c} isEcomm={isEcomm} isTop={topIds.has(c.id)} />
             ))}
           </div>
         )}
 
       </div>
-
-      {/* Add/Edit Modal */}
-      {showModal && (
-        <div
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}
-          onClick={e => { if (e.target === e.currentTarget) setShowModal(false); }}
-        >
-          <div
-            ref={modalRef}
-            style={{ background: "#13151d", border: `1px solid ${T.border}`, borderRadius: 14, width: "100%", maxWidth: 540, maxHeight: "90vh", display: "flex", flexDirection: "column", overflow: "hidden" }}
-          >
-            {/* Modal header */}
-            <div style={{ padding: "22px 28px 0", flexShrink: 0 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                <div style={{ fontSize: 16, fontWeight: 700, color: T.text }}>{editCreative ? "Edit Creative" : "Add Creative"}</div>
-                <button onClick={() => setShowModal(false)} style={{ background: "transparent", border: "none", color: T.muted, fontSize: 18, cursor: "pointer", lineHeight: 1 }}>×</button>
-              </div>
-            </div>
-
-            {/* Scrollable form */}
-            <div style={{ overflowY: "auto", flex: 1, padding: "0 28px" }}>
-              <FormField label="Creative Name *">
-                <input
-                  value={form.name}
-                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="e.g. Summer Sale — Red Hoodie Video"
-                  style={inputStyle}
-                  autoFocus
-                />
-              </FormField>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <FormField label="Format">
-                  <select value={form.format} onChange={e => setForm(f => ({ ...f, format: e.target.value as CreativeFormat }))} style={inputStyle}>
-                    {ALL_FORMATS.map(fmt => <option key={fmt} value={fmt}>{FORMAT_CONFIG[fmt].label}</option>)}
-                  </select>
-                </FormField>
-                <FormField label="Status">
-                  <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as CreativeStatus }))} style={inputStyle}>
-                    {ALL_STATUSES.map(s => <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>)}
-                  </select>
-                </FormField>
-              </div>
-
-              <FormField label="Hook / Headline">
-                <input
-                  value={form.hook}
-                  onChange={e => setForm(f => ({ ...f, hook: e.target.value }))}
-                  placeholder="e.g. Stop wasting money on ads that don't convert"
-                  style={inputStyle}
-                />
-              </FormField>
-
-              <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 11, color: T.faint, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Results</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <FormField label="Spend ($)">
-                    <input type="number" value={form.spend} onChange={e => setForm(f => ({ ...f, spend: e.target.value }))} placeholder="0.00" style={inputStyle} />
-                  </FormField>
-                  <FormField label="CTR (%)">
-                    <input type="number" value={form.ctr} onChange={e => setForm(f => ({ ...f, ctr: e.target.value }))} placeholder="e.g. 2.4" style={inputStyle} />
-                  </FormField>
-                  <FormField label={activeClient.vertical === "ecomm" ? "ROAS" : "CPL ($)"}>
-                    {activeClient.vertical === "ecomm"
-                      ? <input type="number" value={form.roas} onChange={e => setForm(f => ({ ...f, roas: e.target.value }))} placeholder="e.g. 3.2" style={inputStyle} />
-                      : <input type="number" value={form.cpl} onChange={e => setForm(f => ({ ...f, cpl: e.target.value }))} placeholder="0.00" style={inputStyle} />
-                    }
-                  </FormField>
-                </div>
-              </div>
-
-              <FormField label="Notes">
-                <textarea
-                  value={form.notes}
-                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                  placeholder="Audience, learnings, what to test next…"
-                  rows={3}
-                  style={{ ...inputStyle, resize: "vertical", minHeight: 72 }}
-                />
-              </FormField>
-
-              <div style={{ height: 20 }} />
-            </div>
-
-            {/* Modal footer */}
-            <div style={{ padding: "16px 28px 22px", borderTop: `1px solid ${T.border}`, display: "flex", justifyContent: "flex-end", gap: 10, flexShrink: 0 }}>
-              <button onClick={() => setShowModal(false)} style={{ padding: "9px 20px", background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, color: T.muted, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving || !form.name.trim()}
-                style={{ padding: "9px 24px", background: form.name.trim() ? T.accent : "rgba(245,166,35,0.3)", border: "none", borderRadius: 8, color: "#0d0f14", fontSize: 13, fontWeight: 700, cursor: form.name.trim() ? "pointer" : "not-allowed", fontFamily: "inherit" }}
-              >
-                {saving ? "Saving…" : editCreative ? "Save Changes" : "Add Creative"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-const inputStyle: React.CSSProperties = {
-  width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 7, padding: "9px 12px", fontSize: 13, color: T.text, fontFamily: "'DM Mono', monospace",
-  outline: "none", boxSizing: "border-box",
-};
-
-function FormField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: 14 }}>
-      <label style={{ display: "block", fontSize: 11, color: T.faint, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>{label}</label>
-      {children}
-    </div>
-  );
-}
-
-function CreativeCard({ creative: c, isEcomm, isTopProducer, onEdit, onDelete, isDeleting }: {
-  creative: Creative;
-  isEcomm: boolean;
-  isTopProducer: boolean;
-  onEdit: () => void;
-  onDelete: () => void;
-  isDeleting: boolean;
-}) {
-  const statusCfg = STATUS_CONFIG[c.status];
-  const formatCfg = FORMAT_CONFIG[c.format];
-  const [confirmDelete, setConfirmDelete] = useState(false);
+function CreativeCard({ creative: c, isEcomm, isTop }: { creative: Creative; isEcomm: boolean; isTop: boolean }) {
+  const isActive = c.status === "ACTIVE";
+  const formatIcon = FORMAT_ICONS[c.format] ?? "◻";
 
   return (
-    <div style={{
-      background: T.card,
-      border: isTopProducer ? "1px solid rgba(245,166,35,0.35)" : `1px solid ${T.border}`,
-      borderRadius: 12, padding: "18px 20px", display: "flex", flexDirection: "column", gap: 12,
-      boxShadow: isTopProducer ? "0 0 16px rgba(245,166,35,0.07)" : "none",
-    }}>
+    <div style={{ background: T.card, border: isTop ? "1px solid rgba(245,166,35,0.35)" : `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden", boxShadow: isTop ? "0 0 16px rgba(245,166,35,0.07)" : "none" }}>
 
-      {/* Top row: name + badges */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
-            {isTopProducer && (
-              <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 4, background: "rgba(245,166,35,0.15)", color: T.accent, letterSpacing: "0.06em", flexShrink: 0, textTransform: "uppercase" }}>
-                ★ Top Producer
-              </span>
-            )}
-          </div>
-          {c.hook && <div style={{ fontSize: 11, color: T.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.hook}</div>}
-        </div>
-        <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
-          <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 4, background: `rgba(${hexToRgb(formatCfg.color)},0.12)`, color: formatCfg.color }}>
-            {formatCfg.label}
-          </span>
-          <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 4, background: statusCfg.bg, color: statusCfg.color }}>
-            {statusCfg.label}
-          </span>
-        </div>
-      </div>
-
-      {/* Metrics row */}
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-        <Metric label="Spend" value={fmt$(c.spend)} />
-        {isEcomm
-          ? <Metric label="ROAS" value={fmtRoas(c.roas)} highlight={c.roas != null && c.roas >= 2} />
-          : <Metric label="CPL" value={fmt$(c.cpl)} />
+      {/* Thumbnail */}
+      <div style={{ position: "relative", width: "100%", height: 140, background: "linear-gradient(135deg,#1a1d2e,#2a2f45)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {c.thumbnail_url
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={c.thumbnail_url} alt={c.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          : <div style={{ textAlign: "center", opacity: 0.3 }}>
+              <div style={{ fontSize: 28 }}>{formatIcon}</div>
+              <div style={{ fontSize: 10, color: T.muted, marginTop: 4, letterSpacing: "0.08em", textTransform: "uppercase" }}>{c.format}</div>
+            </div>
         }
-        <Metric label="CTR" value={fmtCtr(c.ctr)} />
+        {/* Status + top badge overlay */}
+        <div style={{ position: "absolute", top: 8, left: 8, right: 8, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 4, background: isActive ? "rgba(0,0,0,0.6)" : "rgba(0,0,0,0.6)", color: isActive ? T.green : T.muted, backdropFilter: "blur(4px)" }}>
+            {isActive ? "● Live" : "◯ Paused"}
+          </span>
+          {isTop && (
+            <span style={{ fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 4, background: "rgba(245,166,35,0.85)", color: "#0d0f14", letterSpacing: "0.06em", textTransform: "uppercase" }}>★ Top</span>
+          )}
+        </div>
       </div>
 
-      {/* Notes */}
-      {c.notes && (
-        <div style={{ fontSize: 11, color: T.muted, background: "rgba(255,255,255,0.03)", borderRadius: 6, padding: "8px 10px", lineHeight: 1.6 }}>
-          {c.notes}
-        </div>
-      )}
+      {/* Content */}
+      <div style={{ padding: "14px 16px" }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: T.text, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
+        {c.body && <div style={{ fontSize: 11, color: T.muted, marginBottom: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.body}</div>}
+        {c.campaign_name && <div style={{ fontSize: 10, color: T.faint, marginBottom: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📁 {c.campaign_name}</div>}
 
-      {/* Actions */}
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: -2 }}>
-        {confirmDelete ? (
-          <>
-            <span style={{ fontSize: 11, color: T.muted, alignSelf: "center" }}>Delete?</span>
-            <button
-              onClick={() => setConfirmDelete(false)}
-              style={{ padding: "5px 12px", background: "transparent", border: `1px solid ${T.border}`, borderRadius: 6, color: T.muted, fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}
-            >No</button>
-            <button
-              onClick={() => { setConfirmDelete(false); onDelete(); }}
-              disabled={isDeleting}
-              style={{ padding: "5px 12px", background: "rgba(255,77,77,0.12)", border: "1px solid rgba(255,77,77,0.3)", borderRadius: 6, color: "#ff4d4d", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}
-            >{isDeleting ? "…" : "Yes, delete"}</button>
-          </>
-        ) : (
-          <>
-            <button
-              onClick={onEdit}
-              style={{ padding: "5px 12px", background: "transparent", border: `1px solid ${T.border}`, borderRadius: 6, color: T.muted, fontSize: 11, cursor: "pointer", fontFamily: "inherit", transition: "color 0.15s" }}
-              onMouseEnter={e => e.currentTarget.style.color = T.text}
-              onMouseLeave={e => e.currentTarget.style.color = T.muted}
-            >Edit</button>
-            <button
-              onClick={() => setConfirmDelete(true)}
-              style={{ padding: "5px 12px", background: "transparent", border: `1px solid ${T.border}`, borderRadius: 6, color: T.faint, fontSize: 11, cursor: "pointer", fontFamily: "inherit", transition: "color 0.15s" }}
-              onMouseEnter={e => e.currentTarget.style.color = "#ff4d4d"}
-              onMouseLeave={e => e.currentTarget.style.color = T.faint}
-            >Delete</button>
-          </>
-        )}
+        {/* Metrics */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+          <Metric label="Spend" value={fmt$(c.spend)} />
+          {isEcomm
+            ? <Metric label="ROAS" value={c.roas != null ? `${c.roas.toFixed(2)}x` : "—"} highlight={c.roas != null && c.roas >= 2} />
+            : <Metric label="CPL" value={c.cpl != null ? fmt$(c.cpl) : "—"} />
+          }
+          <Metric label="CTR" value={`${(c.ctr * 100).toFixed(2)}%`} />
+          <Metric label="Impressions" value={fmtK(c.impressions)} />
+          <Metric label={isEcomm ? "Purchases" : "Leads"} value={String(isEcomm ? c.purchases : c.leads)} />
+          <Metric label="Frequency" value={c.frequency.toFixed(1)} highlight={c.frequency > 4} highlightColor={T.red} />
+        </div>
       </div>
     </div>
   );
 }
 
-function Metric({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+function Metric({ label, value, highlight, highlightColor }: { label: string; value: string; highlight?: boolean; highlightColor?: string }) {
   return (
     <div>
-      <div style={{ fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: 15, fontWeight: 600, color: highlight ? "#2ecc71" : T.text }}>{value}</div>
+      <div style={{ fontSize: 9, color: T.faint, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: highlight ? (highlightColor ?? T.green) : T.text }}>{value}</div>
     </div>
   );
-}
-
-function hexToRgb(hex: string): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `${r},${g},${b}`;
 }
