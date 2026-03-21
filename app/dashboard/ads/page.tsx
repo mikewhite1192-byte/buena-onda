@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useActiveClient } from "@/lib/context/client-context";
 import { isDemoAccount } from "@/lib/demo-data";
 
@@ -174,6 +174,7 @@ export default function AdsPage() {
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"pending" | "live">("pending");
   const [acting, setActing] = useState<Record<string, boolean>>({});
+  const [showCreator, setShowCreator] = useState(false);
 
   useEffect(() => {
     if (activeClient?.id) fetchAds();
@@ -226,10 +227,7 @@ export default function AdsPage() {
   }
 
   function openChatCreate() {
-    const msg = activeClient
-      ? `I want to create a new ad for ${activeClient.name}. Let's start with the objective and target audience.`
-      : "I want to create a new ad campaign.";
-    document.dispatchEvent(new CustomEvent("buenaonda:open-chat", { detail: { message: msg } }));
+    setShowCreator(true);
   }
 
   function openChatEdit(campaign: CampaignCard) {
@@ -254,6 +252,7 @@ export default function AdsPage() {
   const shown = tab === "pending" ? pending : live;
 
   return (
+    <>
     <div style={{ minHeight: "100vh", background: T.bg, fontFamily: "'DM Mono', 'Fira Mono', monospace", color: T.text, padding: "32px 28px" }}>
       <div style={{ maxWidth: 960, margin: "0 auto" }}>
 
@@ -329,7 +328,7 @@ export default function AdsPage() {
                 : "Approve a pending campaign or create a new one with the AI."}
             </div>
             <button
-              onClick={openChatCreate}
+              onClick={() => setShowCreator(true)}
               style={{ padding: "10px 22px", background: T.accentBg, border: `1px solid ${T.accentBorder}`, borderRadius: 8, color: T.accent, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
             >
               ✦ Create with Buena Onda
@@ -355,6 +354,15 @@ export default function AdsPage() {
 
       </div>
     </div>
+
+    {/* Ad Creator Overlay */}
+    {showCreator && activeClient && (
+      <AdCreatorOverlay
+        client={activeClient}
+        onClose={() => { setShowCreator(false); fetchAds(); }}
+      />
+    )}
+    </>
   );
 }
 
@@ -478,6 +486,298 @@ function CampaignCardUI({ campaign, acting, onApprove, onPause, onEditInChat }: 
             {acting ? "Pausing…" : "Pause"}
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Ad Creator Overlay ───────────────────────────────────────────────────────
+
+interface ChatMsg { id: string; role: "user" | "assistant"; content: string; }
+interface AdSpec { headline: string; body: string; objective: string; budget: string; targeting: string; created: boolean; }
+
+function extractSpec(text: string, prev: AdSpec): AdSpec {
+  const next = { ...prev };
+  const get = (patterns: RegExp[]) => {
+    for (const p of patterns) { const m = text.match(p); if (m?.[1]) return m[1].trim().replace(/^["']|["']$/g, ""); }
+    return null;
+  };
+
+  const headline = get([/\*\*Headline:\*\*\s*(.+)/i, /headline[:\s]+["']?([^"'\n]{5,60})["']?/i]);
+  if (headline) next.headline = headline;
+
+  const body = get([/\*\*(?:Primary [Tt]ext|Body[^:]*|Ad [Cc]opy):\*\*\s*([\s\S]{20,300}?)(?:\n\n|\*\*|$)/i,
+                    /(?:primary text|ad copy|body copy)[:\s]+["']?([\s\S]{20,300}?)["']?(?:\n\n|$)/i]);
+  if (body) next.body = body.replace(/\n/g, " ").trim();
+
+  const obj = get([/\*\*Objective:\*\*\s*(.+)/i, /objective[:\s]+(.+)/i]);
+  if (obj) next.objective = obj;
+
+  const budget = get([/\*\*(?:Daily )?[Bb]udget:\*\*\s*(.+)/i, /\$(\d+)[\s/]*(?:per )?day/i, /budget[:\s]+\$?(\d+)/i]);
+  if (budget) next.budget = budget.startsWith("$") ? budget : `$${budget}/day`;
+
+  const targeting = get([/\*\*Targeting:\*\*\s*(.+)/i, /\*\*Audience:\*\*\s*(.+)/i]);
+  if (targeting) next.targeting = targeting;
+
+  if (text.includes("campaign_id") || text.includes("Campaign created") || text.match(/✅.*campaign/i)) {
+    next.created = true;
+  }
+
+  return next;
+}
+
+function renderChatMd(text: string): React.ReactNode {
+  return text.split("\n").map((line, i, arr) => {
+    const parts = line.split(/(\*\*[^*]+\*\*)/g).map((p, j) =>
+      p.startsWith("**") && p.endsWith("**")
+        ? <strong key={j} style={{ color: "#e8eaf0", fontWeight: 700 }}>{p.slice(2, -2)}</strong>
+        : <span key={j}>{p.replace(/--/g, "—")}</span>
+    );
+    return <span key={i}>{parts}{i < arr.length - 1 && <br />}</span>;
+  });
+}
+
+function AdCreatorOverlay({ client, onClose }: {
+  client: { id: string; name: string; meta_ad_account_id: string; vertical: string };
+  onClose: () => void;
+}) {
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [spec, setSpec] = useState<AdSpec>({ headline: "", body: "", objective: "", budget: "", targeting: "", created: false });
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const initiated = useRef(false);
+
+  const sendMessage = useCallback(async (content: string, isAuto = false) => {
+    if ((!content.trim()) || loading) return;
+
+    const userMsg: ChatMsg = { id: Date.now().toString(), role: "user", content: content.trim() };
+    const streamingId = (Date.now() + 1).toString();
+
+    setMessages(prev => isAuto ? prev : [...prev, userMsg]);
+    if (!isAuto) setInput("");
+    setLoading(true);
+
+    const historyForApi = isAuto
+      ? [{ role: "user" as const, content: content.trim() }]
+      : [...messages, userMsg].map(m => ({ role: m.role as "user" | "assistant", content: m.content }));
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: historyForApi,
+          clientId: client.id,
+          adAccountId: client.meta_ad_account_id,
+          imageHash: null,
+          isOnboarding: false,
+        }),
+      });
+
+      if (!res.body) throw new Error("No stream");
+      setMessages(prev => [...prev, { id: streamingId, role: "assistant", content: "" }]);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let accum = "";
+      let buf = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6).trim();
+          if (data === "[DONE]") break;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.text) {
+              accum += parsed.text;
+              setMessages(prev => prev.map(m => m.id === streamingId ? { ...m, content: accum } : m));
+              setSpec(prev => extractSpec(accum, prev));
+            }
+          } catch { /* partial chunk */ }
+        }
+      }
+    } catch {
+      setMessages(prev => prev.map(m => m.id === streamingId ? { ...m, content: "Something went wrong. Try again." } : m));
+    } finally {
+      setLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, loading, client]);
+
+  // Auto-start the conversation
+  useEffect(() => {
+    if (initiated.current) return;
+    initiated.current = true;
+    const vertical = client.vertical === "ecomm" ? "ecommerce/DTC" : "lead generation";
+    sendMessage(
+      `I want to create a new Facebook ad for ${client.name}, a ${vertical} client. Ask me one question at a time to build the ad. Start by asking about the campaign objective.`,
+      true
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const initials = client.name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
+  const specComplete = spec.headline && spec.body;
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.88)", backdropFilter: "blur(4px)" }}>
+      <div style={{ width: "94vw", height: "92vh", maxWidth: 1200, background: "#13151d", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 18, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }}>
+
+        {/* Header */}
+        <div style={{ padding: "18px 24px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg,#f5a623,#f76b1c)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 13, color: "#fff" }}>✦</div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Create with Buena Onda</div>
+              <div style={{ fontSize: 11, color: T.faint }}>{client.name}</div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", color: T.muted, fontSize: 22, cursor: "pointer", lineHeight: 1, padding: "4px 8px" }}>×</button>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 380px", overflow: "hidden" }}>
+
+          {/* Left — Chat */}
+          <div style={{ display: "flex", flexDirection: "column", borderRight: "1px solid rgba(255,255,255,0.06)", overflow: "hidden" }}>
+
+            {/* Messages */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "24px 28px", display: "flex", flexDirection: "column", gap: 16 }}>
+              {messages.length === 0 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 10, opacity: 0.5 }}>
+                  <div style={{ width: 28, height: 28, border: `2px solid ${T.accent}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite", flexShrink: 0 }} />
+                  <span style={{ fontSize: 13, color: T.muted }}>Starting your ad creation session…</span>
+                  <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                </div>
+              )}
+              {messages.map(msg => (
+                <div key={msg.id} style={{ display: "flex", gap: 10, alignItems: "flex-start", flexDirection: msg.role === "user" ? "row-reverse" : "row" }}>
+                  {msg.role === "assistant" && (
+                    <div style={{ width: 28, height: 28, borderRadius: 7, background: "linear-gradient(135deg,#f5a623,#f76b1c)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 11, color: "#fff", flexShrink: 0, marginTop: 2 }}>✦</div>
+                  )}
+                  <div style={{
+                    maxWidth: "78%", padding: "11px 15px", borderRadius: msg.role === "user" ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
+                    background: msg.role === "user" ? T.accentBg : "rgba(255,255,255,0.05)",
+                    border: msg.role === "user" ? `1px solid ${T.accentBorder}` : "1px solid rgba(255,255,255,0.06)",
+                    fontSize: 13, color: T.text, lineHeight: 1.65,
+                  }}>
+                    {msg.content ? renderChatMd(msg.content) : (
+                      <span style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                        {[0, 1, 2].map(i => <span key={i} style={{ width: 5, height: 5, borderRadius: "50%", background: T.muted, animation: `bounce 1.2s ${i * 0.2}s ease-in-out infinite` }} />)}
+                        <style>{`@keyframes bounce { 0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-4px)} }`}</style>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input */}
+            <div style={{ padding: "16px 24px 20px", borderTop: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+              <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
+                  placeholder="Type your answer…"
+                  rows={2}
+                  disabled={loading}
+                  style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "11px 14px", fontSize: 13, color: T.text, fontFamily: "'DM Mono', monospace", resize: "none", outline: "none", lineHeight: 1.5 }}
+                />
+                <button
+                  onClick={() => sendMessage(input)}
+                  disabled={!input.trim() || loading}
+                  style={{ padding: "11px 18px", background: input.trim() && !loading ? T.accent : "rgba(245,166,35,0.2)", border: "none", borderRadius: 10, color: input.trim() && !loading ? "#0d0f14" : T.faint, fontSize: 13, fontWeight: 700, cursor: input.trim() && !loading ? "pointer" : "not-allowed", fontFamily: "inherit", flexShrink: 0, height: 46 }}
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Right — Live Preview */}
+          <div style={{ overflowY: "auto", padding: "24px 20px", display: "flex", flexDirection: "column", gap: 20, background: "rgba(0,0,0,0.2)" }}>
+            <div style={{ fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: "0.1em" }}>Live Preview</div>
+
+            {/* Mockup */}
+            <div style={{ display: "flex", justifyContent: "center" }}>
+              <AdMockup
+                ad={{ id: "preview", name: "preview", status: "PAUSED", body: spec.body || null, headline: spec.headline || null, image_url: null }}
+                clientName={client.name}
+                imageUrl={null}
+              />
+            </div>
+
+            {/* Spec summary */}
+            {(spec.objective || spec.budget || spec.targeting) && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: "0.08em" }}>Captured so far</div>
+                {spec.objective && <SpecRow icon="🎯" label="Objective" value={spec.objective} />}
+                {spec.budget && <SpecRow icon="💰" label="Budget" value={spec.budget} />}
+                {spec.targeting && <SpecRow icon="👥" label="Targeting" value={spec.targeting} />}
+              </div>
+            )}
+
+            {/* Created success state */}
+            {spec.created && (
+              <div style={{ background: "rgba(46,204,113,0.1)", border: "1px solid rgba(46,204,113,0.3)", borderRadius: 10, padding: "14px 16px", textAlign: "center" }}>
+                <div style={{ fontSize: 20, marginBottom: 6 }}>✅</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: T.green, marginBottom: 4 }}>Ad Created!</div>
+                <div style={{ fontSize: 11, color: T.muted, marginBottom: 14 }}>It's in your Pending Approval queue. Review the copy and approve when ready.</div>
+                <button
+                  onClick={onClose}
+                  style={{ padding: "8px 20px", background: T.green, border: "none", borderRadius: 7, color: "#0d0f14", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  View in Queue →
+                </button>
+              </div>
+            )}
+
+            {/* Empty state hint */}
+            {!spec.headline && !spec.body && !spec.created && (
+              <div style={{ textAlign: "center", padding: "20px 10px", color: T.faint, fontSize: 12, lineHeight: 1.7 }}>
+                Your ad preview will build here as the conversation progresses.
+              </div>
+            )}
+
+            {/* Spec complete — ready hint */}
+            {specComplete && !spec.created && (
+              <div style={{ background: T.accentBg, border: `1px solid ${T.accentBorder}`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: T.accent }}>
+                Looking good — tell Buena Onda to create the campaign when you're ready.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SpecRow({ icon, label, value }: { icon: string; label: string; value: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "rgba(255,255,255,0.03)", borderRadius: 7, padding: "8px 10px" }}>
+      <span style={{ fontSize: 13, flexShrink: 0 }}>{icon}</span>
+      <div>
+        <div style={{ fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>{label}</div>
+        <div style={{ fontSize: 12, color: T.muted }}>{value}</div>
       </div>
     </div>
   );
