@@ -66,11 +66,31 @@ interface PendingCreative {
   previewUrl: string;
 }
 
+interface TicketForm {
+  subject: string;
+  description: string;
+  category: string;
+}
+
+const TICKET_CATEGORIES = [
+  "Account & Setup",
+  "Facebook Connection",
+  "Campaign Creation",
+  "Data & Metrics",
+  "Billing",
+  "Bug Report",
+  "Other",
+];
+
 export default function ChatBubble() {
   const { activeClient, hasNoClients } = useActiveClient();
   const { tourActive, step, startTour } = useTour();
   const [open, setOpen] = useState(false);
   const [helpMode, setHelpMode] = useState(false);
+  const [showTicket, setShowTicket] = useState(false);
+  const [ticketForm, setTicketForm] = useState<TicketForm>({ subject: "", description: "", category: "Other" });
+  const [ticketSubmitting, setTicketSubmitting] = useState(false);
+  const [ticketSent, setTicketSent] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -488,6 +508,42 @@ export default function ChatBubble() {
                     </button>
                   ))}
                 </div>
+
+                {/* Ticket CTA — always visible in help mode, or after messages */}
+                {helpMode && (
+                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.06)", textAlign: "center" }}>
+                    <div style={{ fontSize: 11, color: "#5a5e72", marginBottom: 8 }}>Still can&apos;t find what you need?</div>
+                    <button
+                      onClick={() => setShowTicket(true)}
+                      style={{
+                        width: "100%", padding: "10px 0", borderRadius: 8,
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        background: "rgba(255,255,255,0.04)", color: "#e8eaf0",
+                        fontSize: 12, fontWeight: 600, cursor: "pointer",
+                        fontFamily: "'DM Mono', 'Fira Mono', monospace",
+                      }}
+                    >
+                      🎫 Open a Support Ticket
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Ticket CTA after conversation */}
+            {helpMode && messages.length > 1 && !loading && (
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)", textAlign: "center" }}>
+                <button
+                  onClick={() => setShowTicket(true)}
+                  style={{
+                    background: "transparent", border: "none",
+                    color: "#5a5e72", fontSize: 11, cursor: "pointer",
+                    fontFamily: "'DM Mono', 'Fira Mono', monospace",
+                    textDecoration: "underline",
+                  }}
+                >
+                  Still need help? Open a support ticket →
+                </button>
               </div>
             )}
 
@@ -576,6 +632,122 @@ export default function ChatBubble() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Support Ticket Modal */}
+      {showTicket && (
+        <>
+          <div
+            onClick={() => setShowTicket(false)}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1010 }}
+          />
+          <div style={{
+            position: "fixed",
+            bottom: 88, right: 24,
+            width: 380,
+            background: "#161820",
+            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 16,
+            zIndex: 1011,
+            boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+            fontFamily: "'DM Mono', 'Fira Mono', monospace",
+            overflow: "hidden",
+          }}>
+            {/* Header */}
+            <div style={{ padding: "14px 18px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "#0d0f14", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 16 }}>🎫</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#e8eaf0" }}>Open a Support Ticket</div>
+                  <div style={{ fontSize: 10, color: "#5a5e72" }}>We&apos;ll reply to your email within 1 business day</div>
+                </div>
+              </div>
+              <button onClick={() => setShowTicket(false)} style={{ background: "transparent", border: "none", color: "#8b8fa8", cursor: "pointer", fontSize: 18 }}>✕</button>
+            </div>
+
+            {ticketSent ? (
+              <div style={{ padding: "32px 20px", textAlign: "center" }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>✅</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#e8eaf0", marginBottom: 8 }}>Ticket submitted!</div>
+                <div style={{ fontSize: 12, color: "#8b8fa8", lineHeight: 1.6, marginBottom: 20 }}>
+                  We&apos;ve emailed hello@buenaonda.ai and sent you a confirmation. We&apos;ll be in touch within 1 business day.
+                </div>
+                <button
+                  onClick={() => { setShowTicket(false); setTicketSent(false); setTicketForm({ subject: "", description: "", category: "Other" }); }}
+                  style={{ padding: "9px 20px", borderRadius: 8, border: "1px solid rgba(245,166,35,0.4)", background: "rgba(245,166,35,0.12)", color: "#f5a623", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
+              <div style={{ padding: "16px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
+                {/* Category */}
+                <div>
+                  <label style={{ fontSize: 10, color: "#5a5e72", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: 5 }}>Category</label>
+                  <select
+                    value={ticketForm.category}
+                    onChange={e => setTicketForm(f => ({ ...f, category: e.target.value }))}
+                    style={{ width: "100%", background: "#0d0f14", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "#e8eaf0", fontSize: 12, padding: "8px 10px", fontFamily: "inherit", outline: "none" }}
+                  >
+                    {TICKET_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+
+                {/* Subject */}
+                <div>
+                  <label style={{ fontSize: 10, color: "#5a5e72", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: 5 }}>Subject</label>
+                  <input
+                    type="text"
+                    value={ticketForm.subject}
+                    onChange={e => setTicketForm(f => ({ ...f, subject: e.target.value }))}
+                    placeholder="Brief summary of the issue"
+                    style={{ width: "100%", background: "#0d0f14", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "#e8eaf0", fontSize: 12, padding: "8px 10px", fontFamily: "inherit", outline: "none", boxSizing: "border-box" }}
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label style={{ fontSize: 10, color: "#5a5e72", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: 5 }}>Description</label>
+                  <textarea
+                    value={ticketForm.description}
+                    onChange={e => setTicketForm(f => ({ ...f, description: e.target.value }))}
+                    placeholder="Describe what's happening, what you expected, and any error messages you saw..."
+                    rows={4}
+                    style={{ width: "100%", background: "#0d0f14", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "#e8eaf0", fontSize: 12, padding: "8px 10px", fontFamily: "inherit", outline: "none", resize: "none", lineHeight: 1.6, boxSizing: "border-box" }}
+                  />
+                </div>
+
+                <button
+                  disabled={!ticketForm.subject.trim() || !ticketForm.description.trim() || ticketSubmitting}
+                  onClick={async () => {
+                    setTicketSubmitting(true);
+                    try {
+                      const res = await fetch("/api/support", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(ticketForm),
+                      });
+                      if (res.ok) setTicketSent(true);
+                      else setTicketForm(f => ({ ...f, description: f.description + "\n\n[Failed to send — please email hello@buenaonda.ai directly]" }));
+                    } finally {
+                      setTicketSubmitting(false);
+                    }
+                  }}
+                  style={{
+                    width: "100%", padding: "12px 0", borderRadius: 8,
+                    border: "1px solid rgba(245,166,35,0.4)",
+                    background: ticketForm.subject.trim() && ticketForm.description.trim() ? "rgba(245,166,35,0.15)" : "rgba(255,255,255,0.03)",
+                    color: ticketForm.subject.trim() && ticketForm.description.trim() ? "#f5a623" : "#5a5e72",
+                    fontSize: 12, fontWeight: 700, cursor: ticketForm.subject.trim() && ticketForm.description.trim() ? "pointer" : "not-allowed",
+                    fontFamily: "inherit", transition: "all 0.15s",
+                  }}
+                >
+                  {ticketSubmitting ? "Sending..." : "Send Ticket →"}
+                </button>
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {/* Bubble button */}
