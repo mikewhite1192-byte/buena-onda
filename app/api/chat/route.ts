@@ -439,6 +439,19 @@ async function executeTool(
 
     console.log("[create_ad_campaign] lead_form_id:", clean_lead_form_id, "destination:", resolved_destination, "existing_adset:", existing_adset_id ?? "none", "page_id:", pageId, "account:", adAccountId);
 
+    // Auto-accept Lead Gen ToS on the page if this is a lead gen campaign
+    if (isLeadGen || clean_lead_form_id) {
+      try {
+        const tosUrl = new URL(`https://graph.facebook.com/v21.0/${pageId}/leadgen_tos_acceptance`);
+        tosUrl.searchParams.set("access_token", metaToken ?? "");
+        const tosRes = await fetch(tosUrl.toString(), { method: "POST", cache: "no-store" });
+        const tosData = await tosRes.json();
+        console.log("[leadgen_tos] acceptance result:", JSON.stringify(tosData));
+      } catch (e) {
+        console.log("[leadgen_tos] acceptance attempt failed:", e);
+      }
+    }
+
     // If adding to an existing lead gen ad set and no form ID provided, fetch and ask
     if (existing_adset_id && !clean_lead_form_id) {
       // Try to scrape a form ID from existing ads in this specific ad set
