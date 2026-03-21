@@ -184,6 +184,129 @@ function BudgetPacingCard({ spend, budget }: { spend: number; budget: number | n
   );
 }
 
+// ─── Anomaly Detection ────────────────────────────────────────────────────────
+
+interface Anomaly {
+  severity: "error" | "warning";
+  title: string;
+  detail: string;
+}
+
+function detectAnomalies(
+  campaigns: CampaignMetric[],
+  client: { cpl_target?: number | null; roas_target?: number | null; monthly_budget?: number | null; vertical?: string },
+  totalSpend: number,
+  computedDays: number,
+  isEcomm: boolean,
+): Anomaly[] {
+  const alerts: Anomaly[] = [];
+  const active = campaigns.filter(c => c.status === "ACTIVE");
+
+  // 1. Active campaigns with zero spend
+  const deadCampaigns = active.filter(c => c.spend === 0);
+  if (deadCampaigns.length > 0) {
+    alerts.push({
+      severity: "error",
+      title: `${deadCampaigns.length} active campaign${deadCampaigns.length > 1 ? "s" : ""} with $0 spend`,
+      detail: deadCampaigns.map(c => c.campaign_name ?? c.campaign_id).join(", "),
+    });
+  }
+
+  // 2. Spending but zero results
+  const noResults = active.filter(c => c.spend > 50 && c.leads === 0);
+  if (noResults.length > 0) {
+    alerts.push({
+      severity: "warning",
+      title: `${noResults.length} campaign${noResults.length > 1 ? "s" : ""} spending with no ${isEcomm ? "purchases" : "leads"}`,
+      detail: noResults.map(c => c.campaign_name ?? c.campaign_id).join(", "),
+    });
+  }
+
+  // 3. High frequency (ad fatigue)
+  const fatigued = campaigns.filter(c => c.frequency > 4);
+  if (fatigued.length > 0) {
+    alerts.push({
+      severity: "warning",
+      title: `High frequency on ${fatigued.length} campaign${fatigued.length > 1 ? "s" : ""} — risk of ad fatigue`,
+      detail: fatigued.map(c => `${c.campaign_name ?? c.campaign_id} (${c.frequency.toFixed(1)}x)`).join(", "),
+    });
+  }
+
+  // 4. CPL above target by >50%
+  if (!isEcomm && client.cpl_target) {
+    const overTarget = campaigns.filter(c => c.cpl > 0 && c.cpl > client.cpl_target! * 1.5);
+    if (overTarget.length > 0) {
+      alerts.push({
+        severity: "error",
+        title: `${overTarget.length} campaign${overTarget.length > 1 ? "s" : ""} with CPL >50% above target`,
+        detail: overTarget.map(c => `${c.campaign_name ?? c.campaign_id} ($${c.cpl.toFixed(0)} vs $${client.cpl_target} target)`).join(", "),
+      });
+    }
+  }
+
+  // 5. ROAS below target by >30%
+  if (isEcomm && client.roas_target) {
+    const underRoas = campaigns.filter(c => {
+      const avArr = (c.raw_metrics as Record<string,unknown>)?.action_values as {action_type:string;value:string}[]|undefined;
+      const pv = parseFloat(avArr?.find(a=>a.action_type==="purchase")?.value ?? "0");
+      const roas = c.spend > 0 && pv > 0 ? pv / c.spend : 0;
+      return roas > 0 && roas < client.roas_target! * 0.7;
+    });
+    if (underRoas.length > 0) {
+      alerts.push({
+        severity: "error",
+        title: `${underRoas.length} campaign${underRoas.length > 1 ? "s" : ""} with ROAS >30% below target`,
+        detail: underRoas.map(c => c.campaign_name ?? c.campaign_id).join(", "),
+      });
+    }
+  }
+
+  // 6. Budget pacing alerts
+  if (client.monthly_budget && computedDays > 0) {
+    const dailyPace = totalSpend / computedDays;
+    const projected = dailyPace * 30;
+    if (projected > client.monthly_budget * 1.15) {
+      const overage = Math.round(projected - client.monthly_budget);
+      alerts.push({
+        severity: "error",
+        title: `Budget overpacing — projected to overspend by $${overage.toLocaleString()}`,
+        detail: `Current pace: $${Math.round(dailyPace)}/day · Projected month: $${Math.round(projected).toLocaleString()} vs $${client.monthly_budget.toLocaleString()} budget`,
+      });
+    } else if (projected < client.monthly_budget * 0.6) {
+      const shortfall = Math.round(client.monthly_budget - projected);
+      alerts.push({
+        severity: "warning",
+        title: `Budget underpacing — projected to underspend by $${shortfall.toLocaleString()}`,
+        detail: `Current pace: $${Math.round(dailyPace)}/day · Projected month: $${Math.round(projected).toLocaleString()} vs $${client.monthly_budget.toLocaleString()} budget`,
+      });
+    }
+  }
+
+  return alerts;
+}
+
+function AnomalyPanel({ anomalies }: { anomalies: Anomaly[] }) {
+  if (anomalies.length === 0) return null;
+  return (
+    <div style={{ marginBottom: 20 }}>
+      {anomalies.map((a, i) => (
+        <div key={i} style={{
+          display: "flex", alignItems: "flex-start", gap: 12,
+          background: a.severity === "error" ? "rgba(255,77,77,0.06)" : "rgba(232,184,75,0.06)",
+          border: `1px solid ${a.severity === "error" ? "rgba(255,77,77,0.25)" : "rgba(232,184,75,0.25)"}`,
+          borderRadius: 8, padding: "10px 14px", marginBottom: 8,
+        }}>
+          <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>{a.severity === "error" ? "🔴" : "🟡"}</span>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: a.severity === "error" ? "#ff6b6b" : "#e8b84b", marginBottom: 2 }}>{a.title}</div>
+            <div style={{ fontSize: 11, color: "#5a5e72" }}>{a.detail}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Aggregate all campaigns into one synthetic MetricRow for stat cards ──────
 
 type AggRow = MetricRow & { raw_metrics: Record<string, unknown> };
@@ -752,6 +875,9 @@ export default function CampaignsPage() {
           </div>
         ) : (
           <>
+            {/* Anomaly Alerts */}
+            <AnomalyPanel anomalies={detectAnomalies(campaigns, activeClient, totalSpend, computedDays, isEcomm)} />
+
             {/* Budget Pacing — full width */}
             <BudgetPacingCard spend={totalSpend} budget={activeClient?.monthly_budget ?? null} />
 
