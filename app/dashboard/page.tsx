@@ -75,7 +75,7 @@ interface Recommendation {
   targetCampaignName?: string;
 }
 
-function generateRecommendations(clients: Client[], allMetrics: Record<string, ClientMetrics>): Recommendation[] {
+function generateRecommendations(clients: Client[], allMetrics: Record<string, ClientMetrics>, recentBudgetIncreases: Set<string>): Recommendation[] {
   const recs: Recommendation[] = [];
   for (const client of clients) {
     const m = allMetrics[client.id];
@@ -103,14 +103,14 @@ function generateRecommendations(clients: Client[], allMetrics: Record<string, C
       recs.push({ id: `fatigue_${client.id}_${fatigued.campaign_id}`, priority: "warning", icon: "😴", title: "Ad fatigue detected", body: `"${fatigued.campaign_name}" has ${fatigued.frequency.toFixed(1)}x frequency on ${client.name}. Pause to rotate creative.`, clientId: client.id, clientName: client.name, approveLabel: "Pause Campaign", actionType: "pause_campaign", targetCampaignId: fatigued.campaign_id, targetCampaignName: fatigued.campaign_name ?? undefined });
     }
 
-    // Info: scale the best-performing campaign
+    // Info: scale the best-performing campaign (skip if already increased in last 7 days)
     const best = [...m.topCampaigns].filter(c => c.leads > 0 && c.cpl > 0).sort((a, b) => a.cpl - b.cpl)[0];
-    if (best && best.cpl < 30 && m.totalLeads >= 3) {
+    if (best && best.cpl < 30 && m.totalLeads >= 3 && !recentBudgetIncreases.has(best.campaign_id)) {
       recs.push({ id: `scale_${client.id}_${best.campaign_id}`, priority: "info", icon: "📈", title: "Scale opportunity", body: `"${best.campaign_name}" on ${client.name} is at $${best.cpl.toFixed(0)} CPL. Increase budget 20% to capture more leads.`, clientId: client.id, clientName: client.name, approveLabel: "Increase Budget 20%", actionType: "scale_budget", targetCampaignId: best.campaign_id, targetCampaignName: best.campaign_name ?? undefined });
     }
 
-    // Ecomm scale
-    if (client.vertical === "ecomm" && best && best.cpl < 20 && m.totalSpend > 50) {
+    // Ecomm scale (skip if already increased)
+    if (client.vertical === "ecomm" && best && best.cpl < 20 && m.totalSpend > 50 && !recentBudgetIncreases.has(best.campaign_id)) {
       recs.push({ id: `scale_ecomm_${client.id}_${best.campaign_id}`, priority: "info", icon: "📈", title: "Strong ROAS — scale budget", body: `"${best.campaign_name}" on ${client.name} CPA $${best.cpl.toFixed(0)}. +20% budget while signal is strong.`, clientId: client.id, clientName: client.name, approveLabel: "Increase Budget 20%", actionType: "scale_budget", targetCampaignId: best.campaign_id, targetCampaignName: best.campaign_name ?? undefined });
     }
   }
@@ -331,6 +331,7 @@ export default function DashboardPage() {
   const [snoozed, setSnoozed] = useState<Set<string>>(new Set());
   const [actionState, setActionState] = useState<Record<string, "loading" | "done" | "error">>({});
   const [actionError, setActionError] = useState<Record<string, string>>({});
+  const [recentBudgetIncreases, setRecentBudgetIncreases] = useState<Set<string>>(new Set());
 
   // ── Date range ─────────────────────────────────────────────────────────────
   function daysAgo(n: number) {
@@ -364,6 +365,14 @@ export default function DashboardPage() {
         setSnoozed(active);
       }
     } catch { /* ignore */ }
+  }, []);
+
+  // Load recent budget increases (7-day window)
+  useEffect(() => {
+    fetch("/api/agent/actions/budget-changes")
+      .then(r => r.json())
+      .then(d => setRecentBudgetIncreases(new Set(d.recentlyIncreased ?? [])))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -407,7 +416,7 @@ export default function DashboardPage() {
   const attentionCount = Object.values(allMetrics).filter(m => m.status === "critical" || m.status === "warning").length;
   const connectedCount = clients.filter(c => c.meta_connected).length;
 
-  const allRecs = useMemo(() => generateRecommendations(clients, allMetrics), [clients, allMetrics]);
+  const allRecs = useMemo(() => generateRecommendations(clients, allMetrics, recentBudgetIncreases), [clients, allMetrics, recentBudgetIncreases]);
   const visibleRecs = allRecs.filter(r => !dismissed.has(r.id) && !snoozed.has(r.id));
 
   async function handleApprove(rec: Recommendation) {
@@ -433,6 +442,9 @@ export default function DashboardPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Action failed");
       setActionState(prev => ({ ...prev, [rec.id]: "done" }));
+      if (rec.actionType === "scale_budget" && rec.targetCampaignId) {
+        setRecentBudgetIncreases(prev => new Set([...prev, rec.targetCampaignId!]));
+      }
       setTimeout(() => setDismissed(prev => new Set([...prev, rec.id])), 3000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Action failed";
