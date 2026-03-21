@@ -307,6 +307,7 @@ async function executeTool(
     let pageId = ((input.page_id as string | undefined) ?? clientInfo?.meta_page_id ?? process.env.META_PAGE_ID ?? "").trim();
 
     // Auto-resolve page ID from the ad account if not explicitly set
+    let pageResolveError = "";
     if (!pageId && clientInfo?.meta_ad_account_id) {
       try {
         const acct = clientInfo.meta_ad_account_id.startsWith("act_") ? clientInfo.meta_ad_account_id : `act_${clientInfo.meta_ad_account_id}`;
@@ -315,11 +316,17 @@ async function executeTool(
         url.searchParams.set("access_token", metaToken ?? "");
         const res = await fetch(url.toString(), { cache: "no-store" });
         const data = await res.json();
-        pageId = data?.data?.[0]?.id ?? "";
-      } catch { /* fall through */ }
+        if (data?.error) pageResolveError = data.error.message ?? "Meta API error";
+        else pageId = data?.data?.[0]?.id ?? "";
+      } catch (e) {
+        pageResolveError = e instanceof Error ? e.message : String(e);
+      }
     }
 
-    if (!pageId) return "I couldn't find a Facebook Page linked to this ad account. Add your Page ID in Clients settings and try again.";
+    if (!pageId) {
+      const detail = pageResolveError ? ` Meta says: "${pageResolveError}"` : "";
+      return `Couldn't find a Facebook Page for this ad account.${detail} You may need to refresh your access token in the .env file (META_ACCESS_TOKEN). Alternatively, save the Page ID in Clients settings.`;
+    }
     const r = await listLeadForms(pageId, metaToken);
     if (!r.ok) return `Failed to fetch lead forms: ${r.error}`;
     if (r.data.length === 0) return "No instant forms found on this page. Create one in Meta Ads Manager under your Page → Instant Forms.";
