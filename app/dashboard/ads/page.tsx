@@ -553,21 +553,52 @@ function AdCreatorOverlay({ client, onClose }: {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const initiated = useRef(false);
 
+  function compressImage(file: File, maxWidth = 1200, quality = 0.85): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        const ratio = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * ratio);
+        canvas.height = Math.round(img.height * ratio);
+        canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          blob => blob ? resolve(blob) : reject(new Error("Compression failed")),
+          "image/jpeg", quality
+        );
+      };
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = objectUrl;
+    });
+  }
+
   async function handleFileUpload(file: File) {
     setUploading(true);
     setUploadError(null);
+    const previewUrl = URL.createObjectURL(file);
     try {
+      const compressed = await compressImage(file);
+      const compressedFile = new File([compressed], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" });
+
+      // Local preview from compressed blob
       const preview = await new Promise<string>((resolve) => {
         const reader = new FileReader();
         reader.onload = e => resolve(e.target?.result as string);
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(compressed);
       });
+
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", compressedFile);
       formData.append("ad_account_id", client.meta_ad_account_id);
       formData.append("client_id", client.id);
       const res = await fetch("/api/agent/creative/upload", { method: "POST", body: formData });
-      const data = await res.json();
+
+      let data: { image_hash?: string; error?: string };
+      try { data = await res.json(); }
+      catch { throw new Error(`Server error (${res.status})`); }
+
       if (data.error) {
         setUploadError(data.error);
       } else if (data.image_hash) {
@@ -578,6 +609,7 @@ function AdCreatorOverlay({ client, onClose }: {
     } catch (e) {
       setUploadError(e instanceof Error ? e.message : "Upload failed");
     } finally {
+      URL.revokeObjectURL(previewUrl);
       setUploading(false);
     }
   }
