@@ -88,6 +88,7 @@ export async function GET(req: NextRequest) {
     ]);
 
     const insightsData = await insightsRes.json();
+    console.log("[campaigns] insights status:", insightsRes.status, "data count:", insightsData.data?.length ?? 0, "error:", JSON.stringify(insightsData.error ?? null));
     if (!insightsRes.ok || insightsData.error) {
       console.error("[campaigns] Meta API error for", accountId, insightsData.error);
       return NextResponse.json({ campaigns: [], error: insightsData.error?.message ?? `Meta API error ${insightsRes.status}` });
@@ -97,9 +98,13 @@ export async function GET(req: NextRequest) {
     // Build status map (best-effort — don't fail if this call errors)
     if (statusRes.ok) {
       const statusData = await statusRes.json();
+      console.log("[campaigns] campaigns edge count:", statusData.data?.length ?? 0, "error:", JSON.stringify(statusData.error ?? null));
       for (const c of (statusData.data ?? []) as { id: string; effective_status: string }[]) {
         statusMap[c.id] = c.effective_status;
       }
+    } else {
+      const statusData = await statusRes.json().catch(() => ({}));
+      console.error("[campaigns] campaigns edge error:", statusRes.status, JSON.stringify(statusData));
     }
   }
 
