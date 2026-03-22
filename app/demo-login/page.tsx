@@ -32,14 +32,19 @@ export default function DemoLoginPage() {
   async function autoSignIn() {
     setStatus("signing-in");
     try {
-      const result = await signIn!.create({
-        identifier: DEMO_EMAIL,
-        password: DEMO_PASSWORD,
-      });
+      // Step 1: create sign-in with identifier
+      let result = await signIn!.create({ identifier: DEMO_EMAIL });
+
+      // Step 2: if needs first factor, attempt password
+      if (result.status === "needs_first_factor") {
+        result = await signIn!.attemptFirstFactor({
+          strategy: "password",
+          password: DEMO_PASSWORD,
+        });
+      }
 
       if (result.status === "complete") {
         await setActive!({ session: result.createdSessionId });
-        // Seed demo data then go to dashboard
         await fetch("/api/demo/seed", { method: "POST" });
         router.push("/dashboard?demo=1");
       } else {
