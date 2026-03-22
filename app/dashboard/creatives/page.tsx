@@ -129,6 +129,7 @@ export default function CreativesPage() {
     const params = new URLSearchParams({ country: libCountry, status: libStatus, limit: "30" });
     if (libQuery.trim()) params.set("q", libQuery.trim());
     if (libPageId.trim()) params.set("page_id", libPageId.trim());
+    if (activeClient?.id) params.set("clientId", activeClient.id);
     try {
       const res = await fetch(`/api/ad-library?${params}`);
       const data = await res.json();
