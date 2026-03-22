@@ -23,7 +23,11 @@ interface Client { id: string; name: string; meta_ad_account_id: string; vertica
 interface ReportMetrics {
   totalSpend: number;
   totalLeads: number;
+  totalPurchases: number;
+  totalPurchaseValue: number;
   avgCPL: number;
+  avgCPA: number;
+  avgROAS: number;
   avgCTR: number;
   avgFrequency: number;
   totalImpressions: number;
@@ -36,6 +40,10 @@ interface Campaign {
   spend: number;
   leads: number;
   cpl: number;
+  purchases: number;
+  purchase_value: number;
+  roas: number;
+  cost_per_purchase: number;
   ctr: number;
   frequency: number;
 }
@@ -286,15 +294,26 @@ export default function ReportsPage() {
             {/* Stat grid */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 28 }}>
               <StatCard label="Total Spend" value={`$${report.metrics.totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} />
-              <StatCard label={isLeads ? "Total Leads" : "Purchases"} value={String(report.metrics.totalLeads)} color={T.leads} />
-              <StatCard label={isLeads ? "Avg CPL" : "Avg CPA"} value={report.metrics.avgCPL > 0 ? `$${report.metrics.avgCPL.toFixed(0)}` : "—"} color={T.healthy} />
-              <StatCard label="Avg CTR" value={`${report.metrics.avgCTR.toFixed(2)}%`} color={T.muted} />
+              {isLeads ? (
+                <>
+                  <StatCard label="Total Leads" value={String(report.metrics.totalLeads)} color={T.leads} />
+                  <StatCard label="Avg CPL" value={report.metrics.avgCPL > 0 ? `$${report.metrics.avgCPL.toFixed(0)}` : "—"} color={T.healthy} />
+                  <StatCard label="Avg CTR" value={`${report.metrics.avgCTR.toFixed(2)}%`} color={T.muted} />
+                </>
+              ) : (
+                <>
+                  <StatCard label="Revenue" value={`$${(report.metrics.totalPurchaseValue ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`} color={T.healthy} />
+                  <StatCard label="ROAS" value={report.metrics.avgROAS > 0 ? `${report.metrics.avgROAS.toFixed(2)}x` : "—"} color={T.accent} />
+                  <StatCard label="Purchases" value={String(report.metrics.totalPurchases ?? 0)} color={T.leads} />
+                </>
+              )}
             </div>
 
             {/* Secondary stats */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 28 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 28 }}>
               <StatCard label="Impressions" value={report.metrics.totalImpressions.toLocaleString()} color={T.text} />
               <StatCard label="Avg Frequency" value={report.metrics.avgFrequency.toFixed(2)} color={report.metrics.avgFrequency > 3 ? "#e8b84b" : T.text} />
+              <StatCard label="Avg CTR" value={`${report.metrics.avgCTR.toFixed(2)}%`} color={T.muted} />
               <StatCard label="Campaigns" value={String(report.metrics.campaignCount)} color={T.text} />
             </div>
 
@@ -313,7 +332,7 @@ export default function ReportsPage() {
                 <div style={{ border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden" }}>
                   {/* Header */}
                   <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", background: T.surfaceAlt, padding: "8px 14px" }}>
-                    {["Campaign", "Spend", isLeads ? "Leads" : "Conv.", isLeads ? "CPL" : "CPA", "CTR"].map((h, i) => (
+                    {["Campaign", "Spend", isLeads ? "Leads" : "Purchases", isLeads ? "CPL" : "ROAS", isLeads ? "CTR" : "Revenue"].map((h, i) => (
                       <div key={i} style={{ fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: "0.5px", textAlign: i > 0 ? "right" : "left" }}>{h}</div>
                     ))}
                   </div>
@@ -321,9 +340,19 @@ export default function ReportsPage() {
                     <div key={c.campaign_id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", padding: "10px 14px", borderTop: `1px solid ${T.border}`, background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)" }}>
                       <div style={{ fontSize: 12, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 12 }}>{c.campaign_name ?? c.campaign_id}</div>
                       <div style={{ fontSize: 12, color: T.text, textAlign: "right" }}>${Number(c.spend).toFixed(2)}</div>
-                      <div style={{ fontSize: 12, color: T.leads, textAlign: "right" }}>{c.leads}</div>
-                      <div style={{ fontSize: 12, color: T.accent, textAlign: "right" }}>${Number(c.cpl).toFixed(2)}</div>
-                      <div style={{ fontSize: 12, color: T.muted, textAlign: "right" }}>{Number(c.ctr).toFixed(2)}%</div>
+                      {isLeads ? (
+                        <>
+                          <div style={{ fontSize: 12, color: T.leads, textAlign: "right" }}>{c.leads}</div>
+                          <div style={{ fontSize: 12, color: T.accent, textAlign: "right" }}>${Number(c.cpl).toFixed(2)}</div>
+                          <div style={{ fontSize: 12, color: T.muted, textAlign: "right" }}>{Number(c.ctr).toFixed(2)}%</div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ fontSize: 12, color: T.leads, textAlign: "right" }}>{c.purchases ?? 0}</div>
+                          <div style={{ fontSize: 12, color: T.accent, textAlign: "right" }}>{Number(c.roas ?? 0).toFixed(2)}x</div>
+                          <div style={{ fontSize: 12, color: T.healthy, textAlign: "right" }}>${Number(c.purchase_value ?? 0).toFixed(0)}</div>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>

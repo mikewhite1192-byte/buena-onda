@@ -52,9 +52,13 @@ export async function POST(req: NextRequest) {
   // Compute aggregate metrics
   const totalSpend = campaigns.reduce((s, c) => s + (Number(c.spend) || 0), 0);
   const totalLeads = campaigns.reduce((s, c) => s + (Number(c.leads) || 0), 0);
+  const totalPurchases = campaigns.reduce((s, c) => s + (Number(c.purchases) || 0), 0);
+  const totalPurchaseValue = campaigns.reduce((s, c) => s + (Number(c.purchase_value) || 0), 0);
   const totalImpressions = campaigns.reduce((s, c) => s + (Number(c.impressions) || 0), 0);
   const totalClicks = campaigns.reduce((s, c) => s + (Number(c.clicks) || 0), 0);
   const avgCPL = totalLeads > 0 ? totalSpend / totalLeads : 0;
+  const avgCPA = totalPurchases > 0 ? totalSpend / totalPurchases : 0;
+  const avgROAS = totalSpend > 0 ? totalPurchaseValue / totalSpend : 0;
   const avgCTR = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
   const avgFrequency = campaigns.length > 0
     ? campaigns.reduce((s, c) => s + (Number(c.frequency) || 0), 0) / campaigns.length
@@ -71,15 +75,20 @@ PERIOD: ${dateLabel}
 
 METRICS:
 - Total Spend: $${totalSpend.toFixed(2)}
-- Total ${isLeads ? "Leads" : "Purchases"}: ${totalLeads}
-- ${isLeads ? "CPL" : "CPA"}: $${avgCPL.toFixed(2)}
+${isLeads
+  ? `- Total Leads: ${totalLeads}\n- CPL: $${avgCPL.toFixed(2)}`
+  : `- Total Purchases: ${totalPurchases}\n- Purchase Value: $${totalPurchaseValue.toFixed(2)}\n- ROAS: ${avgROAS.toFixed(2)}x\n- CPA: $${avgCPA.toFixed(2)}`
+}
 - CTR: ${avgCTR.toFixed(2)}%
 - Avg Frequency: ${avgFrequency.toFixed(2)}
 - Impressions: ${totalImpressions.toLocaleString()}
 - Active Campaigns: ${campaigns.length}
 
 TOP CAMPAIGNS:
-${campaigns.slice(0, 5).map((c, i) => `${i + 1}. ${c.campaign_name ?? c.campaign_id}: $${Number(c.spend).toFixed(2)} spend, ${c.leads} ${isLeads ? "leads" : "purchases"}, $${Number(c.cpl).toFixed(2)} ${isLeads ? "CPL" : "CPA"}`).join("\n")}
+${campaigns.slice(0, 5).map((c, i) => isLeads
+  ? `${i + 1}. ${c.campaign_name ?? c.campaign_id}: $${Number(c.spend).toFixed(2)} spend, ${c.leads} leads, $${Number(c.cpl).toFixed(2)} CPL`
+  : `${i + 1}. ${c.campaign_name ?? c.campaign_id}: $${Number(c.spend).toFixed(2)} spend, ${c.purchases} purchases, $${Number(c.purchase_value).toFixed(2)} revenue, ${Number(c.roas).toFixed(2)}x ROAS`
+).join("\n")}
 
 Write a concise performance report with these sections:
 1. **Executive Summary** (2-3 sentences — what happened this period overall)
@@ -90,7 +99,7 @@ Write a concise performance report with these sections:
 Be direct and specific. Use the actual numbers. No filler.`;
 
   const aiResponse = await anthropic.messages.create({
-    model: "claude-sonnet-4-5",
+    model: "claude-sonnet-4-6",
     max_tokens: 1000,
     messages: [{ role: "user", content: prompt }],
   });
@@ -106,7 +115,11 @@ Be direct and specific. Use the actual numbers. No filler.`;
     metrics: {
       totalSpend,
       totalLeads,
+      totalPurchases,
+      totalPurchaseValue,
       avgCPL,
+      avgCPA,
+      avgROAS,
       avgCTR,
       avgFrequency,
       totalImpressions,
@@ -124,14 +137,32 @@ Be direct and specific. Use the actual numbers. No filler.`;
       <tr>
         <td style="padding: 8px 12px; border-bottom: 1px solid #1e2130; color: #e8eaf0; font-size: 12px;">${c.campaign_name ?? c.campaign_id}</td>
         <td style="padding: 8px 12px; border-bottom: 1px solid #1e2130; color: #e8eaf0; font-size: 12px; text-align: right;">$${Number(c.spend).toFixed(2)}</td>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #1e2130; color: #e8eaf0; font-size: 12px; text-align: right;">${c.leads}</td>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #1e2130; color: #f5a623; font-size: 12px; text-align: right;">$${Number(c.cpl).toFixed(2)}</td>
+        ${isLeads
+          ? `<td style="padding: 8px 12px; border-bottom: 1px solid #1e2130; color: #e8eaf0; font-size: 12px; text-align: right;">${c.leads}</td>
+             <td style="padding: 8px 12px; border-bottom: 1px solid #1e2130; color: #f5a623; font-size: 12px; text-align: right;">$${Number(c.cpl).toFixed(2)}</td>`
+          : `<td style="padding: 8px 12px; border-bottom: 1px solid #1e2130; color: #e8eaf0; font-size: 12px; text-align: right;">${c.purchases}</td>
+             <td style="padding: 8px 12px; border-bottom: 1px solid #1e2130; color: #f5a623; font-size: 12px; text-align: right;">${Number(c.roas).toFixed(2)}x</td>`
+        }
       </tr>
     `).join("");
 
     const summaryHtml = summary
       .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
       .replace(/\n/g, "<br>");
+
+    const emailStats = isLeads
+      ? [
+          { label: "Total Spend", value: `$${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
+          { label: "Leads", value: String(totalLeads) },
+          { label: "Avg CPL", value: `$${avgCPL.toFixed(0)}` },
+          { label: "Avg CTR", value: `${avgCTR.toFixed(2)}%` },
+        ]
+      : [
+          { label: "Total Spend", value: `$${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
+          { label: "Revenue", value: `$${totalPurchaseValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
+          { label: "ROAS", value: `${avgROAS.toFixed(2)}x` },
+          { label: "Purchases", value: String(totalPurchases) },
+        ];
 
     await resend.emails.send({
       from: "Buena Onda Reports <reports@buenaonda.ai>",
@@ -147,12 +178,7 @@ Be direct and specific. Use the actual numbers. No filler.`;
 
           <!-- Stats -->
           <div style="display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 32px;">
-            ${[
-              { label: "Total Spend", value: `$${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
-              { label: isLeads ? "Leads" : "Purchases", value: String(totalLeads) },
-              { label: isLeads ? "Avg CPL" : "Avg CPA", value: `$${avgCPL.toFixed(0)}` },
-              { label: "Avg CTR", value: `${avgCTR.toFixed(2)}%` },
-            ].map(s => `
+            ${emailStats.map(s => `
               <div style="background: #161820; border-radius: 8px; padding: 14px; text-align: center;">
                 <div style="font-size: 10px; color: #8b8fa8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">${s.label}</div>
                 <div style="font-size: 22px; font-weight: 800; color: #f5a623;">${s.value}</div>
@@ -175,8 +201,8 @@ Be direct and specific. Use the actual numbers. No filler.`;
                 <tr style="background: #1e2130;">
                   <th style="padding: 8px 12px; text-align: left; font-size: 10px; color: #8b8fa8; text-transform: uppercase;">Campaign</th>
                   <th style="padding: 8px 12px; text-align: right; font-size: 10px; color: #8b8fa8; text-transform: uppercase;">Spend</th>
-                  <th style="padding: 8px 12px; text-align: right; font-size: 10px; color: #8b8fa8; text-transform: uppercase;">${isLeads ? "Leads" : "Conv."}</th>
-                  <th style="padding: 8px 12px; text-align: right; font-size: 10px; color: #8b8fa8; text-transform: uppercase;">${isLeads ? "CPL" : "CPA"}</th>
+                  <th style="padding: 8px 12px; text-align: right; font-size: 10px; color: #8b8fa8; text-transform: uppercase;">${isLeads ? "Leads" : "Purchases"}</th>
+                  <th style="padding: 8px 12px; text-align: right; font-size: 10px; color: #8b8fa8; text-transform: uppercase;">${isLeads ? "CPL" : "ROAS"}</th>
                 </tr>
               </thead>
               <tbody>${topCampaignsHtml}</tbody>

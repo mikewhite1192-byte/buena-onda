@@ -105,13 +105,19 @@ export async function GET(req: NextRequest) {
 
   const campaigns = allRows.map((row) => {
     const actions = row.actions as MetaActionRow[] | undefined;
+    const actionValues = row.action_values as MetaActionRow[] | undefined;
+    const roasArr = row.purchase_roas as MetaActionRow[] | undefined;
     const spend = parseFloat((row.spend as string) ?? "0");
     const leads = parseInt(actions?.find((a) => a.action_type === "lead")?.value ?? "0", 10);
+    const purchases = parseInt(actions?.find((a) => a.action_type === "purchase")?.value ?? "0", 10);
+    const purchaseValue = parseFloat(actionValues?.find((a) => a.action_type === "purchase")?.value ?? "0");
+    const roas = parseFloat(roasArr?.find((r) => r.action_type === "omni_purchase")?.value ?? "0");
     const impressions = parseInt((row.impressions as string) ?? "0", 10);
     const clicks = parseInt((row.clicks as string) ?? "0", 10);
     const ctr = parseFloat((row.ctr as string) ?? "0") / 100;
     const frequency = parseFloat((row.frequency as string) ?? "0");
     const cpl = leads > 0 ? spend / leads : 0;
+    const costPerPurchase = purchases > 0 ? spend / purchases : 0;
     const campaignId = row.campaign_id as string;
 
     return {
@@ -121,6 +127,10 @@ export async function GET(req: NextRequest) {
       spend: Number(spend.toFixed(2)),
       leads,
       cpl: Number(cpl.toFixed(2)),
+      purchases,
+      purchase_value: Number(purchaseValue.toFixed(2)),
+      roas: Number(roas.toFixed(2)),
+      cost_per_purchase: Number(costPerPurchase.toFixed(2)),
       ctr,
       frequency: Number(frequency.toFixed(2)),
       impressions,

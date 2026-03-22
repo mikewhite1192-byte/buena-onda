@@ -14,6 +14,10 @@ type DemoCampaign = {
   spend: number;
   leads: number;
   cpl: number;
+  purchases: number;
+  purchase_value: number;
+  roas: number;
+  cost_per_purchase: number;
   ctr: number;
   frequency: number;
   impressions: number;
@@ -21,68 +25,81 @@ type DemoCampaign = {
   raw_metrics: object;
 };
 
+// Helper to build a leads-vertical campaign row
+function lc(campaign_id: string, campaign_name: string, status: string, spend: number, leads: number, ctr: number, frequency: number, impressions: number, clicks: number): DemoCampaign {
+  const cpl = leads > 0 ? Number((spend / leads).toFixed(2)) : 0;
+  return { campaign_id, campaign_name, status, spend, leads, cpl, purchases: 0, purchase_value: 0, roas: 0, cost_per_purchase: 0, ctr, frequency, impressions, clicks, raw_metrics: {} };
+}
+
+// Helper to build an ecomm-vertical campaign row
+function ec(campaign_id: string, campaign_name: string, status: string, spend: number, purchases: number, purchase_value: number, ctr: number, frequency: number, impressions: number, clicks: number): DemoCampaign {
+  const roas = spend > 0 && purchase_value > 0 ? Number((purchase_value / spend).toFixed(2)) : 0;
+  const cost_per_purchase = purchases > 0 ? Number((spend / purchases).toFixed(2)) : 0;
+  return { campaign_id, campaign_name, status, spend, leads: 0, cpl: 0, purchases, purchase_value, roas, cost_per_purchase, ctr, frequency, impressions, clicks, raw_metrics: {} };
+}
+
 const CAMPAIGNS: Record<string, DemoCampaign[]> = {
   act_demo_roofing: [
-    { campaign_id: "demo_r_001", campaign_name: "Summit | Homeowners 35-65 | Lead Gen",   status: "ACTIVE",  spend: 187.40, leads: 4, cpl: 46.85, ctr: 0.021, frequency: 2.4, impressions: 14200, clicks: 298, raw_metrics: {} },
-    { campaign_id: "demo_r_002", campaign_name: "Summit | Storm Damage | Retargeting",    status: "ACTIVE",  spend: 62.50,  leads: 2, cpl: 31.25, ctr: 0.038, frequency: 3.1, impressions: 2840,  clicks: 107, raw_metrics: {} },
-    { campaign_id: "demo_r_003", campaign_name: "Summit | LAL 1% | Prospecting",          status: "PAUSED",  spend: 44.20,  leads: 1, cpl: 44.20, ctr: 0.012, frequency: 1.8, impressions: 6720,  clicks: 80,  raw_metrics: {} },
+    lc("demo_r_001", "Summit | Homeowners 35-65 | Lead Gen",   "ACTIVE",  187.40, 4, 0.021, 2.4, 14200, 298),
+    lc("demo_r_002", "Summit | Storm Damage | Retargeting",    "ACTIVE",  62.50,  2, 0.038, 3.1, 2840,  107),
+    lc("demo_r_003", "Summit | LAL 1% | Prospecting",          "PAUSED",  44.20,  1, 0.012, 1.8, 6720,  80),
   ],
   act_demo_dental: [
-    { campaign_id: "demo_d_001", campaign_name: "Bright Smile | Invisalign | Leads",      status: "ACTIVE",  spend: 174.00, leads: 3, cpl: 58.00, ctr: 0.018, frequency: 3.2, impressions: 18600, clicks: 334, raw_metrics: {} },
-    { campaign_id: "demo_d_002", campaign_name: "Bright Smile | Whitening | Retargeting", status: "PAUSED",  spend: 89.50,  leads: 1, cpl: 89.50, ctr: 0.022, frequency: 4.1, impressions: 7200,  clicks: 158, raw_metrics: {} },
+    lc("demo_d_001", "Bright Smile | Invisalign | Leads",      "ACTIVE",  174.00, 3, 0.018, 3.2, 18600, 334),
+    lc("demo_d_002", "Bright Smile | Whitening | Retargeting", "PAUSED",  89.50,  1, 0.022, 4.1, 7200,  158),
   ],
   act_demo_ecomm: [
-    { campaign_id: "demo_e_001", campaign_name: "Urban Threads | Summer Drop | DPA",      status: "ACTIVE",  spend: 420.00, leads: 18, cpl: 23.33, ctr: 0.032, frequency: 2.1, impressions: 42000, clicks: 1344, raw_metrics: {} },
-    { campaign_id: "demo_e_002", campaign_name: "Urban Threads | Lookalike | Broad",      status: "ACTIVE",  spend: 280.00, leads: 8,  cpl: 35.00, ctr: 0.019, frequency: 1.6, impressions: 31000, clicks: 589,  raw_metrics: {} },
-    { campaign_id: "demo_e_003", campaign_name: "Urban Threads | Retargeting 7d",         status: "PAUSED",  spend: 190.00, leads: 14, cpl: 13.57, ctr: 0.055, frequency: 5.2, impressions: 12400, clicks: 682,  raw_metrics: {} },
+    ec("demo_e_001", "Urban Threads | Summer Drop | DPA",      "ACTIVE",  420.00, 18, 864.00,  0.032, 2.1, 42000, 1344),
+    ec("demo_e_002", "Urban Threads | Lookalike | Broad",      "ACTIVE",  280.00, 8,  320.00,  0.019, 1.6, 31000, 589),
+    ec("demo_e_003", "Urban Threads | Retargeting 7d",         "PAUSED",  190.00, 14, 812.00,  0.055, 5.2, 12400, 682),
   ],
   act_demo_solar: [
-    { campaign_id: "demo_s_001", campaign_name: "Pacific Solar | Homeowners | Leads",     status: "ACTIVE",  spend: 310.00, leads: 0, cpl: 0, ctr: 0.009, frequency: 2.8, impressions: 34400, clicks: 309, raw_metrics: {} },
-    { campaign_id: "demo_s_002", campaign_name: "Pacific Solar | Eco Audience | Leads",   status: "PAUSED",  spend: 110.00, leads: 0, cpl: 0, ctr: 0.007, frequency: 2.2, impressions: 15700, clicks: 109, raw_metrics: {} },
+    lc("demo_s_001", "Pacific Solar | Homeowners | Leads",     "ACTIVE",  310.00, 0, 0.009, 2.8, 34400, 309),
+    lc("demo_s_002", "Pacific Solar | Eco Audience | Leads",   "PAUSED",  110.00, 0, 0.007, 2.2, 15700, 109),
   ],
   act_demo_hvac: [
-    { campaign_id: "demo_h_001", campaign_name: "Apex HVAC | Homeowners | AC Leads",      status: "ACTIVE",  spend: 112.00, leads: 4, cpl: 28.00, ctr: 0.026, frequency: 2.0, impressions: 9800, clicks: 254, raw_metrics: {} },
-    { campaign_id: "demo_h_002", campaign_name: "Apex HVAC | Retargeting | Hot Summer",   status: "ACTIVE",  spend: 73.00,  leads: 3, cpl: 24.33, ctr: 0.041, frequency: 3.3, impressions: 4200, clicks: 172, raw_metrics: {} },
+    lc("demo_h_001", "Apex HVAC | Homeowners | AC Leads",      "ACTIVE",  112.00, 4, 0.026, 2.0, 9800, 254),
+    lc("demo_h_002", "Apex HVAC | Retargeting | Hot Summer",   "ACTIVE",  73.00,  3, 0.041, 3.3, 4200, 172),
   ],
   act_demo_legal: [
-    { campaign_id: "demo_l_001", campaign_name: "Rodriguez Law | Personal Injury | Leads", status: "ACTIVE",  spend: 195.00, leads: 3, cpl: 65.00, ctr: 0.014, frequency: 2.6, impressions: 22000, clicks: 308, raw_metrics: {} },
-    { campaign_id: "demo_l_002", campaign_name: "Rodriguez Law | Auto Accident | Broad",   status: "PAUSED",  spend: 115.00, leads: 2, cpl: 57.50, ctr: 0.011, frequency: 2.1, impressions: 16500, clicks: 181, raw_metrics: {} },
+    lc("demo_l_001", "Rodriguez Law | Personal Injury | Leads", "ACTIVE",  195.00, 3, 0.014, 2.6, 22000, 308),
+    lc("demo_l_002", "Rodriguez Law | Auto Accident | Broad",   "PAUSED",  115.00, 2, 0.011, 2.1, 16500, 181),
   ],
   act_demo_realty: [
-    { campaign_id: "demo_re_001", campaign_name: "SoCal Realty | Buyers 35-55 | Leads",   status: "ACTIVE",  spend: 280.00, leads: 3, cpl: 93.33, ctr: 0.016, frequency: 3.1, impressions: 28000, clicks: 448, raw_metrics: {} },
-    { campaign_id: "demo_re_002", campaign_name: "SoCal Realty | Seller Leads | Broad",   status: "ACTIVE",  spend: 160.00, leads: 2, cpl: 80.00, ctr: 0.013, frequency: 2.7, impressions: 19000, clicks: 247, raw_metrics: {} },
+    lc("demo_re_001", "SoCal Realty | Buyers 35-55 | Leads",   "ACTIVE",  280.00, 3, 0.016, 3.1, 28000, 448),
+    lc("demo_re_002", "SoCal Realty | Seller Leads | Broad",   "ACTIVE",  160.00, 2, 0.013, 2.7, 19000, 247),
   ],
   act_demo_remodel: [
-    { campaign_id: "demo_rm_001", campaign_name: "Premier Remodel | Kitchen | Leads",     status: "ACTIVE",  spend: 138.00, leads: 4, cpl: 34.50, ctr: 0.022, frequency: 2.2, impressions: 11800, clicks: 259, raw_metrics: {} },
-    { campaign_id: "demo_rm_002", campaign_name: "Premier Remodel | Bathroom | LAL",      status: "PAUSED",  spend: 87.00,  leads: 2, cpl: 43.50, ctr: 0.018, frequency: 1.9, impressions: 8400,  clicks: 151, raw_metrics: {} },
+    lc("demo_rm_001", "Premier Remodel | Kitchen | Leads",     "ACTIVE",  138.00, 4, 0.022, 2.2, 11800, 259),
+    lc("demo_rm_002", "Premier Remodel | Bathroom | LAL",      "PAUSED",  87.00,  2, 0.018, 1.9, 8400,  151),
   ],
   act_demo_auto: [
-    { campaign_id: "demo_a_001", campaign_name: "Valley Auto | New Arrivals | Leads",     status: "ACTIVE",  spend: 220.00, leads: 6, cpl: 36.67, ctr: 0.019, frequency: 2.4, impressions: 26000, clicks: 494, raw_metrics: {} },
-    { campaign_id: "demo_a_002", campaign_name: "Valley Auto | Trade-In | Retargeting",   status: "ACTIVE",  spend: 160.00, leads: 5, cpl: 32.00, ctr: 0.031, frequency: 3.8, impressions: 14200, clicks: 440, raw_metrics: {} },
+    lc("demo_a_001", "Valley Auto | New Arrivals | Leads",     "ACTIVE",  220.00, 6, 0.019, 2.4, 26000, 494),
+    lc("demo_a_002", "Valley Auto | Trade-In | Retargeting",   "ACTIVE",  160.00, 5, 0.031, 3.8, 14200, 440),
   ],
   act_demo_insurance: [
-    { campaign_id: "demo_i_001", campaign_name: "Coastal Insurance | Homeowners | Leads", status: "ACTIVE",  spend: 130.00, leads: 2, cpl: 65.00, ctr: 0.015, frequency: 2.9, impressions: 14500, clicks: 217, raw_metrics: {} },
-    { campaign_id: "demo_i_002", campaign_name: "Coastal Insurance | Auto | Leads",       status: "PAUSED",  spend: 65.00,  leads: 1, cpl: 65.00, ctr: 0.012, frequency: 2.4, impressions: 9800,  clicks: 117, raw_metrics: {} },
+    lc("demo_i_001", "Coastal Insurance | Homeowners | Leads", "ACTIVE",  130.00, 2, 0.015, 2.9, 14500, 217),
+    lc("demo_i_002", "Coastal Insurance | Auto | Leads",       "PAUSED",  65.00,  1, 0.012, 2.4, 9800,  117),
   ],
   act_demo_beauty: [
-    { campaign_id: "demo_b_001", campaign_name: "Glow Beauty | Skincare Set | DPA",       status: "ACTIVE",  spend: 295.00, leads: 21, cpl: 14.05, ctr: 0.044, frequency: 2.3, impressions: 38000, clicks: 1672, raw_metrics: {} },
-    { campaign_id: "demo_b_002", campaign_name: "Glow Beauty | New Customers | LAL",      status: "ACTIVE",  spend: 225.00, leads: 14, cpl: 16.07, ctr: 0.031, frequency: 1.7, impressions: 29000, clicks: 899,  raw_metrics: {} },
+    ec("demo_b_001", "Glow Beauty | Skincare Set | DPA",       "ACTIVE",  295.00, 21, 1302.00, 0.044, 2.3, 38000, 1672),
+    ec("demo_b_002", "Glow Beauty | New Customers | LAL",      "ACTIVE",  225.00, 14, 812.00,  0.031, 1.7, 29000, 899),
   ],
   act_demo_supps: [
-    { campaign_id: "demo_sp_001", campaign_name: "Peak Supps | Protein | DPA Catalog",    status: "ACTIVE",  spend: 410.00, leads: 22, cpl: 18.64, ctr: 0.038, frequency: 2.6, impressions: 44000, clicks: 1672, raw_metrics: {} },
-    { campaign_id: "demo_sp_002", campaign_name: "Peak Supps | Pre-Workout | LAL 2%",     status: "PAUSED",  spend: 330.00, leads: 15, cpl: 22.00, ctr: 0.027, frequency: 2.0, impressions: 38000, clicks: 1026, raw_metrics: {} },
+    ec("demo_sp_001", "Peak Supps | Protein | DPA Catalog",    "ACTIVE",  410.00, 22, 1210.00, 0.038, 2.6, 44000, 1672),
+    ec("demo_sp_002", "Peak Supps | Pre-Workout | LAL 2%",     "PAUSED",  330.00, 15, 780.00,  0.027, 2.0, 38000, 1026),
   ],
   act_demo_homegood: [
-    { campaign_id: "demo_hg_001", campaign_name: "Casa Living | Furniture | Broad",       status: "ACTIVE",  spend: 220.00, leads: 9,  cpl: 24.44, ctr: 0.021, frequency: 5.8, impressions: 26000, clicks: 546,  raw_metrics: {} },
-    { campaign_id: "demo_hg_002", campaign_name: "Casa Living | Decor | Retargeting",     status: "PAUSED",  spend: 120.00, leads: 5,  cpl: 24.00, ctr: 0.035, frequency: 6.2, impressions: 12000, clicks: 420,  raw_metrics: {} },
+    ec("demo_hg_001", "Casa Living | Furniture | Broad",       "ACTIVE",  220.00, 9,  765.00,  0.021, 5.8, 26000, 546),
+    ec("demo_hg_002", "Casa Living | Decor | Retargeting",     "PAUSED",  120.00, 5,  360.00,  0.035, 6.2, 12000, 420),
   ],
   act_demo_fitness: [
-    { campaign_id: "demo_ft_001", campaign_name: "Iron & Oak | Equipment | DPA",          status: "ACTIVE",  spend: 165.00, leads: 8,  cpl: 20.63, ctr: 0.029, frequency: 2.2, impressions: 21000, clicks: 609,  raw_metrics: {} },
-    { campaign_id: "demo_ft_002", campaign_name: "Iron & Oak | Gym Gear | LAL",           spend: 115.00, leads: 5,  cpl: 23.00, ctr: 0.023, frequency: 1.8, impressions: 16000, clicks: 368,  raw_metrics: {}, status: "ACTIVE" },
+    ec("demo_ft_001", "Iron & Oak | Equipment | DPA",          "ACTIVE",  165.00, 8,  960.00,  0.029, 2.2, 21000, 609),
+    ec("demo_ft_002", "Iron & Oak | Gym Gear | LAL",           "ACTIVE",  115.00, 5,  575.00,  0.023, 1.8, 16000, 368),
   ],
   act_demo_finance: [
-    { campaign_id: "demo_fi_001", campaign_name: "Crestwood | Debt Relief | Leads",       status: "ACTIVE",  spend: 310.00, leads: 0, cpl: 0, ctr: 0.008, frequency: 3.2, impressions: 38000, clicks: 304, raw_metrics: {} },
-    { campaign_id: "demo_fi_002", campaign_name: "Crestwood | Credit Repair | Broad",     status: "PAUSED",  spend: 200.00, leads: 0, cpl: 0, ctr: 0.006, frequency: 2.8, impressions: 28000, clicks: 168, raw_metrics: {} },
+    lc("demo_fi_001", "Crestwood | Debt Relief | Leads",       "ACTIVE",  310.00, 0, 0.008, 3.2, 38000, 304),
+    lc("demo_fi_002", "Crestwood | Credit Repair | Broad",     "PAUSED",  200.00, 0, 0.006, 2.8, 28000, 168),
   ],
 };
 
@@ -94,12 +111,16 @@ export function getDemoCampaigns(accountId: string, days = 1): object[] {
   const base = CAMPAIGNS[accountId] ?? CAMPAIGNS["act_demo_roofing"];
   if (days <= 1) return base;
   return base.map(c => {
-    const spend   = Number((c.spend   * days * 0.91).toFixed(2));
-    const leads   = Math.max(0, Math.round(c.leads   * days * 0.88));
-    const impr    = Math.round(c.impressions * days * 0.94);
-    const clicks  = Math.round(c.clicks      * days * 0.92);
-    const cpl     = leads > 0 ? Number((spend / leads).toFixed(2)) : 0;
-    return { ...c, spend, leads, impressions: impr, clicks, cpl };
+    const spend         = Number((c.spend        * days * 0.91).toFixed(2));
+    const leads         = Math.max(0, Math.round(c.leads        * days * 0.88));
+    const purchases     = Math.max(0, Math.round(c.purchases    * days * 0.88));
+    const purchaseValue = Number((c.purchase_value * days * 0.90).toFixed(2));
+    const impr          = Math.round(c.impressions * days * 0.94);
+    const clicks        = Math.round(c.clicks      * days * 0.92);
+    const cpl           = leads > 0 ? Number((spend / leads).toFixed(2)) : 0;
+    const roas          = spend > 0 && purchaseValue > 0 ? Number((purchaseValue / spend).toFixed(2)) : 0;
+    const cost_per_purchase = purchases > 0 ? Number((spend / purchases).toFixed(2)) : 0;
+    return { ...c, spend, leads, cpl, purchases, purchase_value: purchaseValue, roas, cost_per_purchase, impressions: impr, clicks };
   });
 }
 
@@ -220,8 +241,8 @@ const AD_SETS: Record<string, object[]> = {
     { ad_set_id: "demo_d_001b", ad_set_name: "Men 25-44 | Invisalign",        campaign_id: "demo_d_001", spend: 76.00,  leads: 1, cpl: 76.00, ctr: 0.014, frequency: 3.4, impressions: 8200,  clicks: 114, ad_status: "ACTIVE", date_recorded: new Date().toISOString(), raw_metrics: {} },
   ],
   demo_e_001: [
-    { ad_set_id: "demo_e_001a", ad_set_name: "DPA | Viewers 7d",              campaign_id: "demo_e_001", spend: 180.00, leads: 8,  cpl: 22.50, ctr: 0.035, frequency: 2.0, impressions: 18000, clicks: 630, ad_status: "ACTIVE", date_recorded: new Date().toISOString(), raw_metrics: {} },
-    { ad_set_id: "demo_e_001b", ad_set_name: "DPA | Add to Cart 14d",         campaign_id: "demo_e_001", spend: 240.00, leads: 10, cpl: 24.00, ctr: 0.029, frequency: 2.2, impressions: 24000, clicks: 696, ad_status: "ACTIVE", date_recorded: new Date().toISOString(), raw_metrics: {} },
+    { ad_set_id: "demo_e_001a", ad_set_name: "DPA | Viewers 7d",              campaign_id: "demo_e_001", spend: 180.00, leads: 0, cpl: 0, purchases: 8,  purchase_value: 384.00, roas: 2.13, cost_per_purchase: 22.50, ctr: 0.035, frequency: 2.0, impressions: 18000, clicks: 630, ad_status: "ACTIVE", date_recorded: new Date().toISOString(), raw_metrics: {} },
+    { ad_set_id: "demo_e_001b", ad_set_name: "DPA | Add to Cart 14d",         campaign_id: "demo_e_001", spend: 240.00, leads: 0, cpl: 0, purchases: 10, purchase_value: 480.00, roas: 2.00, cost_per_purchase: 24.00, ctr: 0.029, frequency: 2.2, impressions: 24000, clicks: 696, ad_status: "ACTIVE", date_recorded: new Date().toISOString(), raw_metrics: {} },
   ],
   demo_s_001: [
     { ad_set_id: "demo_s_001a", ad_set_name: "Homeowners 35-65 | CA",         campaign_id: "demo_s_001", spend: 180.00, leads: 0, cpl: 0, ctr: 0.010, frequency: 2.6, impressions: 20000, clicks: 200, ad_status: "ACTIVE", date_recorded: new Date().toISOString(), raw_metrics: {} },

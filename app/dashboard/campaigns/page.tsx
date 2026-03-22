@@ -17,6 +17,10 @@ interface CampaignMetric {
   spend: number;
   leads: number;
   cpl: number;
+  purchases: number;
+  purchase_value: number;
+  roas: number;
+  cost_per_purchase: number;
   ctr: number;
   frequency: number;
   impressions: number;
@@ -32,6 +36,10 @@ interface AdSetMetric {
   spend: number;
   leads: number;
   cpl: number;
+  purchases: number;
+  purchase_value: number;
+  roas: number;
+  cost_per_purchase: number;
   ctr: number;
   frequency: number;
   impressions: number;
@@ -47,6 +55,10 @@ interface AdMetric {
   spend: number;
   leads: number;
   cpl: number;
+  purchases: number;
+  purchase_value: number;
+  roas: number;
+  cost_per_purchase: number;
   ctr: number;
   frequency: number;
   impressions: number;
@@ -59,13 +71,17 @@ interface MetricRow {
   spend: number;
   leads: number;
   cpl: number;
+  purchases?: number;
+  purchase_value?: number;
+  roas?: number;
+  cost_per_purchase?: number;
   ctr: number;
   frequency: number;
   impressions: number;
   raw_metrics: Record<string, unknown>;
 }
 
-type SortKey = "cpl" | "spend" | "leads" | "frequency" | "ctr" | "impressions";
+type SortKey = "cpl" | "spend" | "leads" | "frequency" | "ctr" | "impressions" | "purchases" | "roas" | "cost_per_purchase" | "purchase_value";
 type SortDir = "asc" | "desc";
 
 interface Preset { id: string; name: string; columns: string[]; is_default: boolean; }
@@ -117,16 +133,26 @@ function formatRowValue(key: string, row: MetricRow): string {
   }
 }
 
-function adSetHealthColor(a: AdSetMetric): string {
-  if (a.cpl > 30) return "#E8705A";
+function adSetHealthColor(a: AdSetMetric, isEcomm = false): string {
   if (a.frequency > 3) return "#F5A623";
-  if (a.cpl < 20 && a.leads >= 5) return "#f5a623";
+  if (isEcomm) {
+    if (a.roas > 0 && a.roas < 1.5) return "#E8705A";
+    if (a.roas >= 3 && a.purchases >= 3) return "#2ecc71";
+    return "#8b8fa8";
+  }
+  if (a.cpl > 30) return "#E8705A";
+  if (a.cpl < 20 && a.leads >= 5) return "#2ecc71";
   return "#8b8fa8";
 }
 
-function adSetHealthLabel(a: AdSetMetric): string {
-  if (a.cpl > 30) return "CPL High";
+function adSetHealthLabel(a: AdSetMetric, isEcomm = false): string {
   if (a.frequency > 3) return "Fatigued";
+  if (isEcomm) {
+    if (a.roas > 0 && a.roas < 1.5) return "Low ROAS";
+    if (a.roas >= 3 && a.purchases >= 3) return "Scaling";
+    return "Stable";
+  }
+  if (a.cpl > 30) return "CPL High";
   if (a.cpl < 20 && a.leads >= 5) return "Scaling";
   return "Stable";
 }
@@ -731,8 +757,12 @@ export default function CampaignsPage() {
   const [showChartMetricPicker, setShowChartMetricPicker] = useState(false);
   const isEcomm = activeClient?.vertical === "ecomm";
 
-  // Reset chart metric when switching between leads and ecomm clients
-  useEffect(() => { setChartMetric("spend"); }, [isEcomm]);
+  // Reset chart metric and sort key when switching between leads and ecomm clients
+  useEffect(() => {
+    setChartMetric("spend");
+    setSortKey("spend");
+    setSortDir("desc");
+  }, [isEcomm]);
 
   const defaultCols = activeClient?.vertical === "ecomm" ? ECOMM_DEFAULT_COLUMNS : LEADS_DEFAULT_COLUMNS;
   const [visibleCols, setVisibleCols] = useState<Set<string>>(new Set(defaultCols));
@@ -1192,9 +1222,12 @@ export default function CampaignsPage() {
 
               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 <span style={{ fontSize: 11, color: "#5a5e72" }}>SORT</span>
-                {(["spend", "leads", "cpl", "ctr", "frequency"] as SortKey[]).map(k => (
+                {(isEcomm
+                  ? ["spend", "purchases", "roas", "cost_per_purchase", "ctr", "frequency"] as SortKey[]
+                  : ["spend", "leads", "cpl", "ctr", "frequency"] as SortKey[]
+                ).map(k => (
                   <button key={k} style={btnStyle(sortKey === k)} onClick={() => toggleSort(k)}>
-                    {k.toUpperCase()} {sortKey === k ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                    {k === "cost_per_purchase" ? "CPA" : k === "purchase_value" ? "REV" : k.toUpperCase()} {sortKey === k ? (sortDir === "asc" ? "↑" : "↓") : ""}
                   </button>
                 ))}
               </div>
@@ -1216,7 +1249,7 @@ export default function CampaignsPage() {
                 <span>Campaign</span>
                 {visibleColsArray.map(col => {
                   const def = METRIC_BY_KEY[col];
-                  const sortable = ["spend", "leads", "cpl", "ctr", "frequency", "impressions"].includes(col);
+                  const sortable = ["spend", "leads", "cpl", "purchases", "roas", "cost_per_purchase", "purchase_value", "ctr", "frequency", "impressions"].includes(col);
                   return (
                     <span key={col} onClick={() => sortable ? toggleSort(col as SortKey) : undefined}
                       style={{ cursor: sortable ? "pointer" : "default", color: sortKey === col ? "#f5a623" : "#5a5e72" }}>
@@ -1294,7 +1327,7 @@ export default function CampaignsPage() {
                                 const isAdSetExpanded = expandedAdSets.has(adSet.ad_set_id);
                                 const isAdSetLoading = adLevelLoading.has(adSet.ad_set_id);
                                 const ads = adLevelData[adSet.ad_set_id] ?? [];
-                                const hColor = adSetHealthColor(adSet);
+                                const hColor = adSetHealthColor(adSet, isEcomm);
 
                                 return (
                                   <div key={adSet.ad_set_id}>
@@ -1318,17 +1351,21 @@ export default function CampaignsPage() {
                                           }}>
                                             {adSet.ad_status === "ACTIVE" ? "● Active" : "⏸ Paused"}
                                           </span>
-                                          <span style={{ fontSize: 9, color: hColor, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>{adSetHealthLabel(adSet)}</span>
+                                          <span style={{ fontSize: 9, color: hColor, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>{adSetHealthLabel(adSet, isEcomm)}</span>
                                         </div>
                                         <div style={{ fontSize: 9, color: "#3a3e52", fontFamily: "monospace", paddingLeft: 17 }}>{adSet.ad_set_id}</div>
                                       </div>
                                       {visibleColsArray.map(col => {
                                         if (col === "trend") return <div key={col} />;
-                                        if (col === "health") return <span key={col} style={{ fontSize: 10, fontWeight: 600, color: hColor, textTransform: "uppercase" }}>{adSetHealthLabel(adSet)}</span>;
+                                        if (col === "health") return <span key={col} style={{ fontSize: 10, fontWeight: 600, color: hColor, textTransform: "uppercase" }}>{adSetHealthLabel(adSet, isEcomm)}</span>;
                                         const val = formatRowValue(col, adSet);
-                                        const isBad = col === "cpl" && adSet.cpl > 30;
-                                        const isGood = col === "cpl" && adSet.cpl < 20 && adSet.leads >= 5;
-                                        return <span key={col} style={{ color: isBad ? "#E8705A" : isGood ? "#f5a623" : "#6a9898", fontWeight: isBad ? 600 : 400 }}>{val}</span>;
+                                        const isBad = isEcomm
+                                          ? col === "roas" && adSet.roas > 0 && adSet.roas < 1.5
+                                          : col === "cpl" && adSet.cpl > 30;
+                                        const isGood = isEcomm
+                                          ? col === "roas" && adSet.roas >= 3
+                                          : col === "cpl" && adSet.cpl < 20 && adSet.leads >= 5;
+                                        return <span key={col} style={{ color: isBad ? "#E8705A" : isGood ? "#2ecc71" : "#6a9898", fontWeight: isBad ? 600 : 400 }}>{val}</span>;
                                       })}
                                     </div>
 
@@ -1364,11 +1401,15 @@ export default function CampaignsPage() {
                                               </div>
                                               {visibleColsArray.map(col => {
                                                 if (col === "trend" || col === "health") return <span key={col} style={{ color: "#5a5e72" }}>—</span>;
-                                                const adRow: MetricRow = { spend: ad.spend, leads: ad.leads, cpl: ad.cpl, ctr: ad.ctr, frequency: ad.frequency, impressions: ad.impressions, raw_metrics: ad.raw_metrics };
+                                                const adRow: MetricRow = { spend: ad.spend, leads: ad.leads, cpl: ad.cpl, purchases: ad.purchases, purchase_value: ad.purchase_value, roas: ad.roas, cost_per_purchase: ad.cost_per_purchase, ctr: ad.ctr, frequency: ad.frequency, impressions: ad.impressions, raw_metrics: ad.raw_metrics };
                                                 const val = formatRowValue(col, adRow);
-                                                const isBad = col === "cpl" && ad.cpl > 30;
-                                                const isGood = col === "cpl" && ad.cpl < 20 && ad.leads >= 5;
-                                                return <span key={col} style={{ color: isBad ? "#E8705A" : isGood ? "#f5a623" : "#507070" }}>{val}</span>;
+                                                const isBad = isEcomm
+                                                  ? col === "roas" && ad.roas > 0 && ad.roas < 1.5
+                                                  : col === "cpl" && ad.cpl > 30;
+                                                const isGood = isEcomm
+                                                  ? col === "roas" && ad.roas >= 3
+                                                  : col === "cpl" && ad.cpl < 20 && ad.leads >= 5;
+                                                return <span key={col} style={{ color: isBad ? "#E8705A" : isGood ? "#2ecc71" : "#507070" }}>{val}</span>;
                                               })}
                                             </div>
                                           ))

@@ -51,6 +51,10 @@ interface CampaignDetail {
   spend: number;
   leads: number;
   cpl: number;
+  purchases: number;
+  purchase_value: number;
+  roas: number;
+  cost_per_purchase: number;
   frequency: number;
 }
 
@@ -58,6 +62,10 @@ interface ClientMetrics {
   totalSpend: number;
   totalLeads: number;
   avgCPL: number;
+  totalPurchases: number;
+  totalPurchaseValue: number;
+  avgROAS: number;
+  avgCPA: number;
   campaignCount: number;
   status: "healthy" | "warning" | "critical" | "no_data";
   alert: string | null;
@@ -106,15 +114,20 @@ function generateRecommendations(clients: Client[], allMetrics: Record<string, C
       recs.push({ id: `fatigue_${client.id}_${fatigued.campaign_id}`, priority: "warning", icon: "😴", title: "Ad fatigue detected", body: `"${fatigued.campaign_name}" has ${fatigued.frequency.toFixed(1)}x frequency on ${client.name}. Pause to rotate creative.`, clientId: client.id, clientName: client.name, approveLabel: "Pause Campaign", actionType: "pause_campaign", targetCampaignId: fatigued.campaign_id, targetCampaignName: fatigued.campaign_name ?? undefined });
     }
 
-    // Info: scale the best-performing campaign (skip if already increased in last 7 days)
-    const best = [...m.topCampaigns].filter(c => c.leads > 0 && c.cpl > 0).sort((a, b) => a.cpl - b.cpl)[0];
-    if (best && best.cpl < 30 && m.totalLeads >= 3 && !recentBudgetIncreases.has(best.campaign_id)) {
-      recs.push({ id: `scale_${client.id}_${best.campaign_id}`, priority: "info", icon: "📈", title: "Scale opportunity", body: `"${best.campaign_name}" on ${client.name} is at $${best.cpl.toFixed(0)} CPL. Increase budget 20% to capture more leads.`, clientId: client.id, clientName: client.name, approveLabel: "Increase Budget 20%", actionType: "scale_budget", targetCampaignId: best.campaign_id, targetCampaignName: best.campaign_name ?? undefined });
+    // Info: scale the best-performing leads campaign
+    if (client.vertical === "leads") {
+      const best = [...m.topCampaigns].filter(c => c.leads > 0 && c.cpl > 0).sort((a, b) => a.cpl - b.cpl)[0];
+      if (best && best.cpl < 30 && m.totalLeads >= 3 && !recentBudgetIncreases.has(best.campaign_id)) {
+        recs.push({ id: `scale_${client.id}_${best.campaign_id}`, priority: "info", icon: "📈", title: "Scale opportunity", body: `"${best.campaign_name}" on ${client.name} is at $${best.cpl.toFixed(0)} CPL. Increase budget 20% to capture more leads.`, clientId: client.id, clientName: client.name, approveLabel: "Increase Budget 20%", actionType: "scale_budget", targetCampaignId: best.campaign_id, targetCampaignName: best.campaign_name ?? undefined });
+      }
     }
 
-    // Ecomm scale (skip if already increased)
-    if (client.vertical === "ecomm" && best && best.cpl < 20 && m.totalSpend > 50 && !recentBudgetIncreases.has(best.campaign_id)) {
-      recs.push({ id: `scale_ecomm_${client.id}_${best.campaign_id}`, priority: "info", icon: "📈", title: "Strong ROAS — scale budget", body: `"${best.campaign_name}" on ${client.name} CPA $${best.cpl.toFixed(0)}. +20% budget while signal is strong.`, clientId: client.id, clientName: client.name, approveLabel: "Increase Budget 20%", actionType: "scale_budget", targetCampaignId: best.campaign_id, targetCampaignName: best.campaign_name ?? undefined });
+    // Ecomm: scale the best ROAS campaign
+    if (client.vertical === "ecomm") {
+      const bestEcomm = [...m.topCampaigns].filter(c => c.roas > 0 && c.purchases > 0).sort((a, b) => b.roas - a.roas)[0];
+      if (bestEcomm && bestEcomm.roas >= 3 && m.totalSpend > 50 && !recentBudgetIncreases.has(bestEcomm.campaign_id)) {
+        recs.push({ id: `scale_ecomm_${client.id}_${bestEcomm.campaign_id}`, priority: "info", icon: "📈", title: "Strong ROAS — scale budget", body: `"${bestEcomm.campaign_name}" on ${client.name} at ${bestEcomm.roas.toFixed(2)}x ROAS. +20% budget while signal is strong.`, clientId: client.id, clientName: client.name, approveLabel: "Increase Budget 20%", actionType: "scale_budget", targetCampaignId: bestEcomm.campaign_id, targetCampaignName: bestEcomm.campaign_name ?? undefined });
+      }
     }
   }
   return recs;
@@ -139,15 +152,24 @@ function generateOverviewAlerts(
     const m = allMetrics[client.id];
     if (!m || m.status === "no_data") continue;
 
-    // Spending with no leads/purchases
+    // Spending with no results
     if (client.vertical === "leads" && m.totalSpend > 80 && m.totalLeads === 0) {
       alerts.push({ severity: "error", clientId: client.id, clientName: client.name, message: `Spending $${m.totalSpend.toFixed(0)} with zero leads` });
+    }
+    if (client.vertical === "ecomm" && m.totalSpend > 80 && m.totalPurchases === 0) {
+      alerts.push({ severity: "error", clientId: client.id, clientName: client.name, message: `Spending $${m.totalSpend.toFixed(0)} with zero purchases tracked` });
     }
 
     // CPL above target by >50%
     if (client.cpl_target && m.avgCPL > 0 && m.avgCPL > client.cpl_target * 1.5) {
       const pct = Math.round(((m.avgCPL - client.cpl_target) / client.cpl_target) * 100);
       alerts.push({ severity: "error", clientId: client.id, clientName: client.name, message: `CPL $${m.avgCPL.toFixed(0)} is ${pct}% above $${client.cpl_target} target` });
+    }
+
+    // ROAS below target by >30%
+    if (client.roas_target && m.avgROAS > 0 && m.avgROAS < client.roas_target * 0.7) {
+      const pct = Math.round(((client.roas_target - m.avgROAS) / client.roas_target) * 100);
+      alerts.push({ severity: "error", clientId: client.id, clientName: client.name, message: `ROAS ${m.avgROAS.toFixed(2)}x is ${pct}% below ${client.roas_target}x target` });
     }
 
     // High frequency (ad fatigue)
@@ -191,6 +213,7 @@ function computeStatus(
   totalLeads: number,
   avgCPL: number,
   campaignCount: number,
+  avgROAS = 0,
 ): { status: ClientMetrics["status"]; alert: string | null } {
   if (campaignCount === 0 || totalSpend === 0) return { status: "no_data", alert: null };
 
@@ -200,6 +223,15 @@ function computeStatus(
     }
     if (avgCPL > 50) {
       return { status: "warning", alert: `CPL $${avgCPL.toFixed(0)} — above $50 threshold` };
+    }
+  }
+
+  if (vertical === "ecomm") {
+    if (totalSpend > 100 && avgROAS === 0) {
+      return { status: "critical", alert: `$${totalSpend.toFixed(0)} spent — no purchases tracked` };
+    }
+    if (avgROAS > 0 && avgROAS < 1) {
+      return { status: "warning", alert: `ROAS ${avgROAS.toFixed(2)}x — spending more than returning` };
     }
   }
 
@@ -251,7 +283,7 @@ function ClientCard({
   useEffect(() => {
     setLoading(true);
     if (!client.meta_connected) {
-      const m: ClientMetrics = { totalSpend: 0, totalLeads: 0, avgCPL: 0, campaignCount: 0, status: "no_data", alert: "Facebook not connected", topCampaigns: [] };
+      const m: ClientMetrics = { totalSpend: 0, totalLeads: 0, avgCPL: 0, totalPurchases: 0, totalPurchaseValue: 0, avgROAS: 0, avgCPA: 0, campaignCount: 0, status: "no_data", alert: "Facebook not connected", topCampaigns: [] };
       setMetrics(m);
       onMetricsLoaded(client.id, m);
       setLoading(false);
@@ -262,19 +294,23 @@ function ClientCard({
     fetch(`/api/agent/metrics/campaigns?client_id=${client.id}${adAccountParam}&startDate=${startDate}&endDate=${endDate}`)
       .then(r => r.json())
       .then(data => {
-        const campaigns = (data.campaigns ?? []) as Array<{ campaign_id: string; campaign_name: string | null; spend: number; leads: number; cpl: number; frequency: number }>;
+        const campaigns = (data.campaigns ?? []) as Array<{ campaign_id: string; campaign_name: string | null; spend: number; leads: number; cpl: number; purchases: number; purchase_value: number; roas: number; cost_per_purchase: number; frequency: number }>;
         const totalSpend = campaigns.reduce((s, c) => s + c.spend, 0);
         const totalLeads = campaigns.reduce((s, c) => s + c.leads, 0);
+        const totalPurchases = campaigns.reduce((s, c) => s + (c.purchases ?? 0), 0);
+        const totalPurchaseValue = campaigns.reduce((s, c) => s + (c.purchase_value ?? 0), 0);
         const avgCPL = totalLeads > 0 ? totalSpend / totalLeads : 0;
+        const avgROAS = totalSpend > 0 ? totalPurchaseValue / totalSpend : 0;
+        const avgCPA = totalPurchases > 0 ? totalSpend / totalPurchases : 0;
         const campaignCount = campaigns.length;
-        const topCampaigns: CampaignDetail[] = campaigns.map(c => ({ campaign_id: c.campaign_id, campaign_name: c.campaign_name, spend: c.spend, leads: c.leads, cpl: c.cpl, frequency: c.frequency ?? 0 }));
-        const { status, alert } = computeStatus(client.vertical, totalSpend, totalLeads, avgCPL, campaignCount);
-        const m: ClientMetrics = { totalSpend, totalLeads, avgCPL, campaignCount, status, alert, topCampaigns };
+        const topCampaigns: CampaignDetail[] = campaigns.map(c => ({ campaign_id: c.campaign_id, campaign_name: c.campaign_name, spend: c.spend, leads: c.leads, cpl: c.cpl, purchases: c.purchases ?? 0, purchase_value: c.purchase_value ?? 0, roas: c.roas ?? 0, cost_per_purchase: c.cost_per_purchase ?? 0, frequency: c.frequency ?? 0 }));
+        const { status, alert } = computeStatus(client.vertical, totalSpend, totalLeads, avgCPL, campaignCount, avgROAS);
+        const m: ClientMetrics = { totalSpend, totalLeads, avgCPL, totalPurchases, totalPurchaseValue, avgROAS, avgCPA, campaignCount, status, alert, topCampaigns };
         setMetrics(m);
         onMetricsLoaded(client.id, m);
       })
       .catch(() => {
-        const m: ClientMetrics = { totalSpend: 0, totalLeads: 0, avgCPL: 0, campaignCount: 0, status: "no_data", alert: "Could not load metrics", topCampaigns: [] };
+        const m: ClientMetrics = { totalSpend: 0, totalLeads: 0, avgCPL: 0, totalPurchases: 0, totalPurchaseValue: 0, avgROAS: 0, avgCPA: 0, campaignCount: 0, status: "no_data", alert: "Could not load metrics", topCampaigns: [] };
         setMetrics(m);
         onMetricsLoaded(client.id, m);
       })
@@ -350,9 +386,9 @@ function ClientCard({
                 value={`$${metrics.totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
                 sub="total spend"
               />
-              <MetricBox label={`Purchases (${periodLabel})`} value={String(metrics.totalLeads)} sub="conversions" />
-              <MetricBox label="Campaigns" value={String(metrics.campaignCount)} sub="with data" />
-              <MetricBox label="CPA" value={metrics.avgCPL > 0 ? `$${metrics.avgCPL.toFixed(0)}` : "—"} sub="cost per acq." />
+              <MetricBox label="ROAS" value={metrics.avgROAS > 0 ? `${metrics.avgROAS.toFixed(2)}x` : "—"} sub="return on ad spend" color={metrics.avgROAS >= 2 ? T.healthy : metrics.avgROAS > 0 ? T.warning : undefined} />
+              <MetricBox label={`Purchases (${periodLabel})`} value={String(metrics.totalPurchases)} sub="conversions" />
+              <MetricBox label="CPA" value={metrics.avgCPA > 0 ? `$${metrics.avgCPA.toFixed(0)}` : "—"} sub="cost per acq." />
             </>
           )
         ) : (
