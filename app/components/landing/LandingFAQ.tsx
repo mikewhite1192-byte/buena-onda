@@ -39,6 +39,10 @@ const FAQS = [
     a: "Lead gen businesses (roofing, solar, HVAC, real estate, insurance, etc.) and e-commerce brands both work great. If you're running Meta ads to generate leads or sales, Buena Onda is built for you.",
   },
   {
+    q: "Does it work for agencies managing multiple clients?",
+    a: "Yes — the Agency plan is built specifically for this. Each client gets their own AI agent, their own metrics dashboard, and their own optimization rules. You manage everything from one place. No more tab-switching or manual reporting.",
+  },
+  {
     q: "Does it work with existing campaigns?",
     a: "Yes. Connect your account and the AI audits your existing campaigns immediately — identifying what's working, what's wasting money, and what to fix. You can keep running existing campaigns alongside new AI-built ones.",
   },

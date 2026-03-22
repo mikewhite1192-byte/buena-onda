@@ -50,8 +50,8 @@ export default function LandingHowItWorks() {
           <h2 style={{ fontSize: "clamp(28px, 4vw, 48px)", fontWeight: 800, color: T.text, margin: "0 0 16px", letterSpacing: "-1.5px" }}>
             From zero to running campaigns in minutes
           </h2>
-          <p style={{ fontSize: 16, color: T.muted, maxWidth: 500, margin: "0 auto", lineHeight: 1.7 }}>
-            No agency. No guesswork. No wasted spend. Just an AI that runs your ads like a senior media buyer.
+          <p style={{ fontSize: 16, color: T.muted, maxWidth: 520, margin: "0 auto", lineHeight: 1.7 }}>
+            Whether you're a business owner running your own ads or an agency managing dozens of clients — same powerful AI, same results.
           </p>
         </div>
 
@@ -83,10 +83,10 @@ export default function LandingHowItWorks() {
         <div style={{ marginTop: 48, background: T.surface, border: `1px solid rgba(245,166,35,0.15)`, borderRadius: 14, padding: "28px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 20 }}>
           <div>
             <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 4 }}>
-              Already running Meta ads?
+              Already running Meta ads — or managing them for clients?
             </div>
             <div style={{ fontSize: 13, color: T.muted }}>
-              Connect your existing account. Buena Onda analyzes what's working and optimizes from day one.
+              Connect your existing accounts. Buena Onda audits what's working, fixes what's not, and scales winners across every client.
             </div>
           </div>
           <a href="/sign-up" style={{ padding: "12px 28px", borderRadius: 10, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 14, fontWeight: 800, textDecoration: "none", whiteSpace: "nowrap" }}>

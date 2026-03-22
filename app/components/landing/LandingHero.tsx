@@ -35,7 +35,7 @@ export default function LandingHero() {
 
         {/* Subheading */}
         <p style={{ fontSize: 18, color: T.muted, maxWidth: 560, margin: "0 auto 40px", lineHeight: 1.7 }}>
-          Buena Onda is the autonomous AI agent that runs your Meta ad campaigns — creating, optimizing, and reporting while you focus on growing your business.
+          For businesses and agencies. Connect your Meta account, set your goals, and let the AI launch, optimize, and report on every campaign — across every client.
         </p>
 
         {/* CTAs */}
@@ -43,7 +43,7 @@ export default function LandingHero() {
           <Link href="/sign-up" style={{ padding: "14px 32px", borderRadius: 10, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 15, fontWeight: 800, textDecoration: "none", boxShadow: "0 4px 24px rgba(245,166,35,0.3)" }}>
             Start Free Trial →
           </Link>
-          <a href="/sign-up?redirect_url=%2Fdashboard%3Fdemo%3D1" style={{ padding: "14px 32px", borderRadius: 10, border: "1px solid rgba(245,166,35,0.3)", background: T.accentBg, color: T.accent, fontSize: 15, fontWeight: 700, textDecoration: "none" }}>
+          <a href="/demo" style={{ padding: "14px 32px", borderRadius: 10, border: "1px solid rgba(245,166,35,0.3)", background: T.accentBg, color: T.accent, fontSize: 15, fontWeight: 700, textDecoration: "none" }}>
             See the Demo
           </a>
         </div>

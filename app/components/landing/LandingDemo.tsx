@@ -90,9 +90,12 @@ export default function LandingDemo() {
           <h2 style={{ fontSize: "clamp(28px, 4vw, 48px)", fontWeight: 800, color: T.text, margin: "0 0 16px", letterSpacing: "-1.5px" }}>
             Watch the AI in action
           </h2>
-          <p style={{ fontSize: 16, color: T.muted, maxWidth: 480, margin: "0 auto", lineHeight: 1.7 }}>
-            Pick a scenario and see how Buena Onda builds, fixes, and scales your campaigns through a simple conversation.
+          <p style={{ fontSize: 16, color: T.muted, maxWidth: 480, margin: "0 auto 12px", lineHeight: 1.7 }}>
+            See how the AI handles real agency scenarios — or explore the full live dashboard below.
           </p>
+          <a href="/demo" style={{ display: "inline-block", padding: "9px 22px", borderRadius: 8, background: T.accentBg, border: "1px solid rgba(245,166,35,0.3)", color: T.accent, fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
+            Explore the full demo dashboard →
+          </a>
         </div>
 
         {/* Scenario tabs */}
