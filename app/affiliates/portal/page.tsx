@@ -213,7 +213,7 @@ function PortalContent() {
         )}
 
         <div style={{ marginTop: 48, paddingTop: 24, borderTop: `1px solid ${T.border}`, textAlign: "center", fontSize: 12, color: T.faint }}>
-          Questions? <a href="mailto:mike@buenaonda.ai" style={{ color: T.accent, textDecoration: "none" }}>mike@buenaonda.ai</a>
+          Questions? <a href="mailto:hello@buenaonda.ai" style={{ color: T.accent, textDecoration: "none" }}>hello@buenaonda.ai</a>
         </div>
       </div>
     </div>

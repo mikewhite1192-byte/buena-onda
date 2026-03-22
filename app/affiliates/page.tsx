@@ -234,7 +234,7 @@ export default function AffiliatesPage() {
 
         {/* Footer */}
         <div style={{ marginTop: 64, paddingTop: 28, borderTop: `1px solid ${T.border}`, textAlign: "center", fontSize: 12, color: T.faint }}>
-          Questions? <a href="mailto:mike@buenaonda.ai" style={{ color: T.accent, textDecoration: "none" }}>mike@buenaonda.ai</a>
+          Questions? <a href="mailto:hello@buenaonda.ai" style={{ color: T.accent, textDecoration: "none" }}>hello@buenaonda.ai</a>
           <span style={{ margin: "0 12px" }}>·</span>
           <a href="/" style={{ color: T.faint, textDecoration: "none" }}>← Back to Buena Onda</a>
         </div>

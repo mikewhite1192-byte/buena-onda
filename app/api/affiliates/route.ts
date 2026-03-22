@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
   try {
     await resend.emails.send({
       from: "Buena Onda <reports@buenaonda.ai>",
-      to: "mike@buenaonda.ai",
+      to: "hello@buenaonda.ai",
       subject: `New affiliate — ${name}`,
       html: `<p><strong>${name}</strong> (${email}) just joined the affiliate program. Code: <strong>${affiliate_code}</strong></p>`,
     });
