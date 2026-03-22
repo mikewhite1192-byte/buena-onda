@@ -15,8 +15,6 @@ const T = {
   faint: "#5a5e72",
 };
 
-const DEMO_EMAIL    = "demo@buenaonda.ai";
-const DEMO_PASSWORD = "BuenaOndaDemo2026!";
 
 export default function DemoLoginPage() {
   const { signIn, setActive, isLoaded } = useSignIn();
@@ -32,16 +30,13 @@ export default function DemoLoginPage() {
   async function autoSignIn() {
     setStatus("signing-in");
     try {
-      // Step 1: create sign-in with identifier
-      let result = await signIn!.create({ identifier: DEMO_EMAIL });
+      // Get a short-lived sign-in token from the server
+      const tokenRes = await fetch("/api/demo/token");
+      if (!tokenRes.ok) throw new Error("Could not fetch demo token");
+      const { token } = await tokenRes.json();
 
-      // Step 2: if needs first factor, attempt password
-      if (result.status === "needs_first_factor") {
-        result = await signIn!.attemptFirstFactor({
-          strategy: "password",
-          password: DEMO_PASSWORD,
-        });
-      }
+      // Use the ticket strategy — no password needed
+      const result = await signIn!.create({ strategy: "ticket", ticket: token });
 
       if (result.status === "complete") {
         await setActive!({ session: result.createdSessionId });
@@ -49,7 +44,7 @@ export default function DemoLoginPage() {
         router.push("/dashboard?demo=1");
       } else {
         setStatus("error");
-        setError("Could not complete sign-in. Try again.");
+        setError(`Sign-in incomplete (status: ${result.status}). Try again.`);
       }
     } catch (err: unknown) {
       console.error(err);
