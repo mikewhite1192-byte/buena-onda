@@ -14,6 +14,7 @@
     "@clerk/themes": "^2.4.43",
     "@neondatabase/serverless": "^1.0.2",
     "@radix-ui/react-slot": "^1.2.4",
+    "@stripe/stripe-js": "^8.11.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "geist": "^1.5.1",
@@ -25,6 +26,7 @@
     "react-dom": "18.2.0",
     "recharts": "^3.8.0",
     "resend": "^6.9.4",
+    "stripe": "^20.4.1",
     "svix": "^1.89.0",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7"
