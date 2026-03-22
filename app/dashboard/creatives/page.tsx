@@ -41,36 +41,6 @@ interface Creative {
 
 type SortKey = "spend" | "cpl" | "roas" | "ctr" | "impressions";
 type StatusFilter = "all" | "ACTIVE" | "PAUSED";
-type PageTab = "my-creatives" | "ad-library";
-
-// ─── Ad Library types ─────────────────────────────────────────────────────────
-
-interface AdLibraryAd {
-  id: string;
-  page_name?: string;
-  ad_creative_bodies?: string[];
-  ad_creative_link_titles?: string[];
-  ad_creative_link_descriptions?: string[];
-  ad_creative_link_captions?: string[];
-  ad_snapshot_url?: string;
-  ad_delivery_start_time?: string;
-  ad_delivery_stop_time?: string;
-  impressions?: { lower_bound: string; upper_bound: string };
-  spend?: { lower_bound: string; upper_bound: string; currency: string };
-  publisher_platforms?: string[];
-}
-
-const COUNTRIES = ["US", "CA", "GB", "AU", "MX", "BR", "ES", "FR", "DE", "IN"];
-
-function fmtRange(r?: { lower_bound: string; upper_bound: string }, prefix = "") {
-  if (!r) return "—";
-  return `${prefix}${parseInt(r.lower_bound).toLocaleString()} – ${prefix}${parseInt(r.upper_bound).toLocaleString()}`;
-}
-
-function daysSince(d?: string) {
-  if (!d) return null;
-  return Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
-}
 
 // ─── Demo data ────────────────────────────────────────────────────────────────
 
@@ -99,8 +69,6 @@ const FORMAT_ICONS: Record<string, string> = { VIDEO: "▶", IMAGE: "🖼", CARO
 
 export default function CreativesPage() {
   const { activeClient } = useActiveClient();
-  const [tab, setTab] = useState<PageTab>("my-creatives");
-
   // ── My Creatives state ──
   const [creatives, setCreatives] = useState<Creative[]>([]);
   const [loading, setLoading] = useState(false);
@@ -108,39 +76,6 @@ export default function CreativesPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortBy, setSortBy] = useState<SortKey>("spend");
   const [search, setSearch] = useState("");
-
-  // ── Ad Library state ──
-  const [libQuery, setLibQuery] = useState("");
-  const [libPageId, setLibPageId] = useState("");
-  const [libCountry, setLibCountry] = useState("US");
-  const [libStatus, setLibStatus] = useState("ACTIVE");
-  const [libAds, setLibAds] = useState<AdLibraryAd[]>([]);
-  const [libLoading, setLibLoading] = useState(false);
-  const [libError, setLibError] = useState("");
-  const [libSearched, setLibSearched] = useState(false);
-
-  async function searchAdLibrary(e: React.FormEvent) {
-    e.preventDefault();
-    if (!libQuery.trim() && !libPageId.trim()) return;
-    setLibLoading(true);
-    setLibError("");
-    setLibAds([]);
-    setLibSearched(true);
-    const params = new URLSearchParams({ country: libCountry, status: libStatus, limit: "30" });
-    if (libQuery.trim()) params.set("q", libQuery.trim());
-    if (libPageId.trim()) params.set("page_id", libPageId.trim());
-    if (activeClient?.id) params.set("clientId", activeClient.id);
-    try {
-      const res = await fetch(`/api/ad-library?${params}`);
-      const data = await res.json();
-      if (!res.ok) { setLibError(data.error ?? "Search failed"); return; }
-      setLibAds(data.ads ?? []);
-    } catch {
-      setLibError("Something went wrong.");
-    } finally {
-      setLibLoading(false);
-    }
-  }
 
   useEffect(() => {
     if (activeClient?.id) fetchCreatives();
@@ -217,134 +152,13 @@ export default function CreativesPage() {
             <div style={{ fontSize: 11, color: T.faint, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>Creative Library</div>
             <h1 style={{ fontSize: 22, fontWeight: 700, color: T.text, margin: 0 }}>{activeClient.name}</h1>
           </div>
-          {tab === "my-creatives" && (
-            <button onClick={fetchCreatives} style={{ padding: "8px 16px", background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, color: T.muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-              ↻ Refresh
-            </button>
-          )}
+          <button onClick={fetchCreatives} style={{ padding: "8px 16px", background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, color: T.muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+            ↻ Refresh
+          </button>
         </div>
 
-        {/* Tab bar */}
-        <div style={{ display: "flex", gap: 3, background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: 4, marginBottom: 24, width: "fit-content" }}>
-          {([
-            { v: "my-creatives", l: "My Creatives" },
-            { v: "ad-library",   l: "🔍 Competitor Research" },
-          ] as { v: PageTab; l: string }[]).map(({ v, l }) => (
-            <button key={v} onClick={() => setTab(v)} style={{ padding: "6px 16px", borderRadius: 6, border: "none", fontSize: 12, fontWeight: tab === v ? 600 : 400, background: tab === v ? T.accentBg : "transparent", color: tab === v ? T.accent : T.muted, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
-              {l}
-            </button>
-          ))}
-        </div>
-
-        {/* ── Ad Library tab ────────────────────────────────────────────── */}
-        {tab === "ad-library" && (
-          <div>
-            <form onSubmit={searchAdLibrary} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: "20px 22px", marginBottom: 20 }}>
-              <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
-                <input
-                  type="text"
-                  value={libQuery}
-                  onChange={e => setLibQuery(e.target.value)}
-                  placeholder="Search keywords — e.g. 'weight loss supplement'"
-                  style={{ flex: 1, minWidth: 200, background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, color: T.text, fontSize: 12, padding: "9px 12px", fontFamily: "inherit", outline: "none" }}
-                />
-                <input
-                  type="text"
-                  value={libPageId}
-                  onChange={e => setLibPageId(e.target.value)}
-                  placeholder="Or paste a Page ID"
-                  style={{ width: 160, background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, color: T.text, fontSize: 12, padding: "9px 12px", fontFamily: "inherit", outline: "none" }}
-                />
-              </div>
-              <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 11, color: T.faint }}>Country</span>
-                  <select value={libCountry} onChange={e => setLibCountry(e.target.value)} style={{ background: T.bg, border: `1px solid ${T.border}`, borderRadius: 6, color: T.text, fontSize: 11, padding: "5px 8px", fontFamily: "inherit", outline: "none" }}>
-                    {COUNTRIES.map(c => <option key={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 11, color: T.faint }}>Status</span>
-                  <select value={libStatus} onChange={e => setLibStatus(e.target.value)} style={{ background: T.bg, border: `1px solid ${T.border}`, borderRadius: 6, color: T.text, fontSize: 11, padding: "5px 8px", fontFamily: "inherit", outline: "none" }}>
-                    <option value="ACTIVE">Active only</option>
-                    <option value="ALL">All</option>
-                  </select>
-                </div>
-                <button
-                  type="submit"
-                  disabled={libLoading || (!libQuery.trim() && !libPageId.trim())}
-                  style={{ marginLeft: "auto", padding: "8px 20px", borderRadius: 8, border: `1px solid rgba(245,166,35,0.4)`, background: T.accentBg, color: T.accent, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", opacity: libLoading || (!libQuery.trim() && !libPageId.trim()) ? 0.4 : 1 }}
-                >
-                  {libLoading ? "Searching…" : "Search →"}
-                </button>
-              </div>
-            </form>
-
-            {libError && <div style={{ fontSize: 12, color: T.red, marginBottom: 16 }}>{libError}</div>}
-
-            {libSearched && !libLoading && !libError && libAds.length === 0 && (
-              <div style={{ textAlign: "center", padding: "60px 20px", color: T.muted, fontSize: 13 }}>No ads found. Try different keywords or switch to &quot;All&quot; status.</div>
-            )}
-
-            {libAds.length > 0 && (
-              <div>
-                <div style={{ fontSize: 11, color: T.faint, marginBottom: 14 }}>{libAds.length} ads found</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 14 }}>
-                  {libAds.map(ad => {
-                    const body = ad.ad_creative_bodies?.[0];
-                    const title = ad.ad_creative_link_titles?.[0];
-                    const desc = ad.ad_creative_link_descriptions?.[0];
-                    const caption = ad.ad_creative_link_captions?.[0];
-                    const running = daysSince(ad.ad_delivery_start_time);
-                    const stopped = !!ad.ad_delivery_stop_time;
-                    return (
-                      <div key={ad.id} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: "16px", display: "flex", flexDirection: "column", gap: 10 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{ad.page_name ?? "Unknown Page"}</div>
-                          {running !== null && (
-                            <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: stopped ? "rgba(139,143,168,0.12)" : T.greenBg, color: stopped ? T.muted : T.green, flexShrink: 0 }}>
-                              {stopped ? "Stopped" : `${running}d running`}
-                            </span>
-                          )}
-                        </div>
-
-                        {ad.publisher_platforms && (
-                          <div style={{ display: "flex", gap: 4 }}>
-                            {ad.publisher_platforms.map(p => (
-                              <span key={p} style={{ fontSize: 9, background: "rgba(255,255,255,0.05)", color: T.faint, borderRadius: 4, padding: "2px 6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>{p}</span>
-                            ))}
-                          </div>
-                        )}
-
-                        {body && <p style={{ fontSize: 12, color: T.muted, lineHeight: 1.6, margin: 0, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 5, WebkitBoxOrient: "vertical" }}>{body}</p>}
-
-                        {(title || desc || caption) && (
-                          <div style={{ background: T.bg, borderRadius: 8, padding: "10px 12px", border: `1px solid ${T.border}` }}>
-                            {caption && <div style={{ fontSize: 9, color: T.faint, textTransform: "uppercase", marginBottom: 2 }}>{caption}</div>}
-                            {title && <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>{title}</div>}
-                            {desc && <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>{desc}</div>}
-                          </div>
-                        )}
-
-                        <div style={{ display: "flex", gap: 16, fontSize: 11, color: T.faint, paddingTop: 4, borderTop: `1px solid ${T.border}` }}>
-                          {ad.impressions && <span><span style={{ color: T.text, fontWeight: 600 }}>{fmtRange(ad.impressions)}</span> impr.</span>}
-                          {ad.spend && <span><span style={{ color: T.text, fontWeight: 600 }}>{fmtRange(ad.spend, ad.spend.currency === "USD" ? "$" : "")}</span> spend</span>}
-                        </div>
-
-                        {ad.ad_snapshot_url && (
-                          <a href={ad.ad_snapshot_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: T.accent, textDecoration: "none" }}>View in Ad Library →</a>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── My Creatives tab ───────────────────────────────────────────── */}
-        {tab === "my-creatives" && <>
+        {/* ── My Creatives ───────────────────────────────────────────── */}
+        {<>
 
         {/* Filters */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
