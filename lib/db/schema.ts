@@ -88,6 +88,21 @@ CREATE TABLE IF NOT EXISTS agent_actions (
   triggered_by         TEXT        NOT NULL DEFAULT 'agent',
   created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS affiliate_applications (
+  id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  name              TEXT        NOT NULL,
+  email             TEXT        NOT NULL,
+  website           TEXT,
+  audience_size     TEXT,
+  promotion_plan    TEXT        NOT NULL,
+  status            TEXT        NOT NULL DEFAULT 'pending',
+  affiliate_code    TEXT        UNIQUE,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_affiliates_email ON affiliate_applications(email);
+CREATE INDEX IF NOT EXISTS idx_affiliates_status ON affiliate_applications(status);
 `;
 
 // TypeScript types matching the tables
