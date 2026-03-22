@@ -43,7 +43,7 @@ export default function LandingHero() {
           <Link href="/sign-up" style={{ padding: "14px 32px", borderRadius: 10, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 15, fontWeight: 800, textDecoration: "none", boxShadow: "0 4px 24px rgba(245,166,35,0.3)" }}>
             Start Free Trial →
           </Link>
-          <a href="/demo" style={{ padding: "14px 32px", borderRadius: 10, border: "1px solid rgba(245,166,35,0.3)", background: T.accentBg, color: T.accent, fontSize: 15, fontWeight: 700, textDecoration: "none" }}>
+          <a href="/demo-login" style={{ padding: "14px 32px", borderRadius: 10, border: "1px solid rgba(245,166,35,0.3)", background: T.accentBg, color: T.accent, fontSize: 15, fontWeight: 700, textDecoration: "none" }}>
             See the Demo
           </a>
         </div>

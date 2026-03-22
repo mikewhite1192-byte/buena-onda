@@ -1,7 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-const isPublicRoute = createRouteMatcher(["/", "/demo(.*)", "/sign-in(.*)", "/sign-up(.*)", "/privacy-policy", "/terms-of-service", "/api/meta/test", "/api/db/migrate", "/api/agent/test", "/api/meta/actions/test", "/api/cron/agent-loop", "/api/meta/token", "/api/whatsapp/webhook", "/api/auth/facebook/callback", "/api/cron/refresh-meta-tokens", "/affiliates(.*)", "/api/affiliates(.*)", "/api/webhooks/clerk"]);
+const isPublicRoute = createRouteMatcher(["/", "/demo(.*)", "/demo-login(.*)", "/sign-in(.*)", "/sign-up(.*)", "/privacy-policy", "/terms-of-service", "/api/meta/test", "/api/db/migrate", "/api/agent/test", "/api/meta/actions/test", "/api/cron/agent-loop", "/api/meta/token", "/api/whatsapp/webhook", "/api/auth/facebook/callback", "/api/cron/refresh-meta-tokens", "/affiliates(.*)", "/api/affiliates(.*)", "/api/webhooks/clerk"]);
 
 export default clerkMiddleware(async (auth, req) => {
   const ref = req.nextUrl.searchParams.get("ref");
