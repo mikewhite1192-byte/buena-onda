@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS affiliate_applications (
   email             TEXT        NOT NULL,
   website           TEXT,
   audience_size     TEXT,
-  promotion_plan    TEXT        NOT NULL,
+  promotion_plan    TEXT,
   status            TEXT        NOT NULL DEFAULT 'pending',
   affiliate_code    TEXT        UNIQUE,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -103,6 +103,21 @@ CREATE TABLE IF NOT EXISTS affiliate_applications (
 
 CREATE INDEX IF NOT EXISTS idx_affiliates_email ON affiliate_applications(email);
 CREATE INDEX IF NOT EXISTS idx_affiliates_status ON affiliate_applications(status);
+
+-- Make promotion_plan nullable for zero-friction flow
+ALTER TABLE affiliate_applications ALTER COLUMN promotion_plan DROP NOT NULL;
+
+CREATE TABLE IF NOT EXISTS referrals (
+  id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  affiliate_code  TEXT        NOT NULL REFERENCES affiliate_applications(affiliate_code) ON DELETE CASCADE,
+  referred_email  TEXT,
+  referred_user_id TEXT,
+  status          TEXT        NOT NULL DEFAULT 'signed_up',
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_referrals_affiliate_code ON referrals(affiliate_code);
+CREATE INDEX IF NOT EXISTS idx_referrals_referred_user_id ON referrals(referred_user_id);
 `;
 
 // TypeScript types matching the tables
