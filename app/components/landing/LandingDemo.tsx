@@ -173,10 +173,10 @@ export default function LandingDemo() {
                   ↩ Restart
                 </button>
                 <a
-                  href="/sign-up"
+                  href="/sign-up?redirect_url=%2Fdashboard%3Fdemo%3D1"
                   style={{ flex: 1, padding: "11px 20px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 13, fontWeight: 800, textDecoration: "none", textAlign: "center" }}
                 >
-                  Try it yourself →
+                  Try the real thing →
                 </a>
               </div>
             )}

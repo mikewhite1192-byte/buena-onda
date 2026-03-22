@@ -28,13 +28,9 @@ export default function LandingHero() {
 
         {/* Headline */}
         <h1 style={{ fontSize: "clamp(36px, 6vw, 72px)", fontWeight: 800, color: T.text, margin: "0 0 24px", letterSpacing: "-2px", lineHeight: 1.05 }}>
-          Your Meta ads —{" "}
+          The AI agent that{" "}
           <br />
-          {WORDS.map((w, i) => (
-            <span key={w} style={{ color: i === 0 ? T.accent : T.text }}>
-              {w}{i < WORDS.length - 1 ? " " : ""}
-            </span>
-          ))}
+          <span style={{ color: T.accent }}>runs your Meta ads.</span>
         </h1>
 
         {/* Subheading */}
@@ -47,7 +43,7 @@ export default function LandingHero() {
           <Link href="/sign-up" style={{ padding: "14px 32px", borderRadius: 10, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 15, fontWeight: 800, textDecoration: "none", boxShadow: "0 4px 24px rgba(245,166,35,0.3)" }}>
             Start Free Trial →
           </Link>
-          <a href="#demo" style={{ padding: "14px 32px", borderRadius: 10, border: "1px solid rgba(245,166,35,0.3)", background: T.accentBg, color: T.accent, fontSize: 15, fontWeight: 700, textDecoration: "none" }}>
+          <a href="/sign-up?redirect_url=%2Fdashboard%3Fdemo%3D1" style={{ padding: "14px 32px", borderRadius: 10, border: "1px solid rgba(245,166,35,0.3)", background: T.accentBg, color: T.accent, fontSize: 15, fontWeight: 700, textDecoration: "none" }}>
             See the Demo
           </a>
         </div>

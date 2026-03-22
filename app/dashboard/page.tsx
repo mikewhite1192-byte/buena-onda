@@ -1,8 +1,8 @@
 "use client";
 
 // app/dashboard/page.tsx — Agency Overview
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useCallback, useMemo, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useActiveClient } from "@/lib/context/client-context";
 
@@ -408,13 +408,15 @@ function ClientCard({
 
 // ─── Main Overview Page ───────────────────────────────────────────────────────
 
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setActiveClient } = useActiveClient();
   const [clients, setClients] = useState<Client[]>([]);
   const [loadingClients, setLoadingClients] = useState(true);
   const [allMetrics, setAllMetrics] = useState<Record<string, ClientMetrics>>({});
   const [loadingDemo, setLoadingDemo] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(false);
   const [alertsCollapsed, setAlertsCollapsed] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [snoozed, setSnoozed] = useState<Set<string>>(new Set());
@@ -456,6 +458,23 @@ export default function DashboardPage() {
       }
     } catch { /* ignore */ }
   }, []);
+
+  // Auto-seed demo if ?demo=1 in URL
+  useEffect(() => {
+    if (searchParams.get("demo") === "1") {
+      setIsDemoMode(true);
+      fetch("/api/demo/seed", { method: "POST" })
+        .then(() => fetch("/api/clients"))
+        .then(r => r.json())
+        .then(data => {
+          setClients(data.clients ?? []);
+          setLoadingClients(false);
+        })
+        .catch(() => {});
+      // Remove ?demo=1 from URL without reload
+      router.replace("/dashboard");
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load recent budget increases (7-day window)
   useEffect(() => {
@@ -616,6 +635,22 @@ export default function DashboardPage() {
   // ── Overview dashboard ───────────────────────────────────────────────────────
   return (
     <div style={{ padding: "26px 28px", background: T.bg, minHeight: "calc(100vh - 52px)" }}>
+
+      {/* Demo mode banner */}
+      {isDemoMode && (
+        <div style={{ marginBottom: 20, padding: "12px 20px", background: "rgba(245,166,35,0.12)", border: "1px solid rgba(245,166,35,0.35)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 16 }}>🎯</span>
+            <div>
+              <span style={{ fontSize: 13, fontWeight: 700, color: T.accent }}>Demo mode — </span>
+              <span style={{ fontSize: 13, color: T.muted }}>You&apos;re exploring with sample client data. Everything is real except the Meta connection.</span>
+            </div>
+          </div>
+          <a href="/sign-up" style={{ fontSize: 12, fontWeight: 700, color: "#0d0f14", background: "linear-gradient(135deg,#f5a623,#f76b1c)", padding: "7px 16px", borderRadius: 7, textDecoration: "none", whiteSpace: "nowrap" }}>
+            Start Free Trial →
+          </a>
+        </div>
+      )}
 
       {/* Greeting + date range selector */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
@@ -895,5 +930,13 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense>
+      <DashboardContent />
+    </Suspense>
   );
 }
