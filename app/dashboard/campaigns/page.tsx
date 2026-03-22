@@ -158,27 +158,89 @@ function StatCard({ label, value, sub, valueColor, target }: { label: string; va
   );
 }
 
-function BudgetPacingCard({ spend, budget }: { spend: number; budget: number | null }) {
+function BudgetPacingCard({ spend, budget, computedDays }: { spend: number; budget: number | null; computedDays: number }) {
   if (!budget) return null;
-  const pct = Math.min((spend / budget) * 100, 100);
-  const overBudget = spend > budget;
-  const barColor = overBudget ? "#ff4d4d" : pct >= 85 ? "#e8b84b" : "#2ecc71";
-  const label = overBudget
-    ? `$${(spend - budget).toLocaleString(undefined, { maximumFractionDigits: 0 })} over`
-    : `$${(budget - spend).toLocaleString(undefined, { maximumFractionDigits: 0 })} left`;
+
+  // Current month context
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const dayOfMonth = now.getDate();
+
+  // Daily pace from selected range, projected to full month
+  const dailyPace = computedDays > 0 ? spend / computedDays : 0;
+  const projected = Math.round(dailyPace * daysInMonth);
+
+  // Where spend should be right now (linear)
+  const expectedByToday = (dayOfMonth / daysInMonth) * budget;
+  const pacingRatio = expectedByToday > 0 ? spend / expectedByToday : 1;
+
+  // Colors: green = on pace (85-115%), yellow = slightly off, red = significantly off
+  const barColor = pacingRatio > 1.2 || spend > budget
+    ? "#ff4d4d"
+    : pacingRatio < 0.7
+    ? "#ff4d4d"
+    : pacingRatio < 0.85 || pacingRatio > 1.1
+    ? "#e8b84b"
+    : "#2ecc71";
+
+  const statusLabel = spend > budget
+    ? "OVER BUDGET"
+    : pacingRatio > 1.15
+    ? "OVERPACING"
+    : pacingRatio < 0.7
+    ? "UNDERPACING"
+    : pacingRatio < 0.85
+    ? "SLIGHTLY BEHIND"
+    : pacingRatio > 1.05
+    ? "SLIGHTLY AHEAD"
+    : "ON TRACK";
+
+  const spendPct = Math.min((spend / budget) * 100, 100);
+  const expectedPct = Math.min((expectedByToday / budget) * 100, 100);
+
   return (
-    <div style={{ background: "#161820", border: `1px solid ${barColor}22`, borderRadius: 10, padding: "18px 24px", marginBottom: 0 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+    <div style={{ background: "#161820", border: `1px solid ${barColor}33`, borderRadius: 10, padding: "18px 24px", marginBottom: 0 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <div style={{ fontSize: 11, color: "#5a5e72", letterSpacing: "0.08em", textTransform: "uppercase" }}>Budget Pacing</div>
-        <div style={{ fontSize: 11, color: barColor }}>{label}</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: barColor, letterSpacing: "0.06em" }}>{statusLabel}</div>
       </div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 10 }}>
-        <div style={{ fontSize: 22, fontWeight: 700, color: barColor }}>${spend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-        <div style={{ fontSize: 12, color: "#5a5e72" }}>/ ${budget.toLocaleString()} budget</div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: barColor, marginLeft: "auto" }}>{pct.toFixed(1)}%</div>
+
+      {/* Main numbers */}
+      <div style={{ display: "flex", gap: 32, marginBottom: 12 }}>
+        <div>
+          <div style={{ fontSize: 11, color: "#5a5e72", marginBottom: 2 }}>Spent</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: barColor }}>${spend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: "#5a5e72", marginBottom: 2 }}>Expected by day {dayOfMonth}</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#e8eaf0" }}>${Math.round(expectedByToday).toLocaleString()}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: "#5a5e72", marginBottom: 2 }}>Projected month</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: projected > budget * 1.1 ? "#ff4d4d" : projected < budget * 0.8 ? "#e8b84b" : "#e8eaf0" }}>
+            ${projected.toLocaleString()}
+          </div>
+        </div>
+        <div style={{ marginLeft: "auto", textAlign: "right" }}>
+          <div style={{ fontSize: 11, color: "#5a5e72", marginBottom: 2 }}>Monthly budget</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#5a5e72" }}>${budget.toLocaleString()}</div>
+        </div>
       </div>
-      <div style={{ height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${pct}%`, background: barColor, borderRadius: 3, transition: "width 0.4s ease" }} />
+
+      {/* Progress bar — actual spend */}
+      <div style={{ position: "relative", height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "visible", marginBottom: 4 }}>
+        {/* Expected marker */}
+        <div style={{
+          position: "absolute", top: -4, left: `${expectedPct}%`,
+          width: 2, height: 14, background: "rgba(255,255,255,0.2)", borderRadius: 1,
+          transform: "translateX(-50%)",
+        }} />
+        {/* Actual spend bar */}
+        <div style={{ height: "100%", width: `${spendPct}%`, background: barColor, borderRadius: 3, transition: "width 0.4s ease" }} />
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#5a5e72" }}>
+        <span>${Math.round(dailyPace).toLocaleString()}/day pace · Day {dayOfMonth} of {daysInMonth}</span>
+        <span>{spendPct.toFixed(1)}% of budget used</span>
       </div>
     </div>
   );
@@ -948,7 +1010,7 @@ export default function CampaignsPage() {
             <AnomalyPanel anomalies={detectAnomalies(campaigns, activeClient, totalSpend, computedDays, isEcomm)} />
 
             {/* Budget Pacing — full width */}
-            <BudgetPacingCard spend={totalSpend} budget={activeClient?.monthly_budget ?? null} />
+            <BudgetPacingCard spend={totalSpend} budget={activeClient?.monthly_budget ?? null} computedDays={computedDays} />
 
             {/* Stat Cards header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, marginTop: activeClient?.monthly_budget ? 16 : 0 }}>
