@@ -529,7 +529,8 @@ export default function DemoPage() {
     if (cfg.tab) setActiveTab(cfg.tab);
     else if (s < 5) setActiveTab("overview");
     if (cfg.openCreator) setShowCreator(true);
-    if (s === 9) { /* chat bubble auto-opens via event */ }
+    else setShowCreator(false);
+    if (s === 9) document.dispatchEvent(new CustomEvent("buenaonda:open-chat"));
   }
   function nextStep() {
     if (tourStep === TOTAL_STEPS) { setTourActive(false); return; }
@@ -571,6 +572,7 @@ export default function DemoPage() {
     <>
       <style>{`
         @keyframes tourFadeIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes tourFadeInCentered { from{opacity:0} to{opacity:1} }
         @keyframes spin { to{transform:rotate(360deg)} }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         * { box-sizing: border-box; }
@@ -767,7 +769,7 @@ export default function DemoPage() {
 
           {/* ═══════════════════════ CAMPAIGNS ═════════════════════════════════ */}
           {activeTab === "campaigns" && (
-            <div style={{ maxWidth:1100 }}>
+            <div>
               {/* Header row */}
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:6, flexWrap:"wrap", gap:10 }}>
                 <div>
@@ -997,7 +999,7 @@ export default function DemoPage() {
 
           {/* ═══════════════════════ REPORTS ════════════════════════════════════ */}
           {activeTab === "reports" && (
-            <div style={{ maxWidth:900 }}>
+            <div>
               <h1 style={{ fontSize:26, fontWeight:700, color:T.accent, margin:"0 0 6px", letterSpacing:"-0.5px" }}>Reports</h1>
               <p style={{ color:T.muted, fontSize:13, margin:"0 0 28px" }}>Generate performance reports · Email to clients · Print to PDF</p>
 
@@ -1192,7 +1194,7 @@ export default function DemoPage() {
           return (
             <>
               {tourStep===10 && <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:2099 }}/>}
-              <div key={tourStep} style={{ ...pos, width:300, background:"#13151d", border:"1px solid rgba(245,166,35,0.3)", borderRadius:14, boxShadow:"0 16px 48px rgba(0,0,0,0.6)", overflow:"hidden", animation:"tourFadeIn 0.35s ease both" }}>
+              <div key={tourStep} style={{ ...pos, width:300, background:"#13151d", border:"1px solid rgba(245,166,35,0.3)", borderRadius:14, boxShadow:"0 16px 48px rgba(0,0,0,0.6)", overflow:"hidden", animation:cfg?.centered?"tourFadeInCentered 0.35s ease both":"tourFadeIn 0.35s ease both" }}>
                 <div style={{ height:3, background:"rgba(255,255,255,0.05)" }}>
                   <div style={{ height:"100%", width:`${(tourStep/TOTAL_STEPS)*100}%`, background:"linear-gradient(90deg,#f5a623,#f76b1c)", transition:"width 0.4s ease" }}/>
                 </div>
