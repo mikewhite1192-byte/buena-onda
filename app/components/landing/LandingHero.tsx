@@ -39,6 +39,55 @@ const STATS = [
   { label: "hours a day, always on", value: 24, suffix: "/7", decimal: false },
 ];
 
+const SCRAMBLE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*";
+
+function ScrambleText({ text, delay = 0 }: { text: string; delay?: number }) {
+  const resolved = useRef<string[]>(text.split(""));
+  const [output, setOutput] = useState<string[]>(() => text.split(""));
+
+  useEffect(() => {
+    // Init to scrambled state
+    const scrambled = text.split("").map((c) =>
+      c === " " ? " " : SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)]
+    );
+    resolved.current = [...scrambled];
+    setOutput([...scrambled]);
+
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
+
+    text.split("").forEach((char, i) => {
+      if (char === " ") {
+        resolved.current[i] = " ";
+        return;
+      }
+      const charDelay = delay + i * 52;
+      const scrambleDuration = 400;
+      const numFrames = 7;
+
+      for (let f = 0; f < numFrames; f++) {
+        timeouts.push(
+          setTimeout(() => {
+            resolved.current[i] =
+              SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+            setOutput([...resolved.current]);
+          }, charDelay + (f * scrambleDuration) / numFrames)
+        );
+      }
+
+      timeouts.push(
+        setTimeout(() => {
+          resolved.current[i] = char;
+          setOutput([...resolved.current]);
+        }, charDelay + scrambleDuration)
+      );
+    });
+
+    return () => timeouts.forEach(clearTimeout);
+  }, [text, delay]);
+
+  return <>{output.join("")}</>;
+}
+
 function StatCounter({
   value,
   suffix,
@@ -152,9 +201,13 @@ export default function LandingHero() {
           70% { box-shadow: 0 0 0 7px rgba(46,204,113,0); }
           100% { box-shadow: 0 0 0 0 rgba(46,204,113,0); }
         }
+        @keyframes slideReveal {
+          from { transform: translateY(110%); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
         .fu1 { animation: fadeUp 0.65s 0.05s ease both; }
-        .fu2 { animation: fadeUp 0.65s 0.18s ease both; }
-        .fu3 { animation: fadeUp 0.65s 0.3s ease both; }
+        .fu2 { animation: slideReveal 0.7s 0.15s cubic-bezier(0.16,1,0.3,1) both; }
+        .fu3 { animation: slideReveal 0.7s 0.35s cubic-bezier(0.16,1,0.3,1) both; }
         .fu4 { animation: fadeUp 0.65s 0.44s ease both; }
         .fu5 { animation: fadeUp 0.65s 0.58s ease both; }
         .fu6 { animation: fadeUp 0.65s 0.70s ease both; }
@@ -247,42 +300,41 @@ export default function LandingHero() {
             AI Agent · Always On
           </div>
 
-          {/* Headline line 1 */}
-          <h1
-            className="fu2"
-            style={{
-              fontSize: "clamp(42px, 7vw, 82px)",
-              fontWeight: 800,
-              color: T.text,
-              margin: "0 0 6px",
-              letterSpacing: "-3px",
-              lineHeight: 1.0,
-            }}
-          >
-            Stop managing ads.
-          </h1>
-
-          {/* Headline line 2 */}
-          <h1
-            className="fu3"
-            style={{
-              fontSize: "clamp(42px, 7vw, 82px)",
-              fontWeight: 800,
-              margin: "0 0 36px",
-              letterSpacing: "-3px",
-              lineHeight: 1.0,
-            }}
-          >
-            <span
+          {/* Headline line 1 — slide up + scramble */}
+          <div style={{ overflow: "hidden", display: "block", marginBottom: 6 }}>
+            <h1
+              className="fu2"
               style={{
+                fontSize: "clamp(42px, 7vw, 82px)",
+                fontWeight: 800,
+                color: T.text,
+                margin: 0,
+                letterSpacing: "-3px",
+                lineHeight: 1.0,
+              }}
+            >
+              <ScrambleText text="Stop managing ads." delay={200} />
+            </h1>
+          </div>
+
+          {/* Headline line 2 — slide up + scramble + gradient */}
+          <div style={{ overflow: "hidden", display: "block", marginBottom: 36 }}>
+            <h1
+              className="fu3"
+              style={{
+                fontSize: "clamp(42px, 7vw, 82px)",
+                fontWeight: 800,
+                margin: 0,
+                letterSpacing: "-3px",
+                lineHeight: 1.0,
                 background: "linear-gradient(135deg,#f5a623,#f76b1c)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
               }}
             >
-              Let AI win them.
-            </span>
-          </h1>
+              <ScrambleText text="Let AI win them." delay={650} />
+            </h1>
+          </div>
 
           {/* Subhead with platform cycling */}
           <p
