@@ -1,108 +1,494 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 const T = {
   accent: "#f5a623",
-  accentBg: "rgba(245,166,35,0.12)",
+  accentBg: "rgba(245,166,35,0.10)",
   text: "#e8eaf0",
   muted: "#8b8fa8",
   faint: "#5a5e72",
   border: "rgba(255,255,255,0.06)",
   surface: "#161820",
+  bg: "#0d0f14",
+  green: "#2ecc71",
+  red: "#e74c3c",
 };
 
-const WORDS = ["Launch.", "Manage.", "Optimize.", "Report.", "Oversee."];
+const PLATFORMS = ["Meta", "Google", "TikTok"];
+
+const TICKER = [
+  { icon: "⚡", text: "Budget scaled +20% — Summit Roofing CPL dropped to $22", color: T.green },
+  { icon: "⏸", text: "Underperforming ad set paused — $340 saved today", color: T.accent },
+  { icon: "🔁", text: "Creative fatigue detected — replacement brief auto-generated", color: T.muted },
+  { icon: "📈", text: "ROAS hit 4.2x on Peak Supplements — budget increased", color: T.green },
+  { icon: "🎯", text: "New TikTok campaign launched — 3 ad sets live", color: T.accent },
+  { icon: "📊", text: "Morning WhatsApp report sent — 847 leads this week", color: T.muted },
+  { icon: "⚡", text: "Budget reallocated from 2 losers to top performer", color: T.green },
+  { icon: "🛑", text: "CPL cap hit — ad set paused before overspend", color: T.red },
+  { icon: "📈", text: "Google Search ROAS: 5.1x — scaling now", color: T.green },
+  { icon: "🎯", text: "Audience overlap fixed — 3 ad sets consolidated", color: T.accent },
+  { icon: "✅", text: "New lead campaign live — targeting 180k homeowners in Phoenix", color: T.green },
+  { icon: "⚡", text: "TikTok ad outperforming Meta — budget shifted automatically", color: T.accent },
+];
+
+const STATS = [
+  { label: "avg CPL reduction", value: 40, suffix: "%", decimal: false },
+  { label: "avg ROAS lift", value: 3.8, suffix: "x", decimal: true },
+  { label: "hours a day, always on", value: 24, suffix: "/7", decimal: false },
+];
+
+function StatCounter({
+  value,
+  suffix,
+  decimal,
+  label,
+}: {
+  value: number;
+  suffix: string;
+  decimal: boolean;
+  label: string;
+}) {
+  const [current, setCurrent] = useState(0);
+  const ref = useRef<HTMLDivElement>(null);
+  const started = useRef(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !started.current) {
+          started.current = true;
+          const duration = 1600;
+          const start = performance.now();
+          const animate = (now: number) => {
+            const p = Math.min((now - start) / duration, 1);
+            const eased = 1 - Math.pow(1 - p, 3);
+            setCurrent(
+              decimal
+                ? Math.round(eased * value * 10) / 10
+                : Math.round(eased * value)
+            );
+            if (p < 1) requestAnimationFrame(animate);
+          };
+          requestAnimationFrame(animate);
+        }
+      },
+      { threshold: 0.5 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [value, decimal]);
+
+  return (
+    <div ref={ref} style={{ textAlign: "center" }}>
+      <div
+        style={{
+          fontSize: "clamp(34px, 4vw, 56px)",
+          fontWeight: 800,
+          color: T.text,
+          letterSpacing: "-2px",
+          lineHeight: 1,
+        }}
+      >
+        {decimal ? current.toFixed(1) : current}
+        {suffix}
+      </div>
+      <div
+        style={{
+          fontSize: 12,
+          color: T.faint,
+          marginTop: 8,
+          textTransform: "uppercase",
+          letterSpacing: "0.06em",
+        }}
+      >
+        {label}
+      </div>
+    </div>
+  );
+}
 
 export default function LandingHero() {
+  const [platformIdx, setPlatformIdx] = useState(0);
+  const [fading, setFading] = useState(false);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFading(true);
+      setTimeout(() => {
+        setPlatformIdx((i) => (i + 1) % PLATFORMS.length);
+        setFading(false);
+      }, 280);
+    }, 2200);
+    return () => clearInterval(interval);
+  }, []);
+
+  const tickerItems = [...TICKER, ...TICKER];
+
   return (
-    <section style={{ paddingTop: 140, paddingBottom: 100, paddingLeft: 24, paddingRight: 24, textAlign: "center", position: "relative", overflow: "hidden" }}>
-      {/* Glow */}
-      <div style={{ position: "absolute", top: "20%", left: "50%", transform: "translateX(-50%)", width: 600, height: 400, background: "radial-gradient(ellipse, rgba(245,166,35,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
+    <>
+      <style>{`
+        @keyframes pulseGlow {
+          0%, 100% { opacity: 1; transform: translateX(-50%) scale(1); }
+          50% { opacity: 1.4; transform: translateX(-50%) scale(1.1); }
+        }
+        @keyframes pulseGlow2 {
+          0%, 100% { opacity: 0.6; transform: translateX(-30%) scale(1); }
+          50% { opacity: 1; transform: translateX(-30%) scale(1.15); }
+        }
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(24px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes ticker {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        @keyframes livePulse {
+          0% { box-shadow: 0 0 0 0 rgba(46,204,113,0.5); }
+          70% { box-shadow: 0 0 0 7px rgba(46,204,113,0); }
+          100% { box-shadow: 0 0 0 0 rgba(46,204,113,0); }
+        }
+        .fu1 { animation: fadeUp 0.65s 0.05s ease both; }
+        .fu2 { animation: fadeUp 0.65s 0.18s ease both; }
+        .fu3 { animation: fadeUp 0.65s 0.3s ease both; }
+        .fu4 { animation: fadeUp 0.65s 0.44s ease both; }
+        .fu5 { animation: fadeUp 0.65s 0.58s ease both; }
+        .fu6 { animation: fadeUp 0.65s 0.70s ease both; }
+        .platform-swap {
+          display: inline-block;
+          transition: opacity 0.28s ease, transform 0.28s ease;
+        }
+        .platform-swap.out {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        .platform-swap.in {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      `}</style>
 
-      <div style={{ maxWidth: 860, margin: "0 auto", position: "relative" }}>
-        {/* Badge */}
-        <div style={{ display: "inline-block", padding: "5px 16px", background: T.accentBg, border: "1px solid rgba(245,166,35,0.3)", borderRadius: 20, fontSize: 11, color: T.accent, fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: 28 }}>
-          AI-Powered Meta Ads Platform
-        </div>
+      <section
+        style={{
+          paddingTop: 136,
+          paddingBottom: 0,
+          paddingLeft: 24,
+          paddingRight: 24,
+          textAlign: "center",
+          position: "relative",
+          overflow: "hidden",
+          background: T.bg,
+        }}
+      >
+        {/* Ambient glows */}
+        <div
+          style={{
+            position: "absolute",
+            top: "8%",
+            left: "50%",
+            width: 720,
+            height: 480,
+            background:
+              "radial-gradient(ellipse, rgba(245,166,35,0.08) 0%, transparent 68%)",
+            pointerEvents: "none",
+            animation: "pulseGlow 5s ease-in-out infinite",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: "35%",
+            left: "25%",
+            width: 360,
+            height: 260,
+            background:
+              "radial-gradient(ellipse, rgba(247,107,28,0.05) 0%, transparent 70%)",
+            pointerEvents: "none",
+            animation: "pulseGlow2 7s ease-in-out infinite",
+          }}
+        />
 
-        {/* Headline */}
-        <h1 style={{ fontSize: "clamp(36px, 6vw, 72px)", fontWeight: 800, color: T.text, margin: "0 0 24px", letterSpacing: "-2px", lineHeight: 1.05 }}>
-          The AI agent that{" "}
-          <br />
-          <span style={{ color: T.accent }}>runs your Meta ads.</span>
-        </h1>
-
-        {/* Subheading */}
-        <p style={{ fontSize: 18, color: T.muted, maxWidth: 560, margin: "0 auto 40px", lineHeight: 1.7 }}>
-          For businesses and agencies. Connect your Meta account, set your goals, and let the AI launch, optimize, and report on every campaign — across every client.
-        </p>
-
-        {/* CTAs */}
-        <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginBottom: 20 }}>
-          <Link href="/sign-up" style={{ padding: "14px 32px", borderRadius: 10, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 15, fontWeight: 800, textDecoration: "none", boxShadow: "0 4px 24px rgba(245,166,35,0.3)" }}>
-            Start Free Trial →
-          </Link>
-          <a href="/demo-login" style={{ padding: "14px 32px", borderRadius: 10, border: "1px solid rgba(245,166,35,0.3)", background: T.accentBg, color: T.accent, fontSize: 15, fontWeight: 700, textDecoration: "none" }}>
-            See the Demo
-          </a>
-        </div>
-
-        <p style={{ fontSize: 12, color: T.faint }}>14-day free trial · No setup fees · Cancel anytime</p>
-
-        {/* Dashboard preview */}
-        <div style={{ marginTop: 64, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 32px 80px rgba(0,0,0,0.5)" }}>
-          {/* Fake browser bar */}
-          <div style={{ padding: "12px 16px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#ff5f57" }} />
-            <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#febc2e" }} />
-            <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#28c840" }} />
-            <div style={{ flex: 1, margin: "0 16px", background: "rgba(255,255,255,0.04)", borderRadius: 6, padding: "4px 12px", fontSize: 11, color: T.faint, textAlign: "center" }}>
-              app.buenaonda.ai/dashboard
-            </div>
+        <div
+          style={{ maxWidth: 880, margin: "0 auto", position: "relative" }}
+        >
+          {/* Live badge */}
+          <div
+            className="fu1"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "6px 16px",
+              background: T.accentBg,
+              border: "1px solid rgba(245,166,35,0.22)",
+              borderRadius: 20,
+              fontSize: 11,
+              color: T.accent,
+              fontWeight: 600,
+              letterSpacing: "0.5px",
+              textTransform: "uppercase",
+              marginBottom: 36,
+            }}
+          >
+            <span
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: "50%",
+                background: T.green,
+                display: "inline-block",
+                animation: "livePulse 2s infinite",
+              }}
+            />
+            AI Agent · Always On
           </div>
 
-          {/* Dashboard mockup */}
-          <div style={{ padding: 24, display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
+          {/* Headline line 1 */}
+          <h1
+            className="fu2"
+            style={{
+              fontSize: "clamp(42px, 7vw, 82px)",
+              fontWeight: 800,
+              color: T.text,
+              margin: "0 0 6px",
+              letterSpacing: "-3px",
+              lineHeight: 1.0,
+            }}
+          >
+            Stop managing ads.
+          </h1>
+
+          {/* Headline line 2 */}
+          <h1
+            className="fu3"
+            style={{
+              fontSize: "clamp(42px, 7vw, 82px)",
+              fontWeight: 800,
+              margin: "0 0 36px",
+              letterSpacing: "-3px",
+              lineHeight: 1.0,
+            }}
+          >
+            <span
+              style={{
+                background: "linear-gradient(135deg,#f5a623,#f76b1c)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
+            >
+              Let AI win them.
+            </span>
+          </h1>
+
+          {/* Subhead with platform cycling */}
+          <p
+            className="fu4"
+            style={{
+              fontSize: 18,
+              color: T.muted,
+              maxWidth: 560,
+              margin: "0 auto 20px",
+              lineHeight: 1.8,
+            }}
+          >
+            The autonomous AI agent that launches, optimizes, and reports on your{" "}
+            <span
+              className={`platform-swap ${fading ? "out" : "in"}`}
+              style={{ color: T.accent, fontWeight: 700 }}
+            >
+              {PLATFORMS[platformIdx]}
+            </span>{" "}
+            campaigns — around the clock, while you focus on your business.
+          </p>
+
+          {/* Platform pills */}
+          <div
+            className="fu4"
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              gap: 10,
+              marginBottom: 48,
+              flexWrap: "wrap",
+            }}
+          >
             {[
-              { label: "Total Spend", value: "$24,840", color: T.accent },
-              { label: "Total Leads", value: "847", color: "#2ecc71" },
-              { label: "Avg CPL", value: "$29.33", color: T.text },
-              { label: "Active Campaigns", value: "12", color: T.text },
-            ].map(m => (
-              <div key={m.label} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "16px", border: `1px solid ${T.border}` }}>
-                <div style={{ fontSize: 9, color: T.faint, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>{m.label}</div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: m.color }}>{m.value}</div>
+              { name: "Meta Ads", color: "#4a90d9" },
+              { name: "Google Ads", color: "#5fad56" },
+              { name: "TikTok Ads", color: "#e05c8a" },
+            ].map((p) => (
+              <div
+                key={p.name}
+                style={{
+                  padding: "5px 16px",
+                  borderRadius: 20,
+                  border: `1px solid ${p.color}35`,
+                  background: `${p.color}12`,
+                  fontSize: 12,
+                  color: p.color,
+                  fontWeight: 600,
+                  letterSpacing: "0.2px",
+                }}
+              >
+                {p.name}
               </div>
             ))}
           </div>
 
-          <div style={{ padding: "0 24px 24px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: 16, border: `1px solid ${T.border}` }}>
-              <div style={{ fontSize: 10, color: T.faint, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.08em" }}>Top Campaigns</div>
-              {["Summit Roofing | Storm Season", "Peak Supps | ROAS Scale", "Glow Beauty | DPA"].map((c, i) => (
-                <div key={c} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: i < 2 ? `1px solid ${T.border}` : "none" }}>
-                  <span style={{ fontSize: 11, color: T.muted }}>{c}</span>
-                  <span style={{ fontSize: 11, color: "#2ecc71", fontWeight: 600 }}>{["$22 CPL", "4.1x ROAS", "3.6x ROAS"][i]}</span>
-                </div>
-              ))}
-            </div>
-            <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: 16, border: `1px solid ${T.border}` }}>
-              <div style={{ fontSize: 10, color: T.faint, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.08em" }}>Agent Activity</div>
-              {[
-                { action: "Budget increased 20%", time: "2m ago", color: "#2ecc71" },
-                { action: "Creative fatigue flagged", time: "1h ago", color: T.accent },
-                { action: "New ad created", time: "3h ago", color: T.muted },
-              ].map(a => (
-                <div key={a.action} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${T.border}` }}>
-                  <span style={{ fontSize: 11, color: a.color }}>{a.action}</span>
-                  <span style={{ fontSize: 10, color: T.faint }}>{a.time}</span>
-                </div>
-              ))}
-            </div>
+          {/* CTAs */}
+          <div
+            className="fu5"
+            style={{
+              display: "flex",
+              gap: 14,
+              justifyContent: "center",
+              flexWrap: "wrap",
+              marginBottom: 18,
+            }}
+          >
+            <Link
+              href="/sign-up"
+              style={{
+                padding: "16px 38px",
+                borderRadius: 10,
+                background: "linear-gradient(135deg,#f5a623,#f76b1c)",
+                color: "#0d0f14",
+                fontSize: 15,
+                fontWeight: 800,
+                textDecoration: "none",
+                boxShadow: "0 4px 36px rgba(245,166,35,0.32)",
+                letterSpacing: "-0.3px",
+              }}
+            >
+              Try it free — 14 days →
+            </Link>
+            <a
+              href="/demo-login"
+              style={{
+                padding: "16px 32px",
+                borderRadius: 10,
+                border: "1px solid rgba(245,166,35,0.25)",
+                background: T.accentBg,
+                color: T.accent,
+                fontSize: 15,
+                fontWeight: 700,
+                textDecoration: "none",
+              }}
+            >
+              See it in action
+            </a>
+          </div>
+
+          <p
+            className="fu6"
+            style={{ fontSize: 12, color: T.faint, marginBottom: 80 }}
+          >
+            No setup fees · Cancel anytime · Live in minutes
+          </p>
+        </div>
+
+        {/* Live ticker */}
+        <div
+          style={{
+            position: "relative",
+            overflow: "hidden",
+            borderTop: "1px solid rgba(255,255,255,0.05)",
+            borderBottom: "1px solid rgba(255,255,255,0.05)",
+            background: "rgba(22,24,32,0.7)",
+            padding: "14px 0",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 100,
+              background: `linear-gradient(to right, ${T.bg}, transparent)`,
+              zIndex: 2,
+              pointerEvents: "none",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: 100,
+              background: `linear-gradient(to left, ${T.bg}, transparent)`,
+              zIndex: 2,
+              pointerEvents: "none",
+            }}
+          />
+          <div
+            style={{
+              display: "flex",
+              animation: "ticker 38s linear infinite",
+              width: "max-content",
+            }}
+          >
+            {tickerItems.map((item, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "0 32px",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <span style={{ fontSize: 13 }}>{item.icon}</span>
+                <span
+                  style={{ fontSize: 12, color: item.color, fontWeight: 500 }}
+                >
+                  {item.text}
+                </span>
+                <span
+                  style={{ color: "rgba(255,255,255,0.07)", marginLeft: 16 }}
+                >
+                  ·
+                </span>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
-    </section>
+
+        {/* Stats row */}
+        <div
+          style={{
+            background: T.surface,
+            borderBottom: `1px solid ${T.border}`,
+            padding: "56px 24px",
+          }}
+        >
+          <div
+            style={{
+              maxWidth: 640,
+              margin: "0 auto",
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: 24,
+            }}
+          >
+            {STATS.map((s) => (
+              <StatCounter
+                key={s.label}
+                value={s.value}
+                suffix={s.suffix}
+                decimal={s.decimal}
+                label={s.label}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+    </>
   );
 }

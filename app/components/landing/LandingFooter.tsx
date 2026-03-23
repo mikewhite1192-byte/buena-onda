@@ -21,7 +21,7 @@ export default function LandingFooter() {
               Buena Onda
             </div>
             <p style={{ fontSize: 13, color: T.muted, lineHeight: 1.7, maxWidth: 260, margin: "0 0 16px" }}>
-              The autonomous AI agent that launches, manages, optimizes, and reports on your Meta ad campaigns.
+              The autonomous AI agent that launches, manages, optimizes, and reports on your Meta, Google, and TikTok ad campaigns.
             </p>
             <a href="mailto:hello@buenaonda.ai" style={{ fontSize: 12, color: T.faint, textDecoration: "none" }}>
               hello@buenaonda.ai
