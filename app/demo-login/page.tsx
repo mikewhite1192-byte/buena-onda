@@ -30,13 +30,13 @@ export default function DemoLoginPage() {
   async function autoSignIn() {
     setStatus("signing-in");
     try {
-      // Get a short-lived sign-in token from the server
-      const tokenRes = await fetch("/api/demo/token");
-      if (!tokenRes.ok) throw new Error("Could not fetch demo token");
-      const { token } = await tokenRes.json();
+      // Fetch demo credentials from server (password never exposed in client bundle)
+      const credRes = await fetch("/api/demo/credentials");
+      if (!credRes.ok) throw new Error("Demo account not configured");
+      const { email, password } = await credRes.json();
 
-      // Use the ticket strategy — no password needed
-      const result = await signIn!.create({ strategy: "ticket", ticket: token });
+      // Sign in with email + password — no Clerk ticket config required
+      const result = await signIn!.create({ identifier: email, password });
 
       if (result.status === "complete") {
         await setActive!({ session: result.createdSessionId });
@@ -47,7 +47,7 @@ export default function DemoLoginPage() {
         setError(`Sign-in incomplete (status: ${result.status}). Try again.`);
       }
     } catch (err: unknown) {
-      console.error(err);
+      console.error("Demo sign-in error:", err);
       setStatus("error");
       setError("Demo account unavailable. Please try again in a moment.");
     }
