@@ -3,6 +3,12 @@ const path = require("path");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async redirects() {
+    return [
+      { source: "/legal/privacy", destination: "/privacy-policy", permanent: false },
+      { source: "/legal/terms", destination: "/terms-of-service", permanent: false },
+    ];
+  },
   experimental: {
     turbo: {
       resolveAlias: {
