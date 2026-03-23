@@ -699,7 +699,7 @@ function DashboardContent() {
       </div>
 
       {/* Stat strip */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 28 }}>
+      <div id="tour-overview-stats" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 28 }}>
         {[
           {
             label: `Total Spend (${DATE_RANGES[activeRange].label})`,
@@ -748,7 +748,7 @@ function DashboardContent() {
             const alerts = generateOverviewAlerts(clients, allMetrics, overviewComputedDays);
             if (alerts.length === 0) return null;
             return (
-              <div style={{ marginBottom: 16 }}>
+              <div id="tour-alerts" style={{ marginBottom: 16 }}>
                 <div
                   onClick={() => setAlertsCollapsed(v => !v)}
                   style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: alertsCollapsed ? 0 : 8, cursor: "pointer", userSelect: "none" as const }}
@@ -776,7 +776,7 @@ function DashboardContent() {
             );
           })()}
 
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <div id="tour-client-accounts" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase" }}>Client Accounts</div>
             <div style={{ display: "flex", gap: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: T.muted }}>
@@ -817,7 +817,7 @@ function DashboardContent() {
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
           {/* Recommendations */}
-          <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden" }}>
+          <div id="tour-recommendations" style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden" }}>
             <div style={{ padding: "12px 16px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase" }}>
                 Recommendations

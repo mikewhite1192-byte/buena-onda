@@ -3,9 +3,10 @@
 // app/dashboard/layout.tsx
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { ClientProvider, useActiveClient } from "@/lib/context/client-context";
-import { TourProvider } from "@/lib/context/tour-context";
+import { TourProvider, useTour } from "@/lib/context/tour-context";
 import ChatBubble from "@/components/chat/ChatBubble";
 import TourCard from "@/components/tour/TourCard";
 
@@ -43,6 +44,38 @@ const NAV_ITEMS = [
   { label: "Review", path: "/dashboard/review" },
   { label: "History", path: "/dashboard/history" },
 ];
+
+function DemoBanner() {
+  const { demoMode } = useTour();
+  if (!demoMode) return null;
+  return (
+    <div style={{
+      position: "sticky", top: 52, zIndex: 90,
+      background: "linear-gradient(135deg, rgba(245,166,35,0.18), rgba(247,107,28,0.14))",
+      borderBottom: "1px solid rgba(245,166,35,0.3)",
+      padding: "9px 24px",
+      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+      flexWrap: "wrap",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span style={{ fontSize: 14 }}>🎯</span>
+        <span style={{ fontSize: 13, color: "#e8eaf0" }}>
+          <strong style={{ color: "#f5a623" }}>Demo mode</strong> — you&apos;re exploring with sample data. Ready to run real campaigns?
+        </span>
+      </div>
+      <Link
+        href="/sign-up"
+        style={{
+          fontSize: 13, fontWeight: 800, color: "#0d0f14",
+          background: "linear-gradient(135deg,#f5a623,#f76b1c)",
+          padding: "7px 18px", borderRadius: 8, textDecoration: "none", whiteSpace: "nowrap",
+        }}
+      >
+        Start Free — launch your first campaign →
+      </Link>
+    </div>
+  );
+}
 
 function DashboardNav({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -234,6 +267,9 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
         {/* User button */}
         <UserButton afterSignOutUrl="/sign-in" />
       </div>
+
+      {/* Demo sticky bar */}
+      <DemoBanner />
 
       {/* Page content */}
       <main>{children}</main>

@@ -5,7 +5,8 @@ import { createContext, useContext, useState } from "react";
 
 interface TourContextValue {
   tourActive: boolean;
-  step: number; // 1–6 while active, 0 = inactive
+  demoMode: boolean; // stays true after tour ends — used for sticky CTA bar
+  step: number; // 1–8 while active, 0 = inactive
   startTour: () => void;
   nextStep: () => void;
   prevStep: () => void;
@@ -14,6 +15,7 @@ interface TourContextValue {
 
 const TourContext = createContext<TourContextValue>({
   tourActive: false,
+  demoMode: false,
   step: 0,
   startTour: () => {},
   nextStep: () => {},
@@ -23,14 +25,15 @@ const TourContext = createContext<TourContextValue>({
 
 export function TourProvider({ children }: { children: React.ReactNode }) {
   const [step, setStep] = useState(0);
+  const [demoMode, setDemoMode] = useState(false);
 
-  const startTour = () => setStep(1);
-  const nextStep = () => setStep((s) => Math.min(s + 1, 6));
+  const startTour = () => { setDemoMode(true); setStep(1); };
+  const nextStep = () => setStep((s) => Math.min(s + 1, 8));
   const prevStep = () => setStep((s) => Math.max(s - 1, 1));
-  const endTour = () => setStep(0);
+  const endTour = () => setStep(0); // demoMode stays true
 
   return (
-    <TourContext.Provider value={{ tourActive: step > 0, step, startTour, nextStep, prevStep, endTour }}>
+    <TourContext.Provider value={{ tourActive: step > 0, demoMode, step, startTour, nextStep, prevStep, endTour }}>
       {children}
     </TourContext.Provider>
   );
