@@ -9,6 +9,7 @@ import { ClientProvider, useActiveClient } from "@/lib/context/client-context";
 import { TourProvider, useTour } from "@/lib/context/tour-context";
 import ChatBubble from "@/components/chat/ChatBubble";
 import TourCard from "@/components/tour/TourCard";
+import FeedbackButton from "@/components/feedback/FeedbackButton";
 
 const T = {
   bg: "#0d0f14",
@@ -276,6 +277,7 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
 
       <ChatBubble />
       <TourCard />
+      <FeedbackButton />
     </div>
   );
 }
