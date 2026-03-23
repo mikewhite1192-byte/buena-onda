@@ -118,6 +118,37 @@ CREATE TABLE IF NOT EXISTS referrals (
 
 CREATE INDEX IF NOT EXISTS idx_referrals_affiliate_code ON referrals(affiliate_code);
 CREATE INDEX IF NOT EXISTS idx_referrals_referred_user_id ON referrals(referred_user_id);
+
+-- Affiliate program v2 — extended columns (safe to re-run)
+ALTER TABLE affiliate_applications ADD COLUMN IF NOT EXISTS stripe_account_id TEXT;
+ALTER TABLE affiliate_applications ADD COLUMN IF NOT EXISTS stripe_onboarded BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE affiliate_applications ADD COLUMN IF NOT EXISTS is_free_account BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE affiliate_applications ADD COLUMN IF NOT EXISTS total_clicks INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE affiliate_applications ADD COLUMN IF NOT EXISTS milestones_reached TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE affiliate_applications ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
+ALTER TABLE affiliate_applications ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT;
+ALTER TABLE affiliate_applications ADD COLUMN IF NOT EXISTS at_risk_notified_at TIMESTAMPTZ;
+
+-- Plan tracking on referrals
+ALTER TABLE referrals ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'growth';
+ALTER TABLE referrals ADD COLUMN IF NOT EXISTS plan_amount NUMERIC(10,2) NOT NULL DEFAULT 197.00;
+ALTER TABLE referrals ADD COLUMN IF NOT EXISTS months_active INTEGER NOT NULL DEFAULT 0;
+
+-- Affiliate payouts table
+CREATE TABLE IF NOT EXISTS affiliate_payouts (
+  id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  affiliate_code    TEXT        NOT NULL REFERENCES affiliate_applications(affiliate_code) ON DELETE CASCADE,
+  amount            NUMERIC(10,2) NOT NULL,
+  period_start      DATE        NOT NULL,
+  period_end        DATE        NOT NULL,
+  status            TEXT        NOT NULL DEFAULT 'pending',
+  stripe_transfer_id TEXT,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  paid_at           TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_payouts_affiliate_code ON affiliate_payouts(affiliate_code);
+CREATE INDEX IF NOT EXISTS idx_payouts_status ON affiliate_payouts(status);
 `;
 
 // TypeScript types matching the tables

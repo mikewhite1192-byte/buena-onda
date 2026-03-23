@@ -54,24 +54,32 @@ export async function POST(req: NextRequest) {
         <div style="font-family: 'Courier New', monospace; max-width: 600px; background: #0d0f14; color: #e8eaf0; padding: 40px; border-radius: 12px;">
           <div style="background: linear-gradient(135deg,#f5a623,#f76b1c); display: inline-block; padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 13px; color: #fff; margin-bottom: 20px;">Buena Onda</div>
           <h1 style="font-size: 22px; font-weight: 800; color: #e8eaf0; margin: 0 0 8px;">You're in, ${name.split(" ")[0]}.</h1>
-          <p style="font-size: 14px; color: #8b8fa8; margin: 0 0 28px;">Share your link and earn 20% every month someone stays.</p>
+          <p style="font-size: 14px; color: #8b8fa8; margin: 0 0 28px;">Share your link. Earn 50% month 1, then 40% every month after — forever.</p>
           <div style="background: #161820; border-radius: 10px; padding: 20px 24px; margin-bottom: 24px;">
             <div style="font-size: 11px; color: #5a5e72; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Your referral link</div>
             <div style="font-size: 15px; font-weight: 700; color: #f5a623;">${link}</div>
           </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 28px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 28px;">
             <div style="background: #161820; border-radius: 8px; padding: 14px; text-align: center;">
-              <div style="font-size: 10px; color: #8b8fa8; margin-bottom: 4px; text-transform: uppercase;">Commission</div>
-              <div style="font-size: 24px; font-weight: 800; color: #f5a623;">20%</div>
-              <div style="font-size: 11px; color: #5a5e72;">every month, forever</div>
+              <div style="font-size: 10px; color: #8b8fa8; margin-bottom: 4px; text-transform: uppercase;">Month 1</div>
+              <div style="font-size: 22px; font-weight: 800; color: #f5a623;">50%</div>
+              <div style="font-size: 11px; color: #5a5e72;">first month</div>
+            </div>
+            <div style="background: #161820; border-radius: 8px; padding: 14px; text-align: center;">
+              <div style="font-size: 10px; color: #8b8fa8; margin-bottom: 4px; text-transform: uppercase;">Recurring</div>
+              <div style="font-size: 22px; font-weight: 800; color: #f5a623;">40%</div>
+              <div style="font-size: 11px; color: #5a5e72;">every month forever</div>
             </div>
             <div style="background: #161820; border-radius: 8px; padding: 14px; text-align: center;">
               <div style="font-size: 10px; color: #8b8fa8; margin-bottom: 4px; text-transform: uppercase;">Cookie</div>
-              <div style="font-size: 24px; font-weight: 800; color: #e8eaf0;">90 days</div>
+              <div style="font-size: 22px; font-weight: 800; color: #e8eaf0;">90d</div>
               <div style="font-size: 11px; color: #5a5e72;">from first click</div>
             </div>
           </div>
-          <a href="https://buenaonda.ai/affiliates/portal?email=${encodeURIComponent(email)}" style="display: block; text-align: center; background: rgba(245,166,35,0.12); border: 1px solid rgba(245,166,35,0.3); color: #f5a623; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: 700; font-size: 13px; margin-bottom: 20px;">
+          <div style="background: rgba(245,166,35,0.08); border: 1px solid rgba(245,166,35,0.2); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; font-size: 12px; color: #8b8fa8;">
+            <strong style="color: #f5a623;">🎁 Milestone:</strong> Refer 3 paying clients and your Buena Onda account is free forever.
+          </div>
+          <a href="https://buenaonda.ai/affiliates/dashboard?email=${encodeURIComponent(email)}" style="display: block; text-align: center; background: rgba(245,166,35,0.12); border: 1px solid rgba(245,166,35,0.3); color: #f5a623; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: 700; font-size: 13px; margin-bottom: 20px;">
             View your affiliate dashboard →
           </a>
           <div style="font-size: 11px; color: #5a5e72; border-top: 1px solid #1e2130; padding-top: 16px;">
