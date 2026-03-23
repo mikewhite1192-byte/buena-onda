@@ -125,9 +125,9 @@ export default function AffiliatesPage() {
             Affiliate Program · Early Access
           </div>
           <h1 style={{ fontSize: "clamp(38px, 5.5vw, 68px)", fontWeight: 800, margin: "0 0 24px", letterSpacing: "-2px", lineHeight: 1.12 }}>
-            <span style={{ background: "linear-gradient(135deg,#f5a623,#f76b1c)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", display: "block" }}>Earn 40%.</span>
+            <span style={{ color: T.text, display: "block" }}>Earn 40%.</span>
             <span style={{ background: "linear-gradient(135deg,#f5a623,#f76b1c)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", display: "block" }}>Buena Onda.</span>
-            <span style={{ background: "linear-gradient(135deg,#f5a623,#f76b1c)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", display: "block" }}>Forever.</span>
+            <span style={{ color: T.text, display: "block" }}>Forever.</span>
           </h1>
           <p style={{ fontSize: 17, color: T.muted, maxWidth: 500, margin: "0 auto 14px", lineHeight: 1.7 }}>
             50% on their first month. 40% every month after. Refer 3 clients and your account is free.
