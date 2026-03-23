@@ -30,24 +30,52 @@ export default function DemoLoginPage() {
   async function autoSignIn() {
     setStatus("signing-in");
     try {
-      // Fetch demo credentials from server (password never exposed in client bundle)
-      const credRes = await fetch("/api/demo/credentials");
-      if (!credRes.ok) throw new Error("Demo account not configured");
-      const { email, password } = await credRes.json();
+      // Get a short-lived sign-in token from the server
+      const tokenRes = await fetch("/api/demo/token");
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok) throw new Error(tokenData.error ?? "Could not fetch demo token");
+      const { token } = tokenData;
 
-      // Sign in with email + password — no Clerk ticket config required
-      const result = await signIn!.create({ identifier: email, password });
+      // Use the ticket strategy — no password needed
+      const result = await signIn!.create({ strategy: "ticket", ticket: token });
 
       if (result.status === "complete") {
         await setActive!({ session: result.createdSessionId });
         await fetch("/api/demo/seed", { method: "POST" });
         router.push("/dashboard?demo=1");
       } else {
+        // Fallback: try password strategy
+        const credRes = await fetch("/api/demo/credentials");
+        if (credRes.ok) {
+          const { email, password } = await credRes.json();
+          const result2 = await signIn!.create({ identifier: email, password });
+          if (result2.status === "complete") {
+            await setActive!({ session: result2.createdSessionId });
+            await fetch("/api/demo/seed", { method: "POST" });
+            router.push("/dashboard?demo=1");
+            return;
+          }
+        }
         setStatus("error");
         setError(`Sign-in incomplete (status: ${result.status}). Try again.`);
       }
     } catch (err: unknown) {
       console.error("Demo sign-in error:", err);
+      // Fallback: try password strategy
+      try {
+        const credRes = await fetch("/api/demo/credentials");
+        if (!credRes.ok) throw new Error("No credentials");
+        const { email, password } = await credRes.json();
+        const result2 = await signIn!.create({ identifier: email, password });
+        if (result2.status === "complete") {
+          await setActive!({ session: result2.createdSessionId });
+          await fetch("/api/demo/seed", { method: "POST" });
+          router.push("/dashboard?demo=1");
+          return;
+        }
+      } catch (err2) {
+        console.error("Demo fallback error:", err2);
+      }
       setStatus("error");
       setError("Demo account unavailable. Please try again in a moment.");
     }
@@ -97,7 +125,8 @@ export default function DemoLoginPage() {
           <>
             <div style={{ fontSize: 32, marginBottom: 16 }}>⚠️</div>
             <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 8 }}>Demo unavailable</div>
-            <div style={{ fontSize: 13, color: T.muted, marginBottom: 24, lineHeight: 1.6 }}>{error}</div>
+            <div style={{ fontSize: 13, color: T.muted, marginBottom: 16, lineHeight: 1.6 }}>{error}</div>
+            <div style={{ fontSize: 11, color: T.faint, marginBottom: 16 }}>Check browser console for details</div>
             <button
               onClick={() => { setStatus("loading"); autoSignIn(); }}
               style={{ width: "100%", padding: "12px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", marginBottom: 12 }}
