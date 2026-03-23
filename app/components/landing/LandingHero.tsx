@@ -403,9 +403,12 @@ export default function LandingHero() {
               marginBottom: 18,
             }}
           >
-            <Link
-              href="/sign-up"
+            <a
+              href="/demo-login"
               style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
                 padding: "16px 38px",
                 borderRadius: 10,
                 background: "linear-gradient(135deg,#f5a623,#f76b1c)",
@@ -417,10 +420,11 @@ export default function LandingHero() {
                 letterSpacing: "-0.3px",
               }}
             >
-              Try it free — 14 days →
-            </Link>
-            <a
-              href="/demo-login"
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#0d0f14", opacity: 0.5, display: "inline-block", animation: "livePulse 2s infinite" }} />
+              Try the live demo →
+            </a>
+            <Link
+              href="/sign-up"
               style={{
                 padding: "16px 32px",
                 borderRadius: 10,
@@ -432,15 +436,15 @@ export default function LandingHero() {
                 textDecoration: "none",
               }}
             >
-              See it in action
-            </a>
+              Start Free
+            </Link>
           </div>
 
           <p
             className="fu6"
             style={{ fontSize: 12, color: T.faint, marginBottom: 80 }}
           >
-            No setup fees · Cancel anytime · Live in minutes
+            No credit card required · Cancel anytime
           </p>
         </div>
 
