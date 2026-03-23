@@ -202,6 +202,11 @@ export default function LandingHero() {
           70% { box-shadow: 0 0 0 7px rgba(46,204,113,0); }
           100% { box-shadow: 0 0 0 0 rgba(46,204,113,0); }
         }
+        @keyframes whitePulse {
+          0% { box-shadow: 0 0 0 0 rgba(255,255,255,0.8); transform: scale(1); }
+          70% { box-shadow: 0 0 0 8px rgba(255,255,255,0); transform: scale(1.1); }
+          100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); transform: scale(1); }
+        }
         @keyframes slideReveal {
           from { transform: translateY(110%); opacity: 0; }
           to { transform: translateY(0); opacity: 1; }
@@ -420,7 +425,7 @@ export default function LandingHero() {
                 letterSpacing: "-0.3px",
               }}
             >
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#0d0f14", opacity: 0.5, display: "inline-block", animation: "livePulse 2s infinite" }} />
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(255,255,255,0.9)", display: "inline-block", flexShrink: 0, animation: "whitePulse 1.8s ease-in-out infinite" }} />
               Try the live demo →
             </a>
             <Link
