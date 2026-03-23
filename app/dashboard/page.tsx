@@ -640,21 +640,6 @@ function DashboardContent() {
   return (
     <div style={{ padding: "26px 28px", background: T.bg, minHeight: "calc(100vh - 52px)" }}>
 
-      {/* Demo mode banner */}
-      {isDemoMode && (
-        <div style={{ marginBottom: 20, padding: "12px 20px", background: "rgba(245,166,35,0.12)", border: "1px solid rgba(245,166,35,0.35)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 16 }}>🎯</span>
-            <div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: T.accent }}>Demo mode — </span>
-              <span style={{ fontSize: 13, color: T.muted }}>You&apos;re exploring with sample client data. Everything is real except the Meta connection.</span>
-            </div>
-          </div>
-          <a href="/sign-up" style={{ fontSize: 12, fontWeight: 700, color: "#0d0f14", background: "linear-gradient(135deg,#f5a623,#f76b1c)", padding: "7px 16px", borderRadius: 7, textDecoration: "none", whiteSpace: "nowrap" }}>
-            Start Free Trial →
-          </a>
-        </div>
-      )}
 
       {/* Greeting + date range selector */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>

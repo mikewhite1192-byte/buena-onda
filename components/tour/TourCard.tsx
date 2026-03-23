@@ -100,9 +100,9 @@ function getPosition(step: number): React.CSSProperties {
   if (step === 10) {
     return { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 2100 };
   }
-  // Step 9 (AI Assistant) — bottom-right, just above the chat bubble so it's visible
+  // Step 9 (AI Assistant) — bottom-LEFT so chat button at bottom-right stays visible
   if (step === 9) {
-    return { position: "fixed", bottom: 96, right: 88, zIndex: 2100 };
+    return { position: "fixed", bottom: 32, left: 28, zIndex: 2100 };
   }
   // Overview steps (1–4) — bottom-left so the recommendations sidebar stays fully visible
   if (step >= 1 && step <= 4) {
@@ -124,26 +124,31 @@ export default function TourCard() {
     return () => clearTimeout(t);
   }, [step, tourActive]);
 
-  // Glow + scroll to the target element for this step
+  // Glow + scroll to the target element — retries until element appears after navigation
   useEffect(() => {
     if (!tourActive) return;
     const config = STEPS[step];
     if (!config?.highlightId) return;
 
-    const timer = setTimeout(() => {
-      const el = document.getElementById(config.highlightId!);
-      if (!el) return;
-      // Only scroll if the element isn't already visible — and scroll to top of element, not center
-      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      el.style.outline = "2px solid rgba(245,166,35,0.85)";
-      el.style.outlineOffset = "6px";
-      el.style.borderRadius = "10px";
-      el.style.transition = "outline 0.3s ease";
-    }, 400);
+    const id = config.highlightId!;
+    let attempts = 0;
+    const interval = setInterval(() => {
+      const el = document.getElementById(id);
+      if (el) {
+        clearInterval(interval);
+        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        el.style.outline = "2px solid rgba(245,166,35,0.85)";
+        el.style.outlineOffset = "6px";
+        el.style.borderRadius = "10px";
+        el.style.transition = "outline 0.3s ease";
+      } else if (++attempts >= 15) {
+        clearInterval(interval); // give up after ~3s
+      }
+    }, 200);
 
     return () => {
-      clearTimeout(timer);
-      const el = config.highlightId ? document.getElementById(config.highlightId) : null;
+      clearInterval(interval);
+      const el = document.getElementById(id);
       if (el) { el.style.outline = ""; el.style.outlineOffset = ""; }
     };
   }, [step, tourActive]);
