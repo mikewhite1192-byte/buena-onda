@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { DEMO_CLIENTS_CONFIG, getDemoSummary, getDemoCampaigns } from "@/lib/demo-data";
 
@@ -70,6 +70,262 @@ const RECS = [
   { id: "r5", priority: "info"     as const, icon: "📈", title: "Strong ROAS — scale budget",  body: "Urban Threads DPA at 4.1x ROAS. +$100/day while signal is strong.", approveLabel: "Scale Budget" },
 ];
 
+// ── Campaign builder panel ─────────────────────────────────────────────────────
+
+const BUSINESS_TYPES = ["Roofing / Home Services", "Real Estate", "Insurance", "Dental / Medical", "Solar", "Ecommerce / DTC", "Fitness / Wellness", "Finance / Legal", "Other"];
+const PLATFORMS = [
+  { name: "Meta", color: "#4a90d9" },
+  { name: "Google", color: "#34a853" },
+  { name: "TikTok", color: "#ff2d6b" },
+];
+
+const AI_BUILD_STEPS = [
+  { label: "Analyzing your business type & goals", duration: 700 },
+  { label: "Selecting optimal audiences & targeting", duration: 900 },
+  { label: "Structuring ad sets & budget splits", duration: 800 },
+  { label: "Writing ad copy & creative briefs", duration: 1000 },
+  { label: "Setting CPL targets & scaling rules", duration: 600 },
+];
+
+function CampaignBuilderPanel({ onClose }: { onClose: () => void }) {
+  const [step, setStep] = useState<"form" | "building" | "done">("form");
+  const [businessType, setBusinessType] = useState("Roofing / Home Services");
+  const [platforms, setPlatforms] = useState<string[]>(["Meta"]);
+  const [budget, setBudget] = useState("3000");
+  const [goal, setGoal] = useState("leads");
+  const [cplTarget, setCplTarget] = useState("35");
+  const [buildProgress, setBuildProgress] = useState(0);
+
+  function togglePlatform(name: string) {
+    setPlatforms(p => p.includes(name) ? p.filter(x => x !== name) : [...p, name]);
+  }
+
+  function startBuild() {
+    setStep("building");
+    setBuildProgress(0);
+    let i = 0;
+    let elapsed = 0;
+    AI_BUILD_STEPS.forEach((s, idx) => {
+      elapsed += s.duration;
+      setTimeout(() => {
+        setBuildProgress(idx + 1);
+        if (idx === AI_BUILD_STEPS.length - 1) {
+          setTimeout(() => setStep("done"), 400);
+        }
+      }, elapsed);
+    });
+  }
+
+  // Derived preview values
+  const monthlyBudget = parseInt(budget) || 3000;
+  const isLeads = goal === "leads";
+  const platformList = platforms.join(" + ") || "Meta";
+  const adSets = platforms.length === 1 ? 3 : platforms.length === 2 ? 4 : 5;
+  const creatives = adSets * 3;
+
+  return (
+    <>
+      <style>{`
+        @keyframes panelSlideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes buildFadeIn {
+          from { opacity: 0; transform: translateX(-8px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+      `}</style>
+
+      {/* Backdrop */}
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1100, backdropFilter: "blur(2px)" }} />
+
+      {/* Panel */}
+      <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 480, background: "#13151d", borderLeft: `1px solid rgba(245,166,35,0.2)`, zIndex: 1200, overflow: "auto", animation: "panelSlideIn 0.35s cubic-bezier(0.16,1,0.3,1) both", display: "flex", flexDirection: "column" }}>
+
+        {/* Header */}
+        <div style={{ padding: "20px 24px 16px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: T.text, letterSpacing: "-0.3px" }}>
+              {step === "form" ? "Launch a New Campaign" : step === "building" ? "AI is building your campaign…" : "Campaign Ready ✓"}
+            </div>
+            <div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>
+              {step === "form" ? "Tell the AI what you want — it handles the rest" : step === "building" ? "This takes about 5 seconds in real life" : "Review and launch when ready"}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${T.border}`, borderRadius: 6, width: 28, height: 28, cursor: "pointer", color: T.muted, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}>✕</button>
+        </div>
+
+        <div style={{ flex: 1, padding: "24px", overflowY: "auto" }}>
+
+          {/* ── STEP 1: FORM ── */}
+          {step === "form" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+              {/* Business type */}
+              <div>
+                <div style={{ fontSize: 11, color: T.muted, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: 8 }}>Business Type</div>
+                <select value={businessType} onChange={e => setBusinessType(e.target.value)} style={{ width: "100%", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, color: T.text, fontFamily: "inherit", cursor: "pointer", outline: "none" }}>
+                  {BUSINESS_TYPES.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </div>
+
+              {/* Platforms */}
+              <div>
+                <div style={{ fontSize: 11, color: T.muted, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: 8 }}>Platforms</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {PLATFORMS.map(p => {
+                    const active = platforms.includes(p.name);
+                    return (
+                      <button key={p.name} onClick={() => togglePlatform(p.name)} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1px solid ${active ? p.color + "60" : T.border}`, background: active ? p.color + "15" : "transparent", color: active ? p.color : T.faint, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
+                        {p.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Goal */}
+              <div>
+                <div style={{ fontSize: 11, color: T.muted, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: 8 }}>Campaign Goal</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {[{ value: "leads", label: "🎯 Lead Gen" }, { value: "sales", label: "🛒 Ecommerce" }].map(g => (
+                    <button key={g.value} onClick={() => setGoal(g.value)} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1px solid ${goal === g.value ? T.accent + "60" : T.border}`, background: goal === g.value ? T.accentBg : "transparent", color: goal === g.value ? T.accent : T.faint, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
+                      {g.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Budget + Target */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 11, color: T.muted, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: 8 }}>Monthly Budget ($)</div>
+                  <input type="number" value={budget} onChange={e => setBudget(e.target.value)} style={{ width: "100%", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, color: T.text, fontFamily: "inherit", outline: "none", boxSizing: "border-box" as const }} placeholder="3000" />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: T.muted, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: 8 }}>{isLeads ? "CPL Target ($)" : "ROAS Target"}</div>
+                  <input type="number" value={cplTarget} onChange={e => setCplTarget(e.target.value)} style={{ width: "100%", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, color: T.text, fontFamily: "inherit", outline: "none", boxSizing: "border-box" as const }} placeholder={isLeads ? "35" : "3.5"} />
+                </div>
+              </div>
+
+              {/* Preview estimate */}
+              <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "16px" }}>
+                <div style={{ fontSize: 11, color: T.faint, textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: 12 }}>What the AI will build</div>
+                {[
+                  { label: "Platforms", value: platformList },
+                  { label: "Ad sets", value: `${adSets} (split by audience + intent)` },
+                  { label: "Creatives queued", value: `${creatives} (hooks, carousels, testimonials)` },
+                  { label: "Daily budget", value: `$${Math.round(monthlyBudget / 30)}/day` },
+                  { label: `${isLeads ? "CPL" : "ROAS"} target`, value: isLeads ? `$${cplTarget} per lead` : `${cplTarget}x return` },
+                  { label: "Auto-optimize", value: "Daily — 24/7" },
+                ].map((row, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: i < 5 ? `1px solid ${T.border}` : "none" }}>
+                    <span style={{ fontSize: 12, color: T.muted }}>{row.label}</span>
+                    <span style={{ fontSize: 12, color: T.text, fontWeight: 600 }}>{row.value}</span>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={startBuild}
+                disabled={platforms.length === 0}
+                style={{ width: "100%", padding: "14px", borderRadius: 10, border: "none", background: platforms.length === 0 ? "rgba(245,166,35,0.2)" : "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 14, fontWeight: 800, cursor: platforms.length === 0 ? "not-allowed" : "pointer", fontFamily: "inherit" }}
+              >
+                Build with AI →
+              </button>
+            </div>
+          )}
+
+          {/* ── STEP 2: BUILDING ── */}
+          {step === "building" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ textAlign: "center" as const, padding: "24px 0 20px" }}>
+                <div style={{ width: 52, height: 52, borderRadius: "50%", border: `3px solid rgba(245,166,35,0.2)`, borderTop: `3px solid ${T.accent}`, margin: "0 auto 16px", animation: "spin 0.9s linear infinite" }} />
+                <div style={{ fontSize: 14, color: T.muted }}>Building your campaign…</div>
+              </div>
+              {AI_BUILD_STEPS.map((s, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: T.surface, borderRadius: 8, border: `1px solid ${buildProgress > i ? "rgba(46,204,113,0.2)" : T.border}`, animation: buildProgress > i ? "buildFadeIn 0.3s ease" : "none" }}>
+                  <span style={{ fontSize: 14, flexShrink: 0 }}>{buildProgress > i ? "✓" : buildProgress === i ? "⟳" : "○"}</span>
+                  <span style={{ fontSize: 12, color: buildProgress > i ? T.healthy : buildProgress === i ? T.accent : T.faint }}>{s.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ── STEP 3: DONE ── */}
+          {step === "done" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ background: "rgba(46,204,113,0.08)", border: "1px solid rgba(46,204,113,0.25)", borderRadius: 10, padding: "16px 18px" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: T.healthy, marginBottom: 4 }}>✓ Campaign built and ready to launch</div>
+                <div style={{ fontSize: 12, color: T.muted }}>{businessType} · {platformList} · ${Math.round(monthlyBudget / 30)}/day</div>
+              </div>
+
+              {/* Ad sets */}
+              <div>
+                <div style={{ fontSize: 11, color: T.faint, textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: 10 }}>Ad Sets Created</div>
+                {[
+                  { name: `${businessType.split("/")[0].trim()} | Broad Intent`, budget: Math.round(monthlyBudget * 0.4 / 30), audience: "Homeowners 35–65 · 25mi radius" },
+                  { name: `${businessType.split("/")[0].trim()} | Retargeting`, budget: Math.round(monthlyBudget * 0.3 / 30), audience: "Website visitors · 30d window" },
+                  { name: `${businessType.split("/")[0].trim()} | Lookalike 1%`, budget: Math.round(monthlyBudget * 0.3 / 30), audience: "Based on your best customers" },
+                ].slice(0, adSets > 3 ? 3 : adSets).map((a, i) => (
+                  <div key={i} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: "12px 14px", marginBottom: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>{a.name}</span>
+                      <span style={{ fontSize: 12, color: T.accent, fontWeight: 600 }}>${a.budget}/day</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: T.faint }}>{a.audience}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Creatives */}
+              <div>
+                <div style={{ fontSize: 11, color: T.faint, textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: 10 }}>Creative Briefs Generated</div>
+                {[
+                  { type: "Video Hook", desc: "iPhone-style, raw footage — problem/solution format", count: Math.ceil(creatives / 3) },
+                  { type: "Image Carousel", desc: "Before/after or feature highlights — 5 cards", count: Math.floor(creatives / 3) },
+                  { type: "Testimonial", desc: "Social proof — customer result + photo", count: Math.floor(creatives / 3) },
+                ].map((c, i) => (
+                  <div key={i} style={{ display: "flex", gap: 10, padding: "8px 0", borderBottom: i < 2 ? `1px solid ${T.border}` : "none" }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: T.accent, minWidth: 18, textAlign: "center" as const }}>{c.count}</span>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>{c.type}</div>
+                      <div style={{ fontSize: 11, color: T.faint, marginTop: 2 }}>{c.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Rules */}
+              <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "14px 16px" }}>
+                <div style={{ fontSize: 11, color: T.faint, textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: 10 }}>AI Rules Set</div>
+                {[
+                  { label: isLeads ? "Pause if CPL exceeds" : "Pause if ROAS drops below", value: isLeads ? `$${Math.round(parseInt(cplTarget) * 1.4)}` : `${(parseFloat(cplTarget) * 0.6).toFixed(1)}x` },
+                  { label: isLeads ? "Scale if CPL under" : "Scale if ROAS above", value: isLeads ? `$${cplTarget}` : `${cplTarget}x` },
+                  { label: "Creative fatigue threshold", value: "3.0x frequency" },
+                  { label: "Morning WhatsApp report", value: "8:00am daily" },
+                ].map((r, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: i < 3 ? `1px solid ${T.border}` : "none" }}>
+                    <span style={{ fontSize: 12, color: T.muted }}>{r.label}</span>
+                    <span style={{ fontSize: 12, color: T.text, fontWeight: 600 }}>{r.value}</span>
+                  </div>
+                ))}
+              </div>
+
+              <Link href="/sign-up" style={{ display: "block", textAlign: "center" as const, padding: "14px", borderRadius: 10, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 14, fontWeight: 800, textDecoration: "none" }}>
+                Start Free — launch your first campaign →
+              </Link>
+              <button onClick={() => setStep("form")} style={{ width: "100%", padding: "10px", borderRadius: 10, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                ← Try different settings
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── Tour steps ─────────────────────────────────────────────────────────────────
 const TOUR_STEPS = [
   {
@@ -78,6 +334,15 @@ const TOUR_STEPS = [
     title: "Welcome to Buena Onda",
     body: "This is your AI-powered ad management dashboard. We're going to walk you through the highlights — it only takes 60 seconds.",
     highlight: null,
+    action: null,
+  },
+  {
+    id: "tour-build",
+    icon: "🚀",
+    title: "Launch a campaign in minutes",
+    body: "Tell the AI your business type, platform, and budget. It builds your ad sets, writes creative briefs, and sets optimization rules — instantly.",
+    highlight: "tour-new-campaign",
+    action: "open-builder",
   },
   {
     id: "tour-stats",
@@ -85,6 +350,7 @@ const TOUR_STEPS = [
     title: "Everything at a glance",
     body: "See total spend, leads, and account health across every client — Meta, Google, and TikTok — all in one number.",
     highlight: "tour-stat-strip",
+    action: null,
   },
   {
     id: "tour-alerts",
@@ -92,6 +358,7 @@ const TOUR_STEPS = [
     title: "The AI catches problems first",
     body: "Before you even open the app, the AI has already flagged what needs your attention. No more finding out a campaign failed days later.",
     highlight: "tour-alerts",
+    action: null,
   },
   {
     id: "tour-recs",
@@ -99,6 +366,7 @@ const TOUR_STEPS = [
     title: "One-click AI actions",
     body: "The agent doesn't just tell you what's wrong — it tells you exactly what to do. Approve it with one click and it executes immediately.",
     highlight: "tour-recs",
+    action: null,
   },
   {
     id: "tour-clients",
@@ -106,6 +374,7 @@ const TOUR_STEPS = [
     title: "Every client, one view",
     body: "Lead gen and ecommerce clients side by side. CPL, ROAS, spend, and health status — no tab-switching, no manual reporting.",
     highlight: "tour-clients",
+    action: null,
   },
   {
     id: "tour-agent",
@@ -113,6 +382,7 @@ const TOUR_STEPS = [
     title: "Your AI works while you sleep",
     body: "The agent runs 24/7 — scaling winners, pausing losers, flagging fatigue, and sending you morning briefings via WhatsApp.",
     highlight: "tour-agent",
+    action: null,
   },
   {
     id: "tour-cta",
@@ -120,6 +390,7 @@ const TOUR_STEPS = [
     title: "Ready to connect your accounts?",
     body: "This is real software, running on real data. Connect your ad accounts and the AI gets to work immediately — no setup required.",
     highlight: null,
+    action: null,
   },
 ];
 
@@ -210,6 +481,7 @@ export default function DemoPage() {
   // Tour state
   const [tourStep, setTourStep] = useState(0);
   const [tourDone, setTourDone] = useState(false);
+  const [showBriefPanel, setShowBriefPanel] = useState(false);
   const isTourActive = !tourDone;
   const step = TOUR_STEPS[tourStep];
   const isLastStep = tourStep === TOUR_STEPS.length - 1;
@@ -217,6 +489,12 @@ export default function DemoPage() {
   function nextStep() {
     if (isLastStep) { setTourDone(true); return; }
     setTourStep(s => s + 1);
+  }
+
+  function handleTourAction() {
+    if (step.action === "open-builder") {
+      setShowBriefPanel(true);
+    }
   }
 
   // Aggregate stats
@@ -260,6 +538,7 @@ export default function DemoPage() {
           from { transform: translateY(100%); opacity: 0; }
           to { transform: translateY(0); opacity: 1; }
         }
+        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
 
       <div style={{ minHeight: "100vh", background: T.bg, fontFamily: "'DM Mono','Fira Mono',monospace", color: T.text, paddingBottom: 80 }}>
@@ -338,12 +617,21 @@ export default function DemoPage() {
                 Demo Account · <span style={{ color: T.critical }}>{ALERTS.length} accounts need attention</span>
               </div>
             </div>
-            <div style={{ display: "flex", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: 3, gap: 2 }}>
-              {["Today", "7d", "30d", "90d", "Max"].map(label => (
-                <button key={label} style={{ padding: "4px 11px", fontSize: 12, borderRadius: 6, border: "none", cursor: "default", fontFamily: "inherit", fontWeight: label === "30d" ? 700 : 400, background: label === "30d" ? T.accent : "transparent", color: label === "30d" ? "#fff" : T.muted }}>
-                  {label}
-                </button>
-              ))}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ display: "flex", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: 3, gap: 2 }}>
+                {["Today", "7d", "30d", "90d", "Max"].map(label => (
+                  <button key={label} style={{ padding: "4px 11px", fontSize: 12, borderRadius: 6, border: "none", cursor: "default", fontFamily: "inherit", fontWeight: label === "30d" ? 700 : 400, background: label === "30d" ? T.accent : "transparent", color: label === "30d" ? "#fff" : T.muted }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <button
+                id="tour-new-campaign"
+                onClick={() => setShowBriefPanel(true)}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" as const }}
+              >
+                + New Campaign
+              </button>
             </div>
           </div>
 
@@ -470,6 +758,9 @@ export default function DemoPage() {
           </div>
         </div>
 
+        {/* ── Campaign builder panel ── */}
+        {showBriefPanel && <CampaignBuilderPanel onClose={() => setShowBriefPanel(false)} />}
+
         {/* ── Tour card (floating, bottom-left) ── */}
         {isTourActive && (
           <div
@@ -539,6 +830,21 @@ export default function DemoPage() {
                     style={{ width: "100%", padding: "9px", borderRadius: 9, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
                   >
                     Keep exploring
+                  </button>
+                </div>
+              ) : step.action === "open-builder" ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <button
+                    onClick={() => { handleTourAction(); }}
+                    style={{ width: "100%", padding: "11px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}
+                  >
+                    See the campaign builder →
+                  </button>
+                  <button
+                    onClick={nextStep}
+                    style={{ width: "100%", padding: "9px", borderRadius: 9, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
+                  >
+                    Skip this →
                   </button>
                 </div>
               ) : (
