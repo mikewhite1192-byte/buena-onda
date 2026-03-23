@@ -40,9 +40,11 @@ export default clerkMiddleware(async (auth, req) => {
     const { sessionClaims } = await auth();
 
     // Allow through if coming back from Stripe checkout (webhook may not have fired yet)
-    // The dashboard page will call /api/stripe/sync-subscription to reconcile
     const isCheckoutReturn = req.nextUrl.searchParams.get("checkout") === "success";
-    if (!isCheckoutReturn) {
+    // Allow through if this is a demo session
+    const isDemo = req.nextUrl.searchParams.get("demo") === "1";
+
+    if (!isCheckoutReturn && !isDemo) {
       const status = (sessionClaims?.metadata as Record<string, string> | undefined)?.subscription_status;
       const allowed = status === "active" || status === "trialing";
 

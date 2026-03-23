@@ -38,5 +38,10 @@ export async function GET(req: NextRequest) {
   // Also wipe any agent history/actions so the demo stays clean
   await sql`DELETE FROM agent_actions WHERE owner_id = ${userId}`.catch(() => {});
 
+  // Ensure demo account always has active subscription status so middleware lets it through
+  await clerk.users.updateUserMetadata(userId, {
+    publicMetadata: { subscription_status: "active" },
+  });
+
   return NextResponse.json({ ok: true, reset: DEMO_CLIENTS_CONFIG.length });
 }
