@@ -32,6 +32,12 @@ const isDashboardRoute = createRouteMatcher(["/dashboard(.*)"]);
 export default clerkMiddleware(async (auth, req) => {
   const ref = req.nextUrl.searchParams.get("ref");
 
+  // Legal pages are always public — bypass auth entirely
+  const path = req.nextUrl.pathname;
+  if (path === "/legal" || path.startsWith("/legal/")) {
+    return NextResponse.next();
+  }
+
   if (!isPublicRoute(req)) {
     await auth.protect();
   }
