@@ -21,12 +21,9 @@ const T = {
 const BASE_URL = "https://buenaonda.ai";
 
 const MILESTONES = [
-  { count: 1,   icon: "🎯", label: "First referral",          reward: "Personal welcome video from the founders" },
-  { count: 3,   icon: "🎁", label: "3 active clients",        reward: "Your account is free forever" },
-  { count: 10,  icon: "⭐", label: "10 active clients",       reward: "Personal strategy call + shoutout" },
-  { count: 25,  icon: "🚀", label: "25 active clients",       reward: "Co-marketing opportunity" },
-  { count: 50,  icon: "💎", label: "50 active clients",       reward: "Revenue share increase" },
-  { count: 100, icon: "👑", label: "100 active clients",      reward: "Equity conversation" },
+  { count: 1,  icon: "🎯", label: "First referral",    reward: "Personal welcome video from the founders" },
+  { count: 3,  icon: "🎁", label: "3 active clients",  reward: "Your account is free — as long as you maintain 3 active clients" },
+  { count: 10, icon: "⭐", label: "10 active clients", reward: "Personal strategy call + featured partner" },
 ];
 
 const STEPS = [

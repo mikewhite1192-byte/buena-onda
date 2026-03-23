@@ -20,12 +20,9 @@ const T = {
 };
 
 const MILESTONES: { target: number; reward: string; emoji: string }[] = [
-  { target: 1, reward: "First commission paid", emoji: "💸" },
-  { target: 3, reward: "Free Buena Onda account forever", emoji: "🎁" },
-  { target: 10, reward: "Personal strategy call + featured partner", emoji: "📞" },
-  { target: 25, reward: "Custom co-branded landing page", emoji: "🚀" },
-  { target: 50, reward: "Personal video from Mike + $500 bonus", emoji: "🎬" },
-  { target: 100, reward: "Revenue share equity stake discussion", emoji: "💎" },
+  { target: 1,  reward: "Personal welcome video from the founders", emoji: "🎯" },
+  { target: 3,  reward: "Your account is free — as long as you maintain 3 active clients", emoji: "🎁" },
+  { target: 10, reward: "Personal strategy call + featured partner", emoji: "⭐" },
 ];
 
 interface DashboardData {
