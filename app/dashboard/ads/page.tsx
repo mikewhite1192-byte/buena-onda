@@ -268,6 +268,7 @@ export default function AdsPage() {
             </div>
           </div>
           <button
+            id="tour-ads-create"
             onClick={openChatCreate}
             style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 20px", background: T.accent, border: "none", borderRadius: 8, color: "#0d0f14", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}
           >

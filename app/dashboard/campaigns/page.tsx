@@ -969,7 +969,7 @@ export default function CampaignsPage() {
           </div>
 
           {/* Date range + Share Report */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+          <div id="tour-share-report" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               {/* Share Report button + link */}
               {campaigns.length > 0 && (
@@ -1091,7 +1091,7 @@ export default function CampaignsPage() {
             })()}
 
             {/* Charts toggle */}
-            <div style={{ marginBottom: 24 }}>
+            <div id="tour-chart-toggle" style={{ marginBottom: 24 }}>
               <button
                 onClick={() => setShowCharts(v => !v)}
                 style={{ ...btnStyle(showCharts), display: "flex", alignItems: "center", gap: 6 }}

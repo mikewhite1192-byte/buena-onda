@@ -14,18 +14,17 @@ const T = {
   text: "#e8eaf0",
   muted: "#8b8fa8",
   faint: "#5a5e72",
-  healthy: "#2ecc71",
 };
 
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 9;
 
 interface StepConfig {
   title: string;
   body: string;
   label: string;
-  highlightId?: string;       // DOM element to glow + scroll to
-  navigateTo?: string;        // route to push before showing this step
-  openChat?: boolean;         // dispatch open-chat event
+  highlightId?: string;  // glow + scroll to this element
+  navigateTo?: string;   // push this route when arriving at this step
+  openChat?: boolean;    // dispatch open-chat event when arriving
   centered?: boolean;
 }
 
@@ -33,66 +32,72 @@ const STEPS: Record<number, StepConfig> = {
   1: {
     title: "Your Agency Command Center",
     label: `1 / ${TOTAL_STEPS}  ·  Overview`,
-    body: "Live spend, leads, ROAS, and account health — everything across all your clients in one place. Critical accounts sort to the top automatically.",
+    body: "Live spend, leads, ROAS, and account health across all your clients at a glance. Critical accounts automatically surface to the top.",
     highlightId: "tour-overview-stats",
   },
   2: {
     title: "Anomaly Alerts",
     label: `2 / ${TOTAL_STEPS}  ·  Alerts`,
-    body: "The AI watches every account around the clock. The moment something breaks — CPL spike, zero leads, budget overpacing — it surfaces here with one-click actions.",
+    body: "The AI monitors every account 24/7. The moment something breaks — CPL spike, zero leads, budget overpacing — it flags it here with one-click actions.",
     highlightId: "tour-alerts",
   },
   3: {
     title: "AI Recommendations",
     label: `3 / ${TOTAL_STEPS}  ·  Recommendations`,
-    body: "Actionable suggestions ranked by priority — pause a fatigued campaign, scale a winner, reallocate budget. Approve or dismiss with one click.",
+    body: "Ranked, actionable suggestions — pause a fatigued ad, scale a winner, fix an audience overlap. Approve or dismiss in one click.",
     highlightId: "tour-recommendations",
   },
   4: {
     title: "Client Account Cards",
     label: `4 / ${TOTAL_STEPS}  ·  Clients`,
-    body: "Every client's status at a glance. Click any card to drill into their campaigns, ad sets, and creatives. Color-coded by vertical — blue for lead gen, purple for e-commerce.",
+    body: "Every client's status at a glance — spend, leads, ROAS, and health. Color-coded: blue for lead gen, purple for e-commerce. Click any card to drill in.",
     highlightId: "tour-client-accounts",
   },
   5: {
-    title: "Drill Into Any Campaign",
-    label: `5 / ${TOTAL_STEPS}  ·  Campaigns`,
-    body: "Campaign → Ad Set → Ad, all in one view. Live spend, CPL, ROAS, CTR, and frequency. Click any row to expand. Customize your columns.",
-    navigateTo: "/dashboard/campaigns",
+    title: "Build an Ad in 60 Seconds",
+    label: `5 / ${TOTAL_STEPS}  ·  Ad Builder`,
+    body: "Tell the AI what you want — business type, budget, goal. It builds a full campaign: targeting, copy, creatives, bid strategy. Everything lands here for your approval before going live.",
+    navigateTo: "/dashboard/ads",
+    openChat: true,
+    highlightId: "tour-ads-create",
   },
   6: {
-    title: "Ask the AI Anything",
-    label: `6 / ${TOTAL_STEPS}  ·  AI Chat`,
-    body: "Hit the ? button any time and ask — 'Why is my CPL up?' or 'What should I pause?' The AI has full context on every client and campaign.",
+    title: "Performance Charts",
+    label: `6 / ${TOTAL_STEPS}  ·  Campaigns`,
+    body: "Click 'Show Charts' to see any metric over time — spend, CPL, ROAS, CTR, frequency. Spot trends before they become problems. Switch metrics with the dropdown.",
     navigateTo: "/dashboard/campaigns",
-    openChat: true,
+    highlightId: "tour-chart-toggle",
   },
   7: {
-    title: "Automated Reports",
-    label: `7 / ${TOTAL_STEPS}  ·  Reports`,
-    body: "Weekly and monthly performance reports per client — auto-generated, ready to send. Ask the AI anytime: 'Send me this week's report.' Email delivery and PDF export built in.",
-    navigateTo: "/dashboard/reports",
+    title: "Shareable Client Reports",
+    label: `7 / ${TOTAL_STEPS}  ·  Share`,
+    body: "Click '↗ Share Report' to generate a read-only link for your client. They get a clean view of their numbers — no login required, no access to settings.",
+    highlightId: "tour-share-report",
   },
   8: {
+    title: "Automated Reports",
+    label: `8 / ${TOTAL_STEPS}  ·  Reports`,
+    body: "Weekly and monthly reports auto-generated per client. Ask the AI anytime — 'send me this week's report' — and it delivers a full performance snapshot ready to share.",
+    navigateTo: "/dashboard/reports",
+  },
+  9: {
     title: "You're All Set 🎉",
-    label: `8 / ${TOTAL_STEPS}  ·  Ready`,
-    body: "That's the full picture. Start your free trial — connect your first client, launch a campaign, and let the AI run the rest.",
+    label: `9 / ${TOTAL_STEPS}  ·  Ready`,
+    body: "That's the full picture. Start your free trial and run your first real campaign — the AI handles the rest.",
     centered: true,
   },
 };
 
 function getPosition(step: number, isChatOpen: boolean): React.CSSProperties {
-  if (step === 8) {
+  if (step === TOTAL_STEPS) {
     return { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 1002 };
   }
-  if (step === 6 || step === 7) {
-    return { position: "fixed", bottom: 100, right: isChatOpen ? 420 : 88, zIndex: 1002 };
-  }
-  // Steps 1–4 are on overview — position bottom-left so it doesn't cover the right sidebar
+  // Overview steps (1–4) — bottom-left so right sidebar is visible
   if (step >= 1 && step <= 4) {
     return { position: "fixed", bottom: 32, left: 28, zIndex: 1002 };
   }
-  return { position: "fixed", bottom: 100, right: 88, zIndex: 1002 };
+  // All other steps — bottom-right, shift left if chat is open
+  return { position: "fixed", bottom: 100, right: isChatOpen ? 420 : 88, zIndex: 1002 };
 }
 
 export default function TourCard() {
@@ -101,35 +106,41 @@ export default function TourCard() {
   const [mounted, setMounted] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
 
-  // Animate in on mount / step change
+  // Animate in on step change
   useEffect(() => {
     setMounted(false);
     const t = setTimeout(() => setMounted(true), 50);
     return () => clearTimeout(t);
   }, [step, tourActive]);
 
-  // Highlight the target element and scroll it into view
+  // Glow + scroll highlight for the current step's target element
   useEffect(() => {
     if (!tourActive) return;
     const config = STEPS[step];
     if (!config?.highlightId) return;
 
-    const el = document.getElementById(config.highlightId);
-    if (!el) return;
-
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    el.style.outline = "2px solid rgba(245,166,35,0.8)";
-    el.style.outlineOffset = "6px";
-    el.style.borderRadius = "10px";
-    el.style.transition = "outline 0.3s ease";
+    // Give the page a moment to render after navigation
+    const timer = setTimeout(() => {
+      const el = document.getElementById(config.highlightId!);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.style.outline = "2px solid rgba(245,166,35,0.85)";
+      el.style.outlineOffset = "6px";
+      el.style.borderRadius = "10px";
+      el.style.transition = "outline 0.3s ease";
+    }, 350);
 
     return () => {
-      el.style.outline = "";
-      el.style.outlineOffset = "";
+      clearTimeout(timer);
+      const el = document.getElementById(config.highlightId!);
+      if (el) {
+        el.style.outline = "";
+        el.style.outlineOffset = "";
+      }
     };
   }, [step, tourActive]);
 
-  // Detect chat bubble open state
+  // Track chat open state
   useEffect(() => {
     const interval = setInterval(() => {
       setChatOpen(!!document.querySelector("[data-chat-open]"));
@@ -137,7 +148,7 @@ export default function TourCard() {
     return () => clearInterval(interval);
   }, []);
 
-  // Keyboard escape
+  // Escape key
   useEffect(() => {
     function handler(e: KeyboardEvent) {
       if (e.key === "Escape") endTour();
@@ -151,44 +162,38 @@ export default function TourCard() {
   const config = STEPS[step];
   const pos = getPosition(step, chatOpen);
 
-  function handleNext() {
-    const next = step + 1;
-    const nextConfig = STEPS[next];
-
-    if (nextConfig?.openChat) {
-      document.dispatchEvent(new CustomEvent("buenaonda:open-chat"));
-    }
-    if (nextConfig?.navigateTo) {
-      router.push(nextConfig.navigateTo);
-    }
-
-    if (step === TOTAL_STEPS) {
-      endTour();
-    } else {
-      nextStep();
+  function navigate(targetStep: number) {
+    const cfg = STEPS[targetStep];
+    if (!cfg) return;
+    if (cfg.navigateTo) router.push(cfg.navigateTo);
+    if (cfg.openChat) {
+      setTimeout(() => {
+        document.dispatchEvent(new CustomEvent("buenaonda:open-chat"));
+      }, 400);
     }
   }
 
-  function handlePrev() {
-    const prev = step - 1;
-    const prevConfig = STEPS[prev];
-    if (prevConfig?.navigateTo) {
-      router.push(prevConfig.navigateTo);
-    } else if (step > 5) {
-      // Navigate back to overview when going back to overview steps
-      router.push("/dashboard");
+  function handleNext() {
+    if (step === TOTAL_STEPS) {
+      endTour();
+      return;
     }
+    navigate(step + 1);
+    nextStep();
+  }
+
+  function handlePrev() {
+    navigate(step - 1);
     prevStep();
   }
 
   return (
     <>
-      {/* Backdrop for final step */}
-      {step === 8 && (
+      {/* Backdrop on final step */}
+      {step === TOTAL_STEPS && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1001 }} />
       )}
 
-      {/* Tour card */}
       <div style={{
         ...pos,
         width: 300,
@@ -203,20 +208,17 @@ export default function TourCard() {
         transition: "opacity 0.2s ease, transform 0.2s ease",
       }}>
 
-        {/* Header */}
+        {/* Header row */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <span style={{ fontSize: 10, color: T.faint, fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase" }}>
             {config.label}
           </span>
-          <button
-            onClick={endTour}
-            style={{ background: "transparent", border: "none", color: T.faint, cursor: "pointer", fontSize: 14, padding: 0 }}
-          >
+          <button onClick={endTour} style={{ background: "transparent", border: "none", color: T.faint, cursor: "pointer", fontSize: 14, padding: 0 }}>
             ✕
           </button>
         </div>
 
-        {/* Content */}
+        {/* Title + body */}
         <div style={{ fontSize: 14, fontWeight: 700, color: T.accent, marginBottom: 8, letterSpacing: "-0.3px", lineHeight: 1.3 }}>
           {config.title}
         </div>
@@ -225,12 +227,12 @@ export default function TourCard() {
         </div>
 
         {/* Progress dots */}
-        <div style={{ display: "flex", gap: 5, marginBottom: 16, justifyContent: "center" }}>
+        <div style={{ display: "flex", gap: 4, marginBottom: 16, justifyContent: "center" }}>
           {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map(s => (
             <div key={s} style={{
-              width: s === step ? 14 : 5,
-              height: 5,
-              borderRadius: 3,
+              width: s === step ? 12 : 4,
+              height: 4,
+              borderRadius: 2,
               background: s === step ? T.accent : s < step ? T.accent + "50" : T.faint,
               transition: "all 0.2s",
             }} />
