@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -15,21 +16,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing priceId" }, { status: 400 });
     }
 
+    // Grab Clerk user ID if logged in — passed to webhook for fast user lookup
+    const { userId } = await auth();
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       payment_method_types: ["card"],
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-      subscription_data: {
-        trial_period_days: 14,
-      },
-      success_url: `${BASE_URL}/dashboard?checkout=success&plan=${encodeURIComponent(planName ?? "")}`,
+      line_items: [{ price: priceId, quantity: 1 }],
+      subscription_data: { trial_period_days: 14 },
+      // {CHECKOUT_SESSION_ID} is replaced by Stripe with the real session ID
+      success_url: `${BASE_URL}/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}&plan=${encodeURIComponent(planName ?? "")}`,
       cancel_url: `${BASE_URL}/#pricing`,
       allow_promotion_codes: true,
+      ...(userId && { metadata: { clerk_user_id: userId } }),
     });
 
     return NextResponse.json({ url: session.url });

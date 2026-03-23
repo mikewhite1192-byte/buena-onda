@@ -149,6 +149,22 @@ CREATE TABLE IF NOT EXISTS affiliate_payouts (
 
 CREATE INDEX IF NOT EXISTS idx_payouts_affiliate_code ON affiliate_payouts(affiliate_code);
 CREATE INDEX IF NOT EXISTS idx_payouts_status ON affiliate_payouts(status);
+
+-- User subscriptions — tracks Stripe subscription status per Clerk user
+CREATE TABLE IF NOT EXISTS user_subscriptions (
+  id                     UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  clerk_user_id          TEXT        UNIQUE NOT NULL,
+  stripe_customer_id     TEXT        NOT NULL,
+  stripe_subscription_id TEXT        NOT NULL,
+  status                 TEXT        NOT NULL DEFAULT 'trialing',
+  plan_name              TEXT,
+  current_period_end     TIMESTAMPTZ,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at             TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_subscriptions_clerk_user_id ON user_subscriptions(clerk_user_id);
+CREATE INDEX IF NOT EXISTS idx_user_subscriptions_stripe_customer_id ON user_subscriptions(stripe_customer_id);
 `;
 
 // TypeScript types matching the tables

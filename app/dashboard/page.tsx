@@ -461,6 +461,20 @@ function DashboardContent() {
     } catch { /* ignore */ }
   }, []);
 
+  // Sync subscription on return from Stripe checkout (handles webhook race condition)
+  useEffect(() => {
+    const sessionId = searchParams.get("session_id");
+    if (searchParams.get("checkout") === "success" && sessionId) {
+      fetch("/api/stripe/sync-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId }),
+      }).catch(() => {});
+      // Clean up URL
+      router.replace("/dashboard");
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Auto-seed demo if ?demo=1 in URL
   useEffect(() => {
     if (searchParams.get("demo") === "1") {

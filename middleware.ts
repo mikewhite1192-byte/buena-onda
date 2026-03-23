@@ -1,7 +1,32 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-const isPublicRoute = createRouteMatcher(["/", "/demo(.*)", "/demo-login(.*)", "/sign-in(.*)", "/sign-up(.*)", "/privacy-policy", "/terms-of-service", "/api/meta/test", "/api/db/migrate", "/api/agent/test", "/api/meta/actions/test", "/api/cron/agent-loop", "/api/cron/demo-reset", "/api/meta/token", "/api/whatsapp/webhook", "/api/auth/facebook/callback", "/api/cron/refresh-meta-tokens", "/api/demo(.*)", "/affiliates(.*)", "/api/affiliates(.*)", "/api/webhooks/clerk", "/api/stripe/checkout"]);
+const isPublicRoute = createRouteMatcher([
+  "/",
+  "/demo(.*)",
+  "/demo-login(.*)",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/privacy-policy",
+  "/terms-of-service",
+  "/legal(.*)",
+  "/pricing(.*)",
+  "/api/meta/test",
+  "/api/db/migrate",
+  "/api/agent/test",
+  "/api/meta/actions/test",
+  "/api/cron/(.*)",
+  "/api/meta/token",
+  "/api/whatsapp/webhook",
+  "/api/auth/facebook/callback",
+  "/api/demo(.*)",
+  "/affiliates(.*)",
+  "/api/affiliates(.*)",
+  "/api/webhooks/(.*)",
+  "/api/stripe/checkout",
+]);
+
+const isDashboardRoute = createRouteMatcher(["/dashboard(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
   const ref = req.nextUrl.searchParams.get("ref");
@@ -10,14 +35,31 @@ export default clerkMiddleware(async (auth, req) => {
     await auth.protect();
   }
 
+  // Subscription gate — only applies to /dashboard routes
+  if (isDashboardRoute(req)) {
+    const { sessionClaims } = await auth();
+
+    // Allow through if coming back from Stripe checkout (webhook may not have fired yet)
+    // The dashboard page will call /api/stripe/sync-subscription to reconcile
+    const isCheckoutReturn = req.nextUrl.searchParams.get("checkout") === "success";
+    if (!isCheckoutReturn) {
+      const status = (sessionClaims?.metadata as Record<string, string> | undefined)?.subscription_status;
+      const allowed = status === "active" || status === "trialing";
+
+      if (!allowed) {
+        return NextResponse.redirect(new URL("/#pricing", req.url));
+      }
+    }
+  }
+
   // If a ?ref= param is present, set a 90-day cookie and continue
   if (ref && /^[a-z0-9-]{3,30}$/.test(ref)) {
     const res = NextResponse.next();
     res.cookies.set("bo_ref", ref, {
-      maxAge: 60 * 60 * 24 * 90, // 90 days
+      maxAge: 60 * 60 * 24 * 90,
       path: "/",
       sameSite: "lax",
-      httpOnly: false, // needs to be readable by Clerk webhook context
+      httpOnly: false,
     });
     return res;
   }
