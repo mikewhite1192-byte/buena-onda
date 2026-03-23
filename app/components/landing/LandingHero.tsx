@@ -410,7 +410,7 @@ export default function LandingHero() {
             }}
           >
             <a
-              href="/demo-login"
+              href="/demo"
               style={{
                 display: "flex",
                 alignItems: "center",

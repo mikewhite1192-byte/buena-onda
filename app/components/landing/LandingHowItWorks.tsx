@@ -142,7 +142,7 @@ export default function LandingHowItWorks() {
               Connect your existing accounts. Buena Onda audits what&apos;s working, fixes what&apos;s not, and scales winners across every client.
             </div>
           </div>
-          <a href="/demo-login" style={{ padding: "12px 28px", borderRadius: 10, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 14, fontWeight: 800, textDecoration: "none", whiteSpace: "nowrap" }}>
+          <a href="/demo" style={{ padding: "12px 28px", borderRadius: 10, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 14, fontWeight: 800, textDecoration: "none", whiteSpace: "nowrap" }}>
             Try the live demo →
           </a>
         </div>
