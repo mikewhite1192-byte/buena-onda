@@ -430,7 +430,7 @@ export default function LandingHero() {
               Try the live demo →
             </a>
             <Link
-              href="/sign-up"
+              href="/#pricing"
               style={{
                 padding: "16px 32px",
                 borderRadius: 10,

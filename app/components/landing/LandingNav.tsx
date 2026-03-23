@@ -27,7 +27,7 @@ export default function LandingNav() {
 
         <SignedOut>
           <Link href="/sign-in" style={{ fontSize: 13, color: T.muted, textDecoration: "none" }}>Log in</Link>
-          <Link href="/sign-up" style={{ padding: "8px 18px", borderRadius: 8, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
+          <Link href="/#pricing" style={{ padding: "8px 18px", borderRadius: 8, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
             Start Free
           </Link>
         </SignedOut>
