@@ -15,8 +15,8 @@ const T = {
 
 const FAQS = [
   {
-    q: "Do I need to know anything about Facebook ads?",
-    a: "No. Buena Onda handles everything — campaign setup, targeting, bidding, creative direction, and optimization. You just tell the AI your goal and budget. It handles the rest.",
+    q: "Do I need to know anything about running ads?",
+    a: "No. Buena Onda handles everything — campaign setup, targeting, bidding, creative direction, and optimization across Meta, Google, and TikTok. You just tell the AI your goal and budget. It handles the rest.",
   },
   {
     q: "What does the 14-day free trial include?",
@@ -48,7 +48,7 @@ const FAQS = [
   },
   {
     q: "Is my ad account data secure?",
-    a: "Yes. We use read/write access scoped specifically to Meta ads — we can't access your personal account, pages, or anything outside your ad account. All data is encrypted in transit and at rest.",
+    a: "Yes. We use read/write access scoped specifically to your ad accounts — we can't access anything outside your campaigns. All data is encrypted in transit and at rest.",
   },
 ];
 

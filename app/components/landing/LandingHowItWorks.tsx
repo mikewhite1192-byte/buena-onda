@@ -28,7 +28,7 @@ const STEPS = [
     icon: "🎛️",
     title: "We manage every detail",
     bullets: [
-      "All your campaigns and ad sets in one dashboard — no more Meta Ads Manager chaos",
+      "All your campaigns and ad sets in one dashboard — Meta, Google, and TikTok in one place",
       "Budget pacing tracked daily so you never over or underspend",
       "The AI handles ad set structure, audience overlaps, and scheduling",
       "Agencies: manage every client from a single view with per-client rules",
@@ -64,7 +64,7 @@ const STEPS = [
       "Approve or reject any AI recommendation before it executes",
       "Set CPL caps, ROAS targets, and frequency limits per client or campaign",
       "Get alerted instantly when something needs your attention",
-      "Connect your own Meta ad account — your data, your account, always",
+      "Connect your own ad accounts — your data, your accounts, always",
     ],
   },
 ];
@@ -136,14 +136,14 @@ export default function LandingHowItWorks() {
         <div style={{ marginTop: 48, background: T.surface, border: "1px solid rgba(245,166,35,0.15)", borderRadius: 14, padding: "28px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 20 }}>
           <div>
             <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 4 }}>
-              Already running Meta ads — or managing them for clients?
+              Already running ads — or managing them for clients?
             </div>
             <div style={{ fontSize: 13, color: T.muted }}>
               Connect your existing accounts. Buena Onda audits what&apos;s working, fixes what&apos;s not, and scales winners across every client.
             </div>
           </div>
-          <a href="/sign-up" style={{ padding: "12px 28px", borderRadius: 10, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 14, fontWeight: 800, textDecoration: "none", whiteSpace: "nowrap" }}>
-            Start Free Trial →
+          <a href="/demo-login" style={{ padding: "12px 28px", borderRadius: 10, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 14, fontWeight: 800, textDecoration: "none", whiteSpace: "nowrap" }}>
+            Try the live demo →
           </a>
         </div>
 

@@ -21,7 +21,7 @@ const PLANS = [
     price: 97,
     priceId: "price_1TDsTU2LedSrht7tPlVdEkEM",
     spend: "Up to $10k/mo ad spend",
-    desc: "Perfect for small businesses running their first Meta campaigns.",
+    desc: "Perfect for small businesses ready to put their ad campaigns on autopilot.",
     features: [
       "AI campaign creation & launch",
       "Daily automated optimization",
@@ -31,7 +31,7 @@ const PLANS = [
       "Client dashboard access",
       "14-day free trial",
     ],
-    cta: "Start Free Trial",
+    cta: "Start Free",
     highlight: false,
   },
   {
@@ -49,7 +49,7 @@ const PLANS = [
       "Priority AI optimization",
       "14-day free trial",
     ],
-    cta: "Start Free Trial",
+    cta: "Start Free",
     highlight: true,
     badge: "Most Popular",
   },
@@ -68,7 +68,7 @@ const PLANS = [
       "Advanced campaign analytics",
       "14-day free trial",
     ],
-    cta: "Start Free Trial",
+    cta: "Start Free",
     highlight: false,
   },
 ];

@@ -179,7 +179,7 @@ export default function LandingDemo() {
                   href="/sign-up?redirect_url=%2Fdashboard%3Fdemo%3D1"
                   style={{ flex: 1, padding: "11px 20px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 13, fontWeight: 800, textDecoration: "none", textAlign: "center" }}
                 >
-                  Try the real thing →
+                  Start Free →
                 </a>
               </div>
             )}
@@ -187,7 +187,7 @@ export default function LandingDemo() {
         </div>
 
         <p style={{ textAlign: "center", fontSize: 12, color: T.faint, marginTop: 16 }}>
-          This is a demo — the real AI connects to your live Meta account and campaigns.
+          This is a demo — the real AI connects to your live ad accounts and campaigns.
         </p>
       </div>
     </section>
