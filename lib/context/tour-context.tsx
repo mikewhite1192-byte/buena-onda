@@ -28,7 +28,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   const [demoMode, setDemoMode] = useState(false);
 
   const startTour = () => { setDemoMode(true); setStep(1); };
-  const nextStep = () => setStep((s) => Math.min(s + 1, 9));
+  const nextStep = () => setStep((s) => Math.min(s + 1, 10));
   const prevStep = () => setStep((s) => Math.max(s - 1, 1));
   const endTour = () => setStep(0); // demoMode stays true
 

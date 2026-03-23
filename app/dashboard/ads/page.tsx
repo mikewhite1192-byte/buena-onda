@@ -181,6 +181,15 @@ export default function AdsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeClient?.id]);
 
+  // Tour: open the creator overlay when the demo tour reaches the ads step
+  useEffect(() => {
+    function handler() {
+      if (activeClient) setShowCreator(true);
+    }
+    document.addEventListener("buenaonda:open-creator", handler);
+    return () => document.removeEventListener("buenaonda:open-creator", handler);
+  }, [activeClient]);
+
   async function fetchAds() {
     if (!activeClient) return;
     if (isDemoAccount(activeClient.meta_ad_account_id)) {
