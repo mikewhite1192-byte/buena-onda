@@ -17,6 +17,7 @@ const T = {
 };
 
 const PLATFORMS = ["Meta", "Google", "TikTok"];
+const PLATFORM_COLORS = ["#4a90d9", "#34a853", "#ff2d6b"];
 
 const TICKER = [
   { icon: "⚡", text: "Budget scaled +20% — Summit Roofing CPL dropped to $22", color: T.green },
@@ -350,7 +351,7 @@ export default function LandingHero() {
             The autonomous AI agent that launches, optimizes, and reports on your{" "}
             <span
               className={`platform-swap ${fading ? "out" : "in"}`}
-              style={{ color: T.accent, fontWeight: 700 }}
+              style={{ color: PLATFORM_COLORS[platformIdx], fontWeight: 700 }}
             >
               {PLATFORMS[platformIdx]}
             </span>{" "}
