@@ -70,6 +70,21 @@ const RECS = [
   { id: "r5", priority: "info"     as const, icon: "📈", title: "Strong ROAS — scale budget",  body: "Urban Threads DPA at 4.1x ROAS. +$100/day while signal is strong.", approveLabel: "Scale Budget" },
 ];
 
+// ── Tour steps ─────────────────────────────────────────────────────────────────
+const TOTAL_STEPS = 10;
+const STEPS: Record<number, { title: string; body: string; label: string; highlightId?: string; tab?: string; openCreator?: boolean; centered?: boolean }> = {
+  1: { title: "Your Agency Command Center", label: `1 / ${TOTAL_STEPS}  ·  Overview`, body: "Live spend, leads, ROAS, and account health across all your clients at a glance. Critical accounts automatically surface to the top.", highlightId: "tour-overview-stats" },
+  2: { title: "Anomaly Alerts", label: `2 / ${TOTAL_STEPS}  ·  Alerts`, body: "The AI monitors every account 24/7. The moment something breaks — CPL spike, zero leads, budget overpacing — it flags it here with one-click actions.", highlightId: "tour-alerts" },
+  3: { title: "AI Recommendations", label: `3 / ${TOTAL_STEPS}  ·  Recommendations`, body: "Ranked, actionable suggestions — pause a fatigued ad, scale a winner, fix audience overlap. Each one has a one-click approve or dismiss right on the card.", highlightId: "tour-recommendations" },
+  4: { title: "Client Account Cards", label: `4 / ${TOTAL_STEPS}  ·  Clients`, body: "Every client's status at a glance — spend, leads, ROAS, and health indicator. Blue is lead gen, purple is e-commerce. Click any card to drill in.", highlightId: "tour-client-accounts" },
+  5: { title: "Build an Ad in 60 Seconds", label: `5 / ${TOTAL_STEPS}  ·  Ad Builder`, body: "Tell the AI your offer, audience, and budget — one question at a time. It writes the copy, sets up targeting, and presents everything for your approval before anything goes live.", tab: "ads", openCreator: true, highlightId: "tour-ads-create" },
+  6: { title: "Performance Charts", label: `6 / ${TOTAL_STEPS}  ·  Campaigns`, body: "Click 'Show Charts ↗' to see any metric over time — spend, CPL, ROAS, CTR, frequency. Switch metrics with the dropdown. Spot trends before they become problems.", tab: "campaigns", highlightId: "tour-chart-toggle" },
+  7: { title: "Shareable Client Reports", label: `7 / ${TOTAL_STEPS}  ·  Share`, body: "Click '↗ Share Report' to generate a read-only link for your client — clean performance view, no login required, no access to settings or other accounts.", highlightId: "tour-share-report" },
+  8: { title: "Automated Reports", label: `8 / ${TOTAL_STEPS}  ·  Reports`, body: "Weekly and monthly reports auto-generated per client. Ask the AI anytime — 'send me this week's report' — and it delivers a full performance snapshot ready to share.", tab: "reports" },
+  9: { title: "Your AI Is Always Here", label: `9 / ${TOTAL_STEPS}  ·  AI Assistant`, body: "The ✦ button is always here — on every page. Ask about your campaigns, get help building an ad, request a performance summary, or just ask how to navigate the platform.", highlightId: "tour-agent-btn" },
+  10: { title: "You're All Set 🎉", label: `10 / ${TOTAL_STEPS}  ·  Ready`, body: "That's the full picture. Start your free trial and run your first real campaign — connect your ad account and the AI takes it from there.", centered: true },
+};
+
 // ── Campaign builder panel ─────────────────────────────────────────────────────
 
 const BUSINESS_TYPES = ["Roofing / Home Services", "Real Estate", "Insurance", "Dental / Medical", "Solar", "Ecommerce / DTC", "Fitness / Wellness", "Finance / Legal", "Other"];
@@ -103,7 +118,6 @@ function CampaignBuilderPanel({ onClose }: { onClose: () => void }) {
   function startBuild() {
     setStep("building");
     setBuildProgress(0);
-    let i = 0;
     let elapsed = 0;
     AI_BUILD_STEPS.forEach((s, idx) => {
       elapsed += s.duration;
@@ -312,7 +326,7 @@ function CampaignBuilderPanel({ onClose }: { onClose: () => void }) {
                 ))}
               </div>
 
-              <Link href="/sign-up" style={{ display: "block", textAlign: "center" as const, padding: "14px", borderRadius: 10, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 14, fontWeight: 800, textDecoration: "none" }}>
+              <Link href="/#pricing" style={{ display: "block", textAlign: "center" as const, padding: "14px", borderRadius: 10, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 14, fontWeight: 800, textDecoration: "none" }}>
                 Start Free — launch your first campaign →
               </Link>
               <button onClick={() => setStep("form")} style={{ width: "100%", padding: "10px", borderRadius: 10, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
@@ -325,74 +339,6 @@ function CampaignBuilderPanel({ onClose }: { onClose: () => void }) {
     </>
   );
 }
-
-// ── Tour steps ─────────────────────────────────────────────────────────────────
-const TOUR_STEPS = [
-  {
-    id: "tour-welcome",
-    icon: "👋",
-    title: "Welcome to Buena Onda",
-    body: "This is your AI-powered ad management dashboard. We're going to walk you through the highlights — it only takes 60 seconds.",
-    highlight: null,
-    action: null,
-  },
-  {
-    id: "tour-build",
-    icon: "🚀",
-    title: "Launch a campaign in minutes",
-    body: "Tell the AI your business type, platform, and budget. It builds your ad sets, writes creative briefs, and sets optimization rules — instantly.",
-    highlight: "tour-new-campaign",
-    action: "open-builder",
-  },
-  {
-    id: "tour-stats",
-    icon: "📊",
-    title: "Everything at a glance",
-    body: "See total spend, leads, and account health across every client — Meta, Google, and TikTok — all in one number.",
-    highlight: "tour-stat-strip",
-    action: null,
-  },
-  {
-    id: "tour-alerts",
-    icon: "🔴",
-    title: "The AI catches problems first",
-    body: "Before you even open the app, the AI has already flagged what needs your attention. No more finding out a campaign failed days later.",
-    highlight: "tour-alerts",
-    action: null,
-  },
-  {
-    id: "tour-recs",
-    icon: "⚡",
-    title: "One-click AI actions",
-    body: "The agent doesn't just tell you what's wrong — it tells you exactly what to do. Approve it with one click and it executes immediately.",
-    highlight: "tour-recs",
-    action: null,
-  },
-  {
-    id: "tour-clients",
-    icon: "🏢",
-    title: "Every client, one view",
-    body: "Lead gen and ecommerce clients side by side. CPL, ROAS, spend, and health status — no tab-switching, no manual reporting.",
-    highlight: "tour-clients",
-    action: null,
-  },
-  {
-    id: "tour-agent",
-    icon: "🤖",
-    title: "Your AI works while you sleep",
-    body: "The agent runs 24/7 — scaling winners, pausing losers, flagging fatigue, and sending you morning briefings via WhatsApp.",
-    highlight: "tour-agent",
-    action: null,
-  },
-  {
-    id: "tour-cta",
-    icon: "🚀",
-    title: "Ready to connect your accounts?",
-    body: "This is real software, running on real data. Connect your ad accounts and the AI gets to work immediately — no setup required.",
-    highlight: null,
-    action: null,
-  },
-];
 
 function MetricBox({ label, value, sub, color }: { label: string; value: string; sub: string; color?: string }) {
   return (
@@ -479,22 +425,36 @@ export default function DemoPage() {
   const [alertsCollapsed, setAlertsCollapsed] = useState(false);
 
   // Tour state
-  const [tourStep, setTourStep] = useState(0);
-  const [tourDone, setTourDone] = useState(false);
+  const [step, setStep] = useState(1);
+  const [tourActive, setTourActive] = useState(true);
+  const [activeTab, setActiveTab] = useState<"overview" | "ads" | "campaigns" | "reports">("overview");
   const [showBriefPanel, setShowBriefPanel] = useState(false);
-  const isTourActive = !tourDone;
-  const step = TOUR_STEPS[tourStep];
-  const isLastStep = tourStep === TOUR_STEPS.length - 1;
+  const [showCharts, setShowCharts] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  function nextStep() {
-    if (isLastStep) { setTourDone(true); return; }
-    setTourStep(s => s + 1);
+  useEffect(() => { setMounted(true); }, []);
+
+  const isTourActive = tourActive;
+
+  function applyStepEffects(targetStep: number) {
+    const cfg = STEPS[targetStep];
+    if (!cfg) return;
+    if (cfg.tab) setActiveTab(cfg.tab as "ads" | "campaigns" | "reports");
+    if (cfg.openCreator) setShowBriefPanel(true);
   }
-
-  function handleTourAction() {
-    if (step.action === "open-builder") {
-      setShowBriefPanel(true);
-    }
+  function applyPrevRoute(targetStep: number) {
+    const cfg = STEPS[targetStep];
+    if (cfg?.tab) setActiveTab(cfg.tab as "ads" | "campaigns" | "reports");
+    else if (targetStep < 5) setActiveTab("overview");
+  }
+  function handleNext() {
+    if (step === TOTAL_STEPS) { setTourActive(false); return; }
+    applyStepEffects(step + 1);
+    setStep(s => s + 1);
+  }
+  function handlePrev() {
+    applyPrevRoute(step - 1);
+    setStep(s => s - 1);
   }
 
   // Aggregate stats
@@ -510,15 +470,13 @@ export default function DemoPage() {
   const visibleRecs = RECS.filter(r => !dismissed.has(r.id));
 
   function highlightStyle(id: string): React.CSSProperties {
-    if (!isTourActive || step.highlight !== id) return {};
-    return {
-      outline: `2px solid ${T.accent}`,
-      outlineOffset: 4,
-      borderRadius: 10,
-      boxShadow: `0 0 0 4px rgba(245,166,35,0.15)`,
-      transition: "outline 0.3s, box-shadow 0.3s",
-    };
+    if (!isTourActive || STEPS[step]?.highlightId !== id) return {};
+    return { outline: "2px solid rgba(245,166,35,0.85)", outlineOffset: 6, borderRadius: 10, transition: "outline 0.3s ease" };
   }
+
+  // Active client campaigns for campaigns tab
+  const activeClientObj = clients.find(c => c.name === activeClient) ?? clients[0];
+  const activeCampaigns = getDemoCampaigns(activeClientObj.meta_ad_account_id, 30) as Array<{ name?: string; spend: number; leads: number; cpl: number; purchases: number; purchase_value: number; roas: number; status: string }>;
 
   return (
     <>
@@ -526,13 +484,6 @@ export default function DemoPage() {
         @keyframes tourFadeIn {
           from { opacity: 0; transform: translateY(12px); }
           to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes tourPulse {
-          0%, 100% { box-shadow: 0 0 0 4px rgba(245,166,35,0.15); }
-          50% { box-shadow: 0 0 0 8px rgba(245,166,35,0.08); }
-        }
-        .tour-highlight {
-          animation: tourPulse 2s ease-in-out infinite;
         }
         @keyframes ctaSlideUp {
           from { transform: translateY(100%); opacity: 0; }
@@ -543,32 +494,44 @@ export default function DemoPage() {
 
       <div style={{ minHeight: "100vh", background: T.bg, fontFamily: "'DM Mono','Fira Mono',monospace", color: T.text, paddingBottom: 80 }}>
 
-        {/* ── Demo banner ── */}
-        <div style={{ background: "linear-gradient(135deg,#f5a623,#f76b1c)", padding: "9px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+        {/* ── Demo banner (sticky) ── */}
+        <div style={{ background: "linear-gradient(135deg,#f5a623,#f76b1c)", padding: "9px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", position: "sticky", top: 0, zIndex: 101 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: "#0d0f14" }}>
             🎯 Live demo — the actual Buena Onda dashboard with sample agency data. No sign-up needed.
           </div>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
             <Link href="/" style={{ fontSize: 12, color: "rgba(0,0,0,0.55)", textDecoration: "none" }}>← Back to site</Link>
-            <Link href="/sign-up" style={{ fontSize: 12, fontWeight: 800, color: "#f76b1c", background: "#0d0f14", padding: "6px 16px", borderRadius: 6, textDecoration: "none" }}>
+            <Link href="/#pricing" style={{ fontSize: 12, fontWeight: 800, color: "#f76b1c", background: "#0d0f14", padding: "6px 16px", borderRadius: 6, textDecoration: "none" }}>
               Start Free →
             </Link>
           </div>
         </div>
 
-        {/* ── Top nav ── */}
-        <div style={{ height: 52, background: T.bg, borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", padding: "0 20px", gap: 0, position: "sticky", top: 0, zIndex: 100 }}>
+        {/* ── Top nav (sticky below banner) ── */}
+        <div style={{ height: 52, background: T.bg, borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", padding: "0 20px", gap: 0, position: "sticky", top: 40, zIndex: 100 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginRight: 24 }}>
             <div style={{ width: 26, height: 26, borderRadius: 7, background: "linear-gradient(135deg,#f5a623,#f76b1c)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 12, color: "#fff", boxShadow: `0 3px 10px ${T.accentGlow}` }}>B</div>
             <span style={{ fontWeight: 800, fontSize: 14, color: T.text, letterSpacing: "-0.3px" }}>Buena Onda</span>
           </div>
 
           <nav style={{ display: "flex", gap: 2, flex: 1 }}>
-            {NAV_ITEMS.map(label => (
-              <button key={label} style={{ padding: "5px 13px", fontSize: 12, borderRadius: 6, border: "none", fontFamily: "inherit", background: label === "Overview" ? T.accentBg : "transparent", color: label === "Overview" ? T.accent : T.muted, fontWeight: label === "Overview" ? 600 : 400, cursor: "default" }}>
-                {label}
-              </button>
-            ))}
+            {NAV_ITEMS.map(label => {
+              const tab = label === "Overview" ? "overview" : label === "Campaigns" ? "campaigns" : label === "Ads" ? "ads" : label === "Reports" ? "reports" : null;
+              const isActive = tab === activeTab;
+              const isClickable = !!tab;
+              return (
+                <button key={label}
+                  onClick={() => tab && setActiveTab(tab as "overview" | "ads" | "campaigns" | "reports")}
+                  style={{ padding: "5px 13px", fontSize: 12, borderRadius: 6, border: "none", fontFamily: "inherit",
+                    background: isActive ? T.accentBg : "transparent",
+                    color: isActive ? T.accent : isClickable ? T.muted : T.faint,
+                    fontWeight: isActive ? 600 : 400,
+                    cursor: isClickable ? "pointer" : "default" }}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </nav>
 
           <div style={{ position: "relative", marginRight: 16 }}>
@@ -602,7 +565,7 @@ export default function DemoPage() {
             <span style={{ fontSize: 9, color: T.faint, letterSpacing: "0.3px" }}>Help</span>
           </button>
 
-          <Link href="/sign-up" style={{ fontSize: 12, fontWeight: 700, padding: "6px 14px", borderRadius: 7, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", textDecoration: "none", whiteSpace: "nowrap" }}>
+          <Link href="/#pricing" style={{ fontSize: 12, fontWeight: 700, padding: "6px 14px", borderRadius: 7, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", textDecoration: "none", whiteSpace: "nowrap" }}>
             Start Free
           </Link>
         </div>
@@ -626,8 +589,8 @@ export default function DemoPage() {
                 ))}
               </div>
               <button
-                id="tour-new-campaign"
-                onClick={() => setShowBriefPanel(true)}
+                id="tour-ads-create"
+                onClick={() => { setActiveTab("ads"); setShowBriefPanel(true); }}
                 style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" as const }}
               >
                 + New Campaign
@@ -635,232 +598,359 @@ export default function DemoPage() {
             </div>
           </div>
 
-          {/* Stat strip */}
-          <div id="tour-stat-strip" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 28, ...highlightStyle("tour-stat-strip") }}>
-            {[
-              { label: "Total Spend (30d)", value: `$${totalSpendAll.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, sub: `across ${clients.length} accounts`, color: T.text, border: T.border },
-              { label: "Leads (30d)", value: String(totalLeadsAll), sub: `${clients.filter(c=>c.vertical==="leads").length} lead gen accounts`, color: T.leads, border: T.leads + "30" },
-              { label: "Needing Attention", value: String(attentionCount), sub: "2 critical", color: T.warning, border: T.warning + "40" },
-              { label: "Accounts Connected", value: `${clients.length} / ${clients.length}`, sub: "all connected", color: T.healthy, border: T.healthy + "30" },
-            ].map((s, i) => (
-              <div key={i} style={{ background: T.surface, border: `1px solid ${s.border}`, borderRadius: 10, padding: "18px 20px" }}>
-                <div style={{ fontSize: 10, color: T.muted, marginBottom: 6, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.4px" }}>{s.label}</div>
-                <div style={{ fontSize: 28, fontWeight: 800, color: s.color, letterSpacing: "-1px" }}>{s.value}</div>
-                <div style={{ fontSize: 12, color: T.muted, marginTop: 4 }}>{s.sub}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Two-column layout */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 18 }}>
-
-            {/* Left */}
-            <div>
-              {/* Alerts */}
-              <div id="tour-alerts" style={{ marginBottom: 16, ...highlightStyle("tour-alerts") }}>
-                <div onClick={() => setAlertsCollapsed(v => !v)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: alertsCollapsed ? 0 : 8, cursor: "pointer", userSelect: "none" as const }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase" as const }}>Alerts</span>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: T.critical, borderRadius: 10, padding: "1px 7px" }}>{ALERTS.length}</span>
-                  </div>
-                  <span style={{ fontSize: 11, color: T.faint }}>{alertsCollapsed ? "▶" : "▼"}</span>
-                </div>
-                {!alertsCollapsed && ALERTS.map((a, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", marginBottom: 6, background: a.severity === "error" ? "rgba(255,77,77,0.06)" : "rgba(232,184,75,0.06)", border: `1px solid ${a.severity === "error" ? "rgba(255,77,77,0.2)" : "rgba(232,184,75,0.2)"}`, borderRadius: 8 }}>
-                    <span style={{ fontSize: 12, flexShrink: 0 }}>{a.severity === "error" ? "🔴" : "🟡"}</span>
-                    <div style={{ flex: 1 }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: a.severity === "error" ? T.critical : T.warning }}>{a.clientName}</span>
-                      <span style={{ fontSize: 12, color: T.muted }}> — {a.message}</span>
-                    </div>
-                    <span style={{ fontSize: 10, color: T.faint }}>→</span>
+          {/* Overview tab */}
+          {activeTab === "overview" && (
+            <>
+              {/* Stat strip */}
+              <div id="tour-overview-stats" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 28, ...highlightStyle("tour-overview-stats") }}>
+                {[
+                  { label: "Total Spend (30d)", value: `$${totalSpendAll.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, sub: `across ${clients.length} accounts`, color: T.text, border: T.border },
+                  { label: "Leads (30d)", value: String(totalLeadsAll), sub: `${clients.filter(c => c.vertical === "leads").length} lead gen accounts`, color: T.leads, border: T.leads + "30" },
+                  { label: "Needing Attention", value: String(attentionCount), sub: "2 critical", color: T.warning, border: T.warning + "40" },
+                  { label: "Accounts Connected", value: `${clients.length} / ${clients.length}`, sub: "all connected", color: T.healthy, border: T.healthy + "30" },
+                ].map((s, i) => (
+                  <div key={i} style={{ background: T.surface, border: `1px solid ${s.border}`, borderRadius: 10, padding: "18px 20px" }}>
+                    <div style={{ fontSize: 10, color: T.muted, marginBottom: 6, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.4px" }}>{s.label}</div>
+                    <div style={{ fontSize: 28, fontWeight: 800, color: s.color, letterSpacing: "-1px" }}>{s.value}</div>
+                    <div style={{ fontSize: 12, color: T.muted, marginTop: 4 }}>{s.sub}</div>
                   </div>
                 ))}
               </div>
 
-              {/* Client accounts */}
-              <div id="tour-clients" style={{ ...highlightStyle("tour-clients") }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase" as const }}>Client Accounts</div>
-                  <div style={{ display: "flex", gap: 12 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: T.muted }}>
-                      <div style={{ width: 7, height: 7, borderRadius: 2, background: T.leads }} /> Lead Gen
+              {/* Two-column layout */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 18 }}>
+
+                {/* Left */}
+                <div>
+                  {/* Alerts */}
+                  <div id="tour-alerts" style={{ marginBottom: 16, ...highlightStyle("tour-alerts") }}>
+                    <div onClick={() => setAlertsCollapsed(v => !v)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: alertsCollapsed ? 0 : 8, cursor: "pointer", userSelect: "none" as const }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase" as const }}>Alerts</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: T.critical, borderRadius: 10, padding: "1px 7px" }}>{ALERTS.length}</span>
+                      </div>
+                      <span style={{ fontSize: 11, color: T.faint }}>{alertsCollapsed ? "▶" : "▼"}</span>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: T.muted }}>
-                      <div style={{ width: 7, height: 7, borderRadius: 2, background: T.ecomm }} /> Ecommerce
+                    {!alertsCollapsed && ALERTS.map((a, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", marginBottom: 6, background: a.severity === "error" ? "rgba(255,77,77,0.06)" : "rgba(232,184,75,0.06)", border: `1px solid ${a.severity === "error" ? "rgba(255,77,77,0.2)" : "rgba(232,184,75,0.2)"}`, borderRadius: 8 }}>
+                        <span style={{ fontSize: 12, flexShrink: 0 }}>{a.severity === "error" ? "🔴" : "🟡"}</span>
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: a.severity === "error" ? T.critical : T.warning }}>{a.clientName}</span>
+                          <span style={{ fontSize: 12, color: T.muted }}> — {a.message}</span>
+                        </div>
+                        <span style={{ fontSize: 10, color: T.faint }}>→</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Client accounts */}
+                  <div id="tour-client-accounts" style={{ ...highlightStyle("tour-client-accounts") }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase" as const }}>Client Accounts</div>
+                      <div style={{ display: "flex", gap: 12 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: T.muted }}>
+                          <div style={{ width: 7, height: 7, borderRadius: 2, background: T.leads }} /> Lead Gen
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: T.muted }}>
+                          <div style={{ width: 7, height: 7, borderRadius: 2, background: T.ecomm }} /> Ecommerce
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 10 }}>
+                      {clients.map(c => (
+                        <ClientCard key={c.meta_ad_account_id} name={c.name} accountId={c.meta_ad_account_id} vertical={c.vertical} onSelect={() => setActiveClient(c.name)} />
+                      ))}
                     </div>
                   </div>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 10 }}>
-                  {clients.map(c => (
-                    <ClientCard key={c.meta_ad_account_id} name={c.name} accountId={c.meta_ad_account_id} vertical={c.vertical} onSelect={() => setActiveClient(c.name)} />
-                  ))}
+
+                {/* Right sidebar */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+                  {/* Recommendations */}
+                  <div id="tour-recommendations" style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden", ...highlightStyle("tour-recommendations") }}>
+                    <div style={{ padding: "12px 16px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase" as const }}>Recommendations</div>
+                      {visibleRecs.length > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: T.critical, borderRadius: 10, padding: "1px 7px" }}>{visibleRecs.length}</span>}
+                    </div>
+                    {visibleRecs.map((rec, i) => {
+                      const borderColor = rec.priority === "critical" ? T.critical : rec.priority === "warning" ? T.warning : T.accent;
+                      return (
+                        <div key={rec.id} style={{ padding: "12px 16px", borderBottom: i < visibleRecs.length - 1 ? `1px solid ${T.border}` : "none", borderLeft: `3px solid ${borderColor}` }}>
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
+                            <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>{rec.icon}</span>
+                            <div>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 2 }}>{rec.title}</div>
+                              <div style={{ fontSize: 11, color: T.muted, lineHeight: 1.5 }}>{rec.body}</div>
+                            </div>
+                          </div>
+                          {done.has(rec.id) ? (
+                            <div style={{ marginTop: 8, padding: "6px 10px", borderRadius: 5, background: "rgba(46,204,113,0.12)", color: "#2ecc71", fontSize: 11, fontWeight: 600, textAlign: "center" as const }}>✓ Done — changes applied</div>
+                          ) : (
+                            <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                              <button onClick={() => setDone(d => new Set([...d, rec.id]))} style={{ flex: 1, padding: "5px 0", fontSize: 11, fontWeight: 600, borderRadius: 5, border: "none", background: borderColor + "22", color: borderColor, cursor: "pointer", fontFamily: "inherit" }}>
+                                {rec.approveLabel}
+                              </button>
+                              <button onClick={() => setDismissed(d => new Set([...d, rec.id]))} style={{ padding: "5px 8px", fontSize: 11, borderRadius: 5, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, cursor: "pointer", fontFamily: "inherit" }}>✕</button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Agent Status */}
+                  <div style={{ background: T.surface, border: `1px solid ${T.accent}30`, borderRadius: 10, padding: "16px" }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase" as const, marginBottom: 14 }}>Agent Status</div>
+                    {[
+                      { label: "Accounts monitored", value: `${clients.length} / ${clients.length}` },
+                      { label: "Accounts connected",  value: `${clients.length} / ${clients.length}` },
+                      { label: "Accounts healthy",    value: `${Object.values(CLIENT_STATUS).filter(s => s === "healthy").length} / ${clients.length}` },
+                      { label: "Needing attention",   value: String(attentionCount), warn: true },
+                    ].map((row, i) => (
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: i < 3 ? `1px solid ${T.border}` : "none" }}>
+                        <span style={{ fontSize: 12, color: T.muted }}>{row.label}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: row.warn ? T.warning : T.text }}>{row.value}</span>
+                      </div>
+                    ))}
+                    <div style={{ marginTop: 14 }}>
+                      <Link href="/#pricing" style={{ display: "block", textAlign: "center" as const, padding: "9px", borderRadius: 8, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 12, fontWeight: 800, textDecoration: "none" }}>
+                        Connect your account →
+                      </Link>
+                    </div>
+                  </div>
+
                 </div>
               </div>
-            </div>
+            </>
+          )}
 
-            {/* Right sidebar */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
-              {/* Recommendations */}
-              <div id="tour-recs" style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden", ...highlightStyle("tour-recs") }}>
-                <div style={{ padding: "12px 16px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase" as const }}>Recommendations</div>
-                  {visibleRecs.length > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: T.critical, borderRadius: 10, padding: "1px 7px" }}>{visibleRecs.length}</span>}
+          {/* Campaigns tab */}
+          {activeTab === "campaigns" && (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: T.text, letterSpacing: "-0.5px" }}>Campaigns</div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button id="tour-chart-toggle" onClick={() => setShowCharts(v => !v)}
+                    style={{ fontSize: 12, padding: "7px 14px", borderRadius: 7, border: `1px solid ${T.border}`, background: T.surface, color: T.muted, cursor: "pointer", fontFamily: "inherit", ...highlightStyle("tour-chart-toggle") }}>
+                    {showCharts ? "Hide Charts ↙" : "Show Charts ↗"}
+                  </button>
+                  <button id="tour-share-report"
+                    style={{ fontSize: 12, padding: "7px 14px", borderRadius: 7, border: `1px solid ${T.border}`, background: T.surface, color: T.muted, cursor: "pointer", fontFamily: "inherit", ...highlightStyle("tour-share-report") }}>
+                    ↗ Share Report
+                  </button>
                 </div>
-                {visibleRecs.map((rec, i) => {
-                  const borderColor = rec.priority === "critical" ? T.critical : rec.priority === "warning" ? T.warning : T.accent;
+              </div>
+              {showCharts && (
+                <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "24px", marginBottom: 20, textAlign: "center" as const }}>
+                  <div style={{ fontSize: 13, color: T.muted, marginBottom: 8 }}>Performance Chart — {activeClient}</div>
+                  <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 16 }}>
+                    {["Spend", "CPL", "ROAS", "CTR", "Frequency"].map(m => (
+                      <button key={m} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 5, border: `1px solid ${T.border}`, background: m === "Spend" ? T.accentBg : "transparent", color: m === "Spend" ? T.accent : T.faint, cursor: "pointer", fontFamily: "inherit" }}>{m}</button>
+                    ))}
+                  </div>
+                  <div style={{ height: 120, display: "flex", alignItems: "flex-end", gap: 6, justifyContent: "center" }}>
+                    {[40, 65, 55, 80, 70, 90, 75].map((h, i) => (
+                      <div key={i} style={{ width: 32, height: `${h}%`, background: `linear-gradient(180deg, rgba(245,166,35,0.8), rgba(247,107,28,0.4))`, borderRadius: "4px 4px 0 0" }} />
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "center", gap: 16, marginTop: 8 }}>
+                    {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => (
+                      <span key={d} style={{ fontSize: 10, color: T.faint, width: 32, textAlign: "center" as const }}>{d}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 80px", gap: 0, padding: "10px 16px", borderBottom: `1px solid ${T.border}`, fontSize: 10, color: T.faint, textTransform: "uppercase" as const, letterSpacing: "0.5px" }}>
+                  <div>Campaign</div>
+                  <div style={{ textAlign: "right" as const }}>Spend</div>
+                  <div style={{ textAlign: "right" as const }}>Leads</div>
+                  <div style={{ textAlign: "right" as const }}>CPL</div>
+                  <div style={{ textAlign: "right" as const }}>ROAS</div>
+                  <div style={{ textAlign: "right" as const }}>Status</div>
+                </div>
+                {activeCampaigns.slice(0, 8).map((c, i) => {
+                  const statusColor = c.status === "active" ? T.healthy : c.status === "paused" ? T.warning : T.faint;
                   return (
-                    <div key={rec.id} style={{ padding: "12px 16px", borderBottom: i < visibleRecs.length - 1 ? `1px solid ${T.border}` : "none", borderLeft: `3px solid ${borderColor}` }}>
-                      <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
-                        <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>{rec.icon}</span>
-                        <div>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 2 }}>{rec.title}</div>
-                          <div style={{ fontSize: 11, color: T.muted, lineHeight: 1.5 }}>{rec.body}</div>
-                        </div>
-                      </div>
-                      {done.has(rec.id) ? (
-                        <div style={{ marginTop: 8, padding: "6px 10px", borderRadius: 5, background: "rgba(46,204,113,0.12)", color: "#2ecc71", fontSize: 11, fontWeight: 600, textAlign: "center" as const }}>✓ Done — changes applied</div>
-                      ) : (
-                        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                          <button onClick={() => setDone(d => new Set([...d, rec.id]))} style={{ flex: 1, padding: "5px 0", fontSize: 11, fontWeight: 600, borderRadius: 5, border: "none", background: borderColor + "22", color: borderColor, cursor: "pointer", fontFamily: "inherit" }}>
-                            {rec.approveLabel}
-                          </button>
-                          <button onClick={() => setDismissed(d => new Set([...d, rec.id]))} style={{ padding: "5px 8px", fontSize: 11, borderRadius: 5, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, cursor: "pointer", fontFamily: "inherit" }}>✕</button>
-                        </div>
-                      )}
+                    <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 80px", gap: 0, padding: "12px 16px", borderBottom: i < Math.min(activeCampaigns.length, 8) - 1 ? `1px solid ${T.border}` : "none", alignItems: "center" }}>
+                      <div style={{ fontSize: 13, color: T.text, fontWeight: 600 }}>{c.name ?? `Campaign ${i + 1}`}</div>
+                      <div style={{ fontSize: 12, color: T.muted, textAlign: "right" as const }}>${c.spend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                      <div style={{ fontSize: 12, color: T.muted, textAlign: "right" as const }}>{c.leads ?? "—"}</div>
+                      <div style={{ fontSize: 12, color: c.cpl > 50 ? T.warning : T.muted, textAlign: "right" as const }}>{c.cpl > 0 ? `$${c.cpl.toFixed(0)}` : "—"}</div>
+                      <div style={{ fontSize: 12, color: c.roas >= 2 ? T.healthy : T.muted, textAlign: "right" as const }}>{c.roas > 0 ? `${c.roas.toFixed(2)}x` : "—"}</div>
+                      <div style={{ textAlign: "right" as const }}><span style={{ fontSize: 10, fontWeight: 600, color: statusColor, background: statusColor + "20", padding: "3px 8px", borderRadius: 4 }}>{c.status}</span></div>
                     </div>
                   );
                 })}
               </div>
-
-              {/* Agent Status */}
-              <div id="tour-agent" style={{ background: T.surface, border: `1px solid ${T.accent}30`, borderRadius: 10, padding: "16px", ...highlightStyle("tour-agent") }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase" as const, marginBottom: 14 }}>Agent Status</div>
-                {[
-                  { label: "Accounts monitored", value: `${clients.length} / ${clients.length}` },
-                  { label: "Accounts connected",  value: `${clients.length} / ${clients.length}` },
-                  { label: "Accounts healthy",    value: `${Object.values(CLIENT_STATUS).filter(s=>s==="healthy").length} / ${clients.length}` },
-                  { label: "Needing attention",   value: String(attentionCount), warn: true },
-                ].map((row, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: i < 3 ? `1px solid ${T.border}` : "none" }}>
-                    <span style={{ fontSize: 12, color: T.muted }}>{row.label}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: row.warn ? T.warning : T.text }}>{row.value}</span>
-                  </div>
-                ))}
-                <div style={{ marginTop: 14 }}>
-                  <Link href="/sign-up" style={{ display: "block", textAlign: "center" as const, padding: "9px", borderRadius: 8, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 12, fontWeight: 800, textDecoration: "none" }}>
-                    Connect your account →
-                  </Link>
-                </div>
-              </div>
-
             </div>
-          </div>
+          )}
+
+          {/* Ads tab */}
+          {activeTab === "ads" && (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: T.text, letterSpacing: "-0.5px" }}>Ads</div>
+                <button
+                  id="tour-ads-create"
+                  onClick={() => setShowBriefPanel(true)}
+                  style={{ fontSize: 12, padding: "7px 16px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontWeight: 800, cursor: "pointer", fontFamily: "inherit", ...highlightStyle("tour-ads-create") }}
+                >
+                  + New Campaign
+                </button>
+              </div>
+              <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "48px", textAlign: "center" as const }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>🚀</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 8 }}>Build your first campaign</div>
+                <div style={{ fontSize: 13, color: T.muted, marginBottom: 20, maxWidth: 380, margin: "0 auto 20px" }}>
+                  Tell the AI your offer, audience, and budget. It writes the copy, sets up targeting, and presents everything for your approval.
+                </div>
+                <button
+                  onClick={() => setShowBriefPanel(true)}
+                  style={{ fontSize: 13, padding: "12px 28px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  Launch with AI →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Reports tab */}
+          {activeTab === "reports" && (
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: T.text, marginBottom: 20 }}>Reports</div>
+              {[
+                { client: "Summit Roofing Co", type: "Weekly", date: "Mar 17–23, 2025", status: "ready" },
+                { client: "Urban Threads", type: "Monthly", date: "February 2025", status: "ready" },
+                { client: "Bright Smile Dental", type: "Weekly", date: "Mar 17–23, 2025", status: "generating" },
+                { client: "Valley Auto Group", type: "Monthly", date: "February 2025", status: "ready" },
+              ].map((r, i) => (
+                <div key={i} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "16px 20px", marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{r.client} — {r.type} Report</div>
+                    <div style={{ fontSize: 12, color: T.muted, marginTop: 3 }}>{r.date}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    {r.status === "ready" ? (
+                      <button style={{ fontSize: 12, padding: "6px 14px", borderRadius: 6, border: `1px solid rgba(34,197,94,0.3)`, background: "rgba(34,197,94,0.1)", color: "#22c55e", cursor: "pointer", fontFamily: "inherit" }}>View Report →</button>
+                    ) : (
+                      <span style={{ fontSize: 11, color: T.muted }}>Generating...</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
         </div>
 
         {/* ── Campaign builder panel ── */}
         {showBriefPanel && <CampaignBuilderPanel onClose={() => setShowBriefPanel(false)} />}
 
-        {/* ── Tour card (floating, bottom-left) ── */}
-        {isTourActive && (
-          <div
-            key={tourStep}
-            style={{
-              position: "fixed",
-              bottom: 24,
-              left: 24,
-              width: 360,
-              background: "#13151d",
-              border: `1px solid rgba(245,166,35,0.3)`,
-              borderRadius: 14,
-              boxShadow: "0 16px 48px rgba(0,0,0,0.6)",
-              zIndex: 1000,
-              overflow: "hidden",
-              animation: "tourFadeIn 0.35s ease both",
-            }}
-          >
-            {/* Progress bar */}
-            <div style={{ height: 3, background: "rgba(255,255,255,0.05)" }}>
-              <div style={{ height: "100%", width: `${((tourStep + 1) / TOUR_STEPS.length) * 100}%`, background: "linear-gradient(90deg,#f5a623,#f76b1c)", transition: "width 0.4s ease" }} />
-            </div>
+        {/* ── AI button (always visible, bottom-right) ── */}
+        <button id="tour-agent-btn" style={{ position: "fixed", bottom: 24, right: 24, width: 48, height: 48, borderRadius: "50%", background: "linear-gradient(135deg,#f5a623,#f76b1c)", border: "none", color: "#0d0f14", fontSize: 18, cursor: "pointer", zIndex: 1001, boxShadow: "0 4px 20px rgba(245,166,35,0.4)", ...highlightStyle("tour-agent-btn") }}>✦</button>
 
-            <div style={{ padding: "20px 22px" }}>
-              {/* Step header */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 18 }}>{step.icon}</span>
-                  <span style={{ fontSize: 11, color: T.faint, fontWeight: 500 }}>
-                    {tourStep + 1} of {TOUR_STEPS.length}
-                  </span>
+        {/* ── Tour card ── */}
+        {isTourActive && mounted && (() => {
+          const cfg = STEPS[step];
+          const posStyle: React.CSSProperties =
+            step === 10 ? { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 2100 } :
+            step === 9 ? { position: "fixed", bottom: 32, left: 28, zIndex: 2100 } :
+            (step >= 1 && step <= 4) ? { position: "fixed", bottom: 32, left: 28, zIndex: 2100 } :
+            { position: "fixed", bottom: 32, right: 32, zIndex: 2100 };
+
+          return (
+            <>
+              {step === 10 && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 2099 }} />}
+              <div
+                key={step}
+                style={{
+                  ...posStyle,
+                  width: 300,
+                  background: "#13151d",
+                  border: `1px solid rgba(245,166,35,0.3)`,
+                  borderRadius: 14,
+                  boxShadow: "0 16px 48px rgba(0,0,0,0.6)",
+                  overflow: "hidden",
+                  animation: "tourFadeIn 0.35s ease both",
+                  opacity: mounted ? 1 : 0,
+                  transition: "opacity 0.2s ease",
+                }}
+              >
+                {/* Progress bar */}
+                <div style={{ height: 3, background: "rgba(255,255,255,0.05)" }}>
+                  <div style={{ height: "100%", width: `${(step / TOTAL_STEPS) * 100}%`, background: "linear-gradient(90deg,#f5a623,#f76b1c)", transition: "width 0.4s ease" }} />
                 </div>
-                <button
-                  onClick={() => setTourDone(true)}
-                  style={{ fontSize: 11, color: T.faint, background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit", padding: "2px 6px" }}
-                >
-                  Skip tour
-                </button>
+
+                <div style={{ padding: "18px 20px" }}>
+                  {/* Label */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                    <span style={{ fontSize: 10, color: T.faint, fontWeight: 500, letterSpacing: "0.3px" }}>{cfg?.label}</span>
+                    <button
+                      onClick={() => setTourActive(false)}
+                      style={{ fontSize: 10, color: T.faint, background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit", padding: "2px 6px" }}
+                    >
+                      Skip tour
+                    </button>
+                  </div>
+
+                  {/* Title + body */}
+                  <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 6, letterSpacing: "-0.3px", textAlign: cfg?.centered ? "center" as const : "left" as const }}>{cfg?.title}</div>
+                  <div style={{ fontSize: 12, color: T.muted, lineHeight: 1.65, marginBottom: 16, textAlign: cfg?.centered ? "center" as const : "left" as const }}>{cfg?.body}</div>
+
+                  {/* Progress dots */}
+                  <div style={{ display: "flex", gap: 5, marginBottom: 14, justifyContent: cfg?.centered ? "center" : "flex-start" }}>
+                    {Array.from({ length: TOTAL_STEPS }, (_, i) => (
+                      <div
+                        key={i}
+                        style={{ width: (i + 1) === step ? 20 : 6, height: 6, borderRadius: 3, background: (i + 1) === step ? T.accent : (i + 1) < step ? "rgba(245,166,35,0.35)" : "rgba(255,255,255,0.1)", transition: "all 0.25s" }}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Buttons */}
+                  {step === TOTAL_STEPS ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <Link
+                        href="/#pricing"
+                        style={{ display: "block", textAlign: "center" as const, padding: "12px", borderRadius: 9, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 13, fontWeight: 800, textDecoration: "none" }}
+                      >
+                        Start Free — launch your first campaign →
+                      </Link>
+                      <button
+                        onClick={() => setTourActive(false)}
+                        style={{ width: "100%", padding: "9px", borderRadius: 9, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
+                      >
+                        Keep exploring
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {step > 1 && (
+                        <button
+                          onClick={handlePrev}
+                          style={{ flex: 1, padding: "10px", borderRadius: 9, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
+                        >
+                          ← Back
+                        </button>
+                      )}
+                      <button
+                        onClick={handleNext}
+                        style={{ flex: 2, padding: "10px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}
+                      >
+                        {step === 1 ? "Start tour →" : "Next →"}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-
-              {/* Content */}
-              <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 6, letterSpacing: "-0.3px" }}>{step.title}</div>
-              <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.65, marginBottom: 18 }}>{step.body}</div>
-
-              {/* Progress dots */}
-              <div style={{ display: "flex", gap: 5, marginBottom: 16 }}>
-                {TOUR_STEPS.map((_, i) => (
-                  <div
-                    key={i}
-                    onClick={() => setTourStep(i)}
-                    style={{ width: i === tourStep ? 20 : 6, height: 6, borderRadius: 3, background: i === tourStep ? T.accent : i < tourStep ? "rgba(245,166,35,0.35)" : "rgba(255,255,255,0.1)", cursor: "pointer", transition: "all 0.25s" }}
-                  />
-                ))}
-              </div>
-
-              {/* Actions */}
-              {isLastStep ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <Link
-                    href="/sign-up"
-                    style={{ display: "block", textAlign: "center" as const, padding: "12px", borderRadius: 9, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 13, fontWeight: 800, textDecoration: "none" }}
-                  >
-                    Start Free →
-                  </Link>
-                  <button
-                    onClick={() => setTourDone(true)}
-                    style={{ width: "100%", padding: "9px", borderRadius: 9, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
-                  >
-                    Keep exploring
-                  </button>
-                </div>
-              ) : step.action === "open-builder" ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <button
-                    onClick={() => { handleTourAction(); }}
-                    style={{ width: "100%", padding: "11px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}
-                  >
-                    See the campaign builder →
-                  </button>
-                  <button
-                    onClick={nextStep}
-                    style={{ width: "100%", padding: "9px", borderRadius: 9, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
-                  >
-                    Skip this →
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={nextStep}
-                  style={{ width: "100%", padding: "11px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}
-                >
-                  {tourStep === 0 ? "Start tour →" : "Next →"}
-                </button>
-              )}
-            </div>
-          </div>
-        )}
+            </>
+          );
+        })()}
 
         {/* ── Sticky CTA bar (shows after tour is done) ── */}
-        {tourDone && (
+        {!tourActive && (
           <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 999, background: "rgba(13,15,20,0.95)", backdropFilter: "blur(12px)", borderTop: "1px solid rgba(245,166,35,0.2)", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap", animation: "ctaSlideUp 0.4s ease both" }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Ready to run your ads on autopilot?</div>
@@ -869,7 +959,7 @@ export default function DemoPage() {
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <Link href="/" style={{ fontSize: 12, color: T.faint, textDecoration: "none" }}>← Back to site</Link>
               <Link
-                href="/sign-up"
+                href="/#pricing"
                 style={{ padding: "10px 28px", borderRadius: 8, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 13, fontWeight: 800, textDecoration: "none", boxShadow: "0 4px 20px rgba(245,166,35,0.3)" }}
               >
                 Start Free →
