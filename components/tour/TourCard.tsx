@@ -84,9 +84,8 @@ const STEPS: Record<number, StepConfig> = {
   9: {
     title: "Your AI Is Always Here",
     label: `9 / ${TOTAL_STEPS}  ·  AI Assistant`,
-    body: "The chat button is available on every page. Need help building a campaign, reviewing performance, or navigating the platform? Just ask — it knows your clients and data.",
+    body: "The ✦ button is always here — on every page. Ask about your campaigns, get help building an ad, request a performance summary, or just ask how to navigate the platform.",
     openChat: true,
-    centered: true,
   },
   10: {
     title: "You're All Set 🎉",
@@ -97,16 +96,20 @@ const STEPS: Record<number, StepConfig> = {
 };
 
 function getPosition(step: number): React.CSSProperties {
-  // Centered backdrop for steps 9 and 10
-  if (step >= 9) {
-    return { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 1002 };
+  // Final step — centered
+  if (step === 10) {
+    return { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 2100 };
+  }
+  // Step 9 (AI Assistant) — bottom-right, just above the chat bubble so it's visible
+  if (step === 9) {
+    return { position: "fixed", bottom: 96, right: 88, zIndex: 2100 };
   }
   // Overview steps (1–4) — bottom-left so the recommendations sidebar stays fully visible
   if (step >= 1 && step <= 4) {
-    return { position: "fixed", bottom: 32, left: 28, zIndex: 1002 };
+    return { position: "fixed", bottom: 32, left: 28, zIndex: 2100 };
   }
-  // All other steps — bottom-right
-  return { position: "fixed", bottom: 100, right: 88, zIndex: 1002 };
+  // All other steps (including ads step 5) — bottom-right, above any overlay
+  return { position: "fixed", bottom: 32, right: 32, zIndex: 2100 };
 }
 
 export default function TourCard() {
@@ -130,7 +133,8 @@ export default function TourCard() {
     const timer = setTimeout(() => {
       const el = document.getElementById(config.highlightId!);
       if (!el) return;
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Only scroll if the element isn't already visible — and scroll to top of element, not center
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
       el.style.outline = "2px solid rgba(245,166,35,0.85)";
       el.style.outlineOffset = "6px";
       el.style.borderRadius = "10px";
@@ -189,9 +193,9 @@ export default function TourCard() {
 
   return (
     <>
-      {/* Dim backdrop for centered final steps */}
-      {step >= 9 && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1001 }} />
+      {/* Dim backdrop only for the final step */}
+      {step === 10 && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 2099 }} />
       )}
 
       <div style={{

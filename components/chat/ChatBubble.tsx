@@ -101,8 +101,6 @@ export default function ChatBubble() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const autoOpenedRef = useRef(false);
-  const hasSentStep3Ref = useRef(false);
-  const hasSentStep4Ref = useRef(false);
 
   const isOnboarding = hasNoClients === true && !tourActive;
 
@@ -134,31 +132,6 @@ export default function ChatBubble() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Tour step 3 — open chat and auto-send optimization question
-  useEffect(() => {
-    if (step === 3 && !hasSentStep3Ref.current) {
-      hasSentStep3Ref.current = true;
-      setOpen(true);
-      setMessages([]);
-      const t = setTimeout(() => {
-        sendMessage("How do you decide which ad sets to scale and which to pause? Walk me through your thinking.");
-      }, 800);
-      return () => clearTimeout(t);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
-
-  // Tour step 4 — auto-send campaign creation demo
-  useEffect(() => {
-    if (step === 4 && !hasSentStep4Ref.current) {
-      hasSentStep4Ref.current = true;
-      const t = setTimeout(() => {
-        sendMessage("Walk me through building a campaign for a final expense insurance company targeting seniors 65+ in Texas with $50/day. Describe each step — don't create it yet.");
-      }, 400);
-      return () => clearTimeout(t);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
 
   useEffect(() => {
     if (open && messages.length === 0) {
