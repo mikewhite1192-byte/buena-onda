@@ -44,6 +44,7 @@ interface Client {
   cpl_target: number | null;
   roas_target: number | null;
   monthly_budget: number | null;
+  notes: string | null;
 }
 
 interface CampaignDetail {
@@ -280,6 +281,10 @@ function ClientCard({
   const [metrics, setMetrics] = useState<ClientMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [hovered, setHovered] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [notesValue, setNotesValue] = useState(client.notes ?? "");
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesSaved, setNotesSaved] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -400,9 +405,43 @@ function ClientCard({
       </div>
 
       {/* Footer */}
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12, paddingTop: 10, borderTop: `1px solid ${T.border}` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, paddingTop: 10, borderTop: `1px solid ${T.border}` }}>
+        <button
+          onClick={e => { e.stopPropagation(); setNotesOpen(v => !v); }}
+          style={{ fontSize: 11, color: notesOpen ? T.accent : T.faint, background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0, display: "flex", alignItems: "center", gap: 4 }}
+        >
+          📝 {client.notes ? "Notes" : "Add notes"}
+        </button>
         <span style={{ fontSize: 12, color: T.accent, fontWeight: 600 }}>View Account →</span>
       </div>
+
+      {/* Notes panel */}
+      {notesOpen && (
+        <div onClick={e => e.stopPropagation()} style={{ marginTop: 10, borderTop: `1px solid ${T.border}`, paddingTop: 10 }}>
+          <textarea
+            value={notesValue}
+            onChange={e => { setNotesValue(e.target.value); setNotesSaved(false); }}
+            placeholder="Add notes about this client — strategy, contacts, reminders…"
+            rows={3}
+            style={{ width: "100%", background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 7, color: T.text, fontSize: 12, padding: "8px 10px", fontFamily: "inherit", outline: "none", resize: "vertical", boxSizing: "border-box" }}
+          />
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 6 }}>
+            {notesSaved && <span style={{ fontSize: 11, color: T.healthy, alignSelf: "center" }}>Saved ✓</span>}
+            <button
+              onClick={async () => {
+                setNotesSaving(true);
+                await fetch(`/api/clients/${client.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes: notesValue }) });
+                setNotesSaving(false);
+                setNotesSaved(true);
+              }}
+              disabled={notesSaving}
+              style={{ padding: "5px 14px", borderRadius: 6, border: "none", background: T.accent, color: "#0d0f14", fontSize: 11, fontWeight: 700, cursor: notesSaving ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: notesSaving ? 0.6 : 1 }}
+            >
+              {notesSaving ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
