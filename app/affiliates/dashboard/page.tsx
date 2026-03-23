@@ -1,7 +1,7 @@
 "use client";
 
 // app/affiliates/dashboard/page.tsx
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -67,7 +67,7 @@ interface DashboardData {
   }[];
 }
 
-export default function AffiliateDashboard() {
+function DashboardInner() {
   const params = useSearchParams();
   const emailParam = params.get("email") || "";
   const connectStatus = params.get("connect");
@@ -502,5 +502,17 @@ export default function AffiliateDashboard() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function AffiliateDashboard() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0d0f14", color: "#8b8fa8", fontFamily: "monospace", fontSize: 13 }}>
+        Loading…
+      </div>
+    }>
+      <DashboardInner />
+    </Suspense>
   );
 }
