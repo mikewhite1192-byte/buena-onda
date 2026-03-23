@@ -2,6 +2,7 @@
 
 // components/tour/TourCard.tsx
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTour } from "@/lib/context/tour-context";
 
@@ -58,7 +59,7 @@ const STEPS: Record<number, StepConfig> = {
   },
   6: {
     title: "You're All Set 🎉",
-    body: "That's what Buena Onda can do. Now let's connect your first client account to get started with real data.",
+    body: "That's what Buena Onda can do. Start your free trial and launch your first campaign in minutes — no credit card games, cancel anytime.",
     label: "6 / 6  ·  Ready",
     centered: true,
     final: true,
@@ -132,7 +133,6 @@ export default function TourCard() {
       router.push("/dashboard");
     } else if (step === 6) {
       endTour();
-      router.push("/dashboard/clients");
     } else {
       nextStep();
     }
@@ -206,32 +206,55 @@ export default function TourCard() {
         </div>
 
         {/* Buttons */}
-        <div style={{ display: "flex", gap: 8 }}>
-          {step > 1 && (
-            <button
-              onClick={handlePrev}
+        {step === 6 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <Link
+              href="/sign-up"
               style={{
-                flex: 1, padding: "9px 0", borderRadius: 8,
-                border: `1px solid ${T.border}`,
-                background: "transparent", color: T.muted,
-                fontSize: 12, cursor: "pointer", fontFamily: "inherit",
+                display: "block", textAlign: "center",
+                padding: "11px 0", borderRadius: 8,
+                background: "linear-gradient(135deg,#f5a623,#f76b1c)",
+                color: "#0d0f14", fontSize: 13, fontWeight: 800,
+                textDecoration: "none",
               }}
             >
-              ← Back
+              Start Free — launch your first campaign →
+            </Link>
+            <button
+              onClick={endTour}
+              style={{ background: "transparent", border: "none", color: T.faint, fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}
+            >
+              Keep exploring the dashboard
             </button>
-          )}
-          <button
-            onClick={handleNext}
-            style={{
-              flex: 2, padding: "9px 0", borderRadius: 8,
-              border: `1px solid ${T.accent}40`,
-              background: T.accentBg, color: T.accent,
-              fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-            }}
-          >
-            {step === 6 ? "Add First Client →" : step === 5 ? "Got it →" : "Next →"}
-          </button>
-        </div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 8 }}>
+            {step > 1 && (
+              <button
+                onClick={handlePrev}
+                style={{
+                  flex: 1, padding: "9px 0", borderRadius: 8,
+                  border: `1px solid ${T.border}`,
+                  background: "transparent", color: T.muted,
+                  fontSize: 12, cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                ← Back
+              </button>
+            )}
+            <button
+              onClick={handleNext}
+              style={{
+                flex: 2, padding: "9px 0", borderRadius: 8,
+                border: `1px solid ${T.accent}40`,
+                background: T.accentBg, color: T.accent,
+                fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+              }}
+            >
+              {step === 5 ? "Got it →" : "Next →"}
+            </button>
+          </div>
+        )}
 
         {step < 6 && (
           <button

@@ -79,13 +79,13 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
       setClients(list);
       setHasNoClients(list.length === 0);
       const first = list.find((c) => c.status === "active") ?? list[0] ?? null;
-      if (first) selectClient(first);
+      if (first) selectClient(first, false);
     } catch {
       // silent
     }
   }
 
-  function selectClient(client: Client) {
+  function selectClient(client: Client, navigate = true) {
     setLocalActive(client);
     setShowSwitcher(false);
     setClientSearch("");
@@ -98,7 +98,7 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
       roas_target: client.roas_target ?? null,
       monthly_budget: client.monthly_budget ?? null,
     });
-    router.push("/dashboard/campaigns");
+    if (navigate) router.push("/dashboard/campaigns");
   }
 
   const vertColor = localActive ? (localActive.vertical === "leads" ? T.leads : T.ecomm) : T.muted;

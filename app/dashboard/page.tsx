@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useActiveClient } from "@/lib/context/client-context";
+import { useTour } from "@/lib/context/tour-context";
 
 // ─── Theme (fixed) ────────────────────────────────────────────────────────────
 
@@ -412,6 +413,7 @@ function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setActiveClient } = useActiveClient();
+  const { startTour } = useTour();
   const [clients, setClients] = useState<Client[]>([]);
   const [loadingClients, setLoadingClients] = useState(true);
   const [allMetrics, setAllMetrics] = useState<Record<string, ClientMetrics>>({});
@@ -473,6 +475,8 @@ function DashboardContent() {
         .catch(() => {});
       // Remove ?demo=1 from URL without reload
       router.replace("/dashboard");
+      // Start the product tour for demo visitors
+      setTimeout(() => startTour(), 800);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
