@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { DEMO_CLIENTS_CONFIG, getDemoSummary, getDemoCampaigns } from "@/lib/demo-data";
 
@@ -85,57 +85,98 @@ const STEPS: Record<number, { title: string; body: string; label: string; highli
   10: { title: "You're All Set 🎉", label: `10 / ${TOTAL_STEPS}  ·  Ready`, body: "That's the full picture. Start your free trial and run your first real campaign — connect your ad account and the AI takes it from there.", centered: true },
 };
 
-// ── Campaign builder panel ─────────────────────────────────────────────────────
+// ── Demo Ad Creator Chat (matches real AdCreatorOverlay) ──────────────────────
 
-const BUSINESS_TYPES = ["Roofing / Home Services", "Real Estate", "Insurance", "Dental / Medical", "Solar", "Ecommerce / DTC", "Fitness / Wellness", "Finance / Legal", "Other"];
-const PLATFORMS = [
-  { name: "Meta", color: "#4a90d9" },
-  { name: "Google", color: "#34a853" },
-  { name: "TikTok", color: "#ff2d6b" },
+interface DemoChatMsg { id: string; role: "user" | "assistant"; content: string; }
+
+// Scripted conversation that mirrors the real AI builder experience
+const DEMO_SCRIPT: { trigger: RegExp | null; response: string }[] = [
+  {
+    trigger: null, // opening message
+    response: `Hey! I'm your Buena Onda AI. I'll build your campaign structure end-to-end.\n\nLet's start simple — **what's the business?** (e.g. "roofing company in San Diego" or "DTC supplement brand")`,
+  },
+  {
+    trigger: /./,  // any user message after the first
+    response: `Got it. And what's the **primary goal** — are you generating leads, driving online sales, or something else? Also, what's the **monthly budget** you're working with?`,
+  },
+  {
+    trigger: /lead|sale|budget|\$|\d/i,
+    response: `Perfect. Here's what I'm building:\n\n**Headline:** Free [Service] Quote — Book Today\n**Primary Text:** Don't leave money on the table. Our clients cut CPL by 40% in the first 60 days.\n\n**Objective:** Lead Generation\n**Targeting:** Homeowners 35–65, 25mi radius, interest-based + LAL 1%\n**Daily Budget:** $100/day\n**Ad Sets:** 3 (Broad intent · Retargeting 30d · Lookalike 1%)\n\nShould I **finalize this** and queue it for approval, or do you want to tweak anything first?`,
+  },
 ];
 
-const AI_BUILD_STEPS = [
-  { label: "Analyzing your business type & goals", duration: 700 },
-  { label: "Selecting optimal audiences & targeting", duration: 900 },
-  { label: "Structuring ad sets & budget splits", duration: 800 },
-  { label: "Writing ad copy & creative briefs", duration: 1000 },
-  { label: "Setting CPL targets & scaling rules", duration: 600 },
-];
+function DemoAdCreatorChat({ onClose }: { onClose: () => void }) {
+  const [messages, setMessages] = useState<DemoChatMsg[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [scriptIdx, setScriptIdx] = useState(0);
+  const [done, setDone] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const initiated = useRef(false);
 
-function CampaignBuilderPanel({ onClose }: { onClose: () => void }) {
-  const [step, setStep] = useState<"form" | "building" | "done">("form");
-  const [businessType, setBusinessType] = useState("Roofing / Home Services");
-  const [platforms, setPlatforms] = useState<string[]>(["Meta"]);
-  const [budget, setBudget] = useState("3000");
-  const [goal, setGoal] = useState("leads");
-  const [cplTarget, setCplTarget] = useState("35");
-  const [buildProgress, setBuildProgress] = useState(0);
+  useEffect(() => {
+    if (initiated.current) return;
+    initiated.current = true;
+    // Show opening message with typing effect
+    const opening = DEMO_SCRIPT[0].response;
+    setLoading(true);
+    const streamingId = "init";
+    setMessages([{ id: streamingId, role: "assistant", content: "" }]);
+    let i = 0;
+    const interval = setInterval(() => {
+      i++;
+      setMessages([{ id: streamingId, role: "assistant", content: opening.slice(0, i * 3) }]);
+      if (i * 3 >= opening.length) {
+        clearInterval(interval);
+        setMessages([{ id: streamingId, role: "assistant", content: opening }]);
+        setLoading(false);
+      }
+    }, 18);
+  }, []);
 
-  function togglePlatform(name: string) {
-    setPlatforms(p => p.includes(name) ? p.filter(x => x !== name) : [...p, name]);
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  function sendMessage() {
+    if (!input.trim() || loading) return;
+    const userMsg: DemoChatMsg = { id: Date.now().toString(), role: "user", content: input.trim() };
+    setInput("");
+
+    const nextIdx = scriptIdx + 1;
+    const scriptEntry = DEMO_SCRIPT[Math.min(nextIdx, DEMO_SCRIPT.length - 1)];
+    setMessages(prev => [...prev, userMsg]);
+    setLoading(true);
+    setScriptIdx(nextIdx);
+
+    const streamingId = (Date.now() + 1).toString();
+    setTimeout(() => {
+      setMessages(prev => [...prev, { id: streamingId, role: "assistant", content: "" }]);
+      let i = 0;
+      const resp = scriptEntry.response;
+      const interval = setInterval(() => {
+        i++;
+        setMessages(prev => prev.map(m => m.id === streamingId ? { ...m, content: resp.slice(0, i * 3) } : m));
+        if (i * 3 >= resp.length) {
+          clearInterval(interval);
+          setMessages(prev => prev.map(m => m.id === streamingId ? { ...m, content: resp } : m));
+          setLoading(false);
+          if (nextIdx >= DEMO_SCRIPT.length - 1) setDone(true);
+        }
+      }, 18);
+    }, 700);
   }
 
-  function startBuild() {
-    setStep("building");
-    setBuildProgress(0);
-    let elapsed = 0;
-    AI_BUILD_STEPS.forEach((s, idx) => {
-      elapsed += s.duration;
-      setTimeout(() => {
-        setBuildProgress(idx + 1);
-        if (idx === AI_BUILD_STEPS.length - 1) {
-          setTimeout(() => setStep("done"), 400);
-        }
-      }, elapsed);
+  function renderMd(text: string): React.ReactNode {
+    return text.split("\n").map((line, i, arr) => {
+      const parts = line.split(/(\*\*[^*]+\*\*)/g).map((p, j) =>
+        p.startsWith("**") && p.endsWith("**")
+          ? <strong key={j} style={{ color: T.text, fontWeight: 700 }}>{p.slice(2, -2)}</strong>
+          : <span key={j}>{p}</span>
+      );
+      return <span key={i}>{parts}{i < arr.length - 1 && <br />}</span>;
     });
   }
-
-  // Derived preview values
-  const monthlyBudget = parseInt(budget) || 3000;
-  const isLeads = goal === "leads";
-  const platformList = platforms.join(" + ") || "Meta";
-  const adSets = platforms.length === 1 ? 3 : platforms.length === 2 ? 4 : 5;
-  const creatives = adSets * 3;
 
   return (
     <>
@@ -144,201 +185,218 @@ function CampaignBuilderPanel({ onClose }: { onClose: () => void }) {
           from { transform: translateX(100%); opacity: 0; }
           to { transform: translateX(0); opacity: 1; }
         }
-        @keyframes buildFadeIn {
-          from { opacity: 0; transform: translateX(-8px); }
-          to { opacity: 1; transform: translateX(0); }
-        }
       `}</style>
-
-      {/* Backdrop */}
       <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1100, backdropFilter: "blur(2px)" }} />
-
-      {/* Panel */}
-      <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 480, background: "#13151d", borderLeft: `1px solid rgba(245,166,35,0.2)`, zIndex: 1200, overflow: "auto", animation: "panelSlideIn 0.35s cubic-bezier(0.16,1,0.3,1) both", display: "flex", flexDirection: "column" }}>
+      <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 480, background: "#13151d", borderLeft: `1px solid rgba(245,166,35,0.2)`, zIndex: 1200, display: "flex", flexDirection: "column", animation: "panelSlideIn 0.35s cubic-bezier(0.16,1,0.3,1) both" }}>
 
         {/* Header */}
-        <div style={{ padding: "20px 24px 16px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+        <div style={{ padding: "18px 20px 14px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: T.text, letterSpacing: "-0.3px" }}>
-              {step === "form" ? "Launch a New Campaign" : step === "building" ? "AI is building your campaign…" : "Campaign Ready ✓"}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 16, color: T.accent }}>✦</span>
+              <span style={{ fontSize: 14, fontWeight: 800, color: T.text, letterSpacing: "-0.3px" }}>Build with Buena Onda</span>
             </div>
-            <div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>
-              {step === "form" ? "Tell the AI what you want — it handles the rest" : step === "building" ? "This takes about 5 seconds in real life" : "Review and launch when ready"}
-            </div>
+            <div style={{ fontSize: 11, color: T.muted, marginTop: 2, paddingLeft: 24 }}>Summit Roofing Co · Lead Gen</div>
           </div>
           <button onClick={onClose} style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${T.border}`, borderRadius: 6, width: 28, height: 28, cursor: "pointer", color: T.muted, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}>✕</button>
         </div>
 
-        <div style={{ flex: 1, padding: "24px", overflowY: "auto" }}>
-
-          {/* ── STEP 1: FORM ── */}
-          {step === "form" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-
-              {/* Business type */}
-              <div>
-                <div style={{ fontSize: 11, color: T.muted, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: 8 }}>Business Type</div>
-                <select value={businessType} onChange={e => setBusinessType(e.target.value)} style={{ width: "100%", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, color: T.text, fontFamily: "inherit", cursor: "pointer", outline: "none" }}>
-                  {BUSINESS_TYPES.map(b => <option key={b} value={b}>{b}</option>)}
-                </select>
+        {/* Messages */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: 14 }}>
+          {messages.map(msg => (
+            <div key={msg.id} style={{ display: "flex", gap: 10, flexDirection: msg.role === "user" ? "row-reverse" : "row" }}>
+              {msg.role === "assistant" && (
+                <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#f5a623,#f76b1c)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0, marginTop: 2 }}>✦</div>
+              )}
+              <div style={{
+                maxWidth: "80%",
+                background: msg.role === "user" ? T.accentBg : T.surface,
+                border: `1px solid ${msg.role === "user" ? T.accent + "40" : T.border}`,
+                borderRadius: msg.role === "user" ? "12px 12px 2px 12px" : "12px 12px 12px 2px",
+                padding: "10px 14px",
+                fontSize: 13,
+                color: T.text,
+                lineHeight: 1.6,
+              }}>
+                {msg.content ? renderMd(msg.content) : <span style={{ display: "inline-block", width: 18, height: 4, background: T.muted, borderRadius: 2, animation: "pulse 1s ease-in-out infinite" }} />}
               </div>
+            </div>
+          ))}
+          {done && (
+            <div style={{ background: "rgba(46,204,113,0.08)", border: "1px solid rgba(46,204,113,0.25)", borderRadius: 10, padding: "14px 16px", fontSize: 12 }}>
+              <div style={{ color: "#2ecc71", fontWeight: 700, marginBottom: 6 }}>✓ Campaign queued for approval</div>
+              <div style={{ color: T.muted }}>In the real platform this launches in Meta — pending your review. <Link href="/#pricing" style={{ color: T.accent, textDecoration: "none" }}>Start free to try it live →</Link></div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
 
-              {/* Platforms */}
-              <div>
-                <div style={{ fontSize: 11, color: T.muted, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: 8 }}>Platforms</div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  {PLATFORMS.map(p => {
-                    const active = platforms.includes(p.name);
-                    return (
-                      <button key={p.name} onClick={() => togglePlatform(p.name)} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1px solid ${active ? p.color + "60" : T.border}`, background: active ? p.color + "15" : "transparent", color: active ? p.color : T.faint, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
-                        {p.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Goal */}
-              <div>
-                <div style={{ fontSize: 11, color: T.muted, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: 8 }}>Campaign Goal</div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  {[{ value: "leads", label: "🎯 Lead Gen" }, { value: "sales", label: "🛒 Ecommerce" }].map(g => (
-                    <button key={g.value} onClick={() => setGoal(g.value)} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1px solid ${goal === g.value ? T.accent + "60" : T.border}`, background: goal === g.value ? T.accentBg : "transparent", color: goal === g.value ? T.accent : T.faint, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
-                      {g.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Budget + Target */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div>
-                  <div style={{ fontSize: 11, color: T.muted, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: 8 }}>Monthly Budget ($)</div>
-                  <input type="number" value={budget} onChange={e => setBudget(e.target.value)} style={{ width: "100%", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, color: T.text, fontFamily: "inherit", outline: "none", boxSizing: "border-box" as const }} placeholder="3000" />
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: T.muted, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: 8 }}>{isLeads ? "CPL Target ($)" : "ROAS Target"}</div>
-                  <input type="number" value={cplTarget} onChange={e => setCplTarget(e.target.value)} style={{ width: "100%", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, color: T.text, fontFamily: "inherit", outline: "none", boxSizing: "border-box" as const }} placeholder={isLeads ? "35" : "3.5"} />
-                </div>
-              </div>
-
-              {/* Preview estimate */}
-              <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "16px" }}>
-                <div style={{ fontSize: 11, color: T.faint, textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: 12 }}>What the AI will build</div>
-                {[
-                  { label: "Platforms", value: platformList },
-                  { label: "Ad sets", value: `${adSets} (split by audience + intent)` },
-                  { label: "Creatives queued", value: `${creatives} (hooks, carousels, testimonials)` },
-                  { label: "Daily budget", value: `$${Math.round(monthlyBudget / 30)}/day` },
-                  { label: `${isLeads ? "CPL" : "ROAS"} target`, value: isLeads ? `$${cplTarget} per lead` : `${cplTarget}x return` },
-                  { label: "Auto-optimize", value: "Daily — 24/7" },
-                ].map((row, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: i < 5 ? `1px solid ${T.border}` : "none" }}>
-                    <span style={{ fontSize: 12, color: T.muted }}>{row.label}</span>
-                    <span style={{ fontSize: 12, color: T.text, fontWeight: 600 }}>{row.value}</span>
-                  </div>
-                ))}
-              </div>
-
+        {/* Input */}
+        <div style={{ padding: "14px 16px", borderTop: `1px solid ${T.border}`, flexShrink: 0 }}>
+          {!done && (
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                placeholder="Describe your campaign…"
+                disabled={loading}
+                style={{ flex: 1, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, color: T.text, fontFamily: "inherit", outline: "none" }}
+              />
               <button
-                onClick={startBuild}
-                disabled={platforms.length === 0}
-                style={{ width: "100%", padding: "14px", borderRadius: 10, border: "none", background: platforms.length === 0 ? "rgba(245,166,35,0.2)" : "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 14, fontWeight: 800, cursor: platforms.length === 0 ? "not-allowed" : "pointer", fontFamily: "inherit" }}
+                onClick={sendMessage}
+                disabled={loading || !input.trim()}
+                style={{ padding: "10px 16px", borderRadius: 8, border: "none", background: input.trim() && !loading ? "linear-gradient(135deg,#f5a623,#f76b1c)" : "rgba(245,166,35,0.2)", color: "#0d0f14", fontSize: 13, fontWeight: 700, cursor: input.trim() && !loading ? "pointer" : "not-allowed", fontFamily: "inherit" }}
               >
-                Build with AI →
+                →
               </button>
             </div>
           )}
-
-          {/* ── STEP 2: BUILDING ── */}
-          {step === "building" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <div style={{ textAlign: "center" as const, padding: "24px 0 20px" }}>
-                <div style={{ width: 52, height: 52, borderRadius: "50%", border: `3px solid rgba(245,166,35,0.2)`, borderTop: `3px solid ${T.accent}`, margin: "0 auto 16px", animation: "spin 0.9s linear infinite" }} />
-                <div style={{ fontSize: 14, color: T.muted }}>Building your campaign…</div>
-              </div>
-              {AI_BUILD_STEPS.map((s, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: T.surface, borderRadius: 8, border: `1px solid ${buildProgress > i ? "rgba(46,204,113,0.2)" : T.border}`, animation: buildProgress > i ? "buildFadeIn 0.3s ease" : "none" }}>
-                  <span style={{ fontSize: 14, flexShrink: 0 }}>{buildProgress > i ? "✓" : buildProgress === i ? "⟳" : "○"}</span>
-                  <span style={{ fontSize: 12, color: buildProgress > i ? T.healthy : buildProgress === i ? T.accent : T.faint }}>{s.label}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* ── STEP 3: DONE ── */}
-          {step === "done" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ background: "rgba(46,204,113,0.08)", border: "1px solid rgba(46,204,113,0.25)", borderRadius: 10, padding: "16px 18px" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: T.healthy, marginBottom: 4 }}>✓ Campaign built and ready to launch</div>
-                <div style={{ fontSize: 12, color: T.muted }}>{businessType} · {platformList} · ${Math.round(monthlyBudget / 30)}/day</div>
-              </div>
-
-              {/* Ad sets */}
-              <div>
-                <div style={{ fontSize: 11, color: T.faint, textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: 10 }}>Ad Sets Created</div>
-                {[
-                  { name: `${businessType.split("/")[0].trim()} | Broad Intent`, budget: Math.round(monthlyBudget * 0.4 / 30), audience: "Homeowners 35–65 · 25mi radius" },
-                  { name: `${businessType.split("/")[0].trim()} | Retargeting`, budget: Math.round(monthlyBudget * 0.3 / 30), audience: "Website visitors · 30d window" },
-                  { name: `${businessType.split("/")[0].trim()} | Lookalike 1%`, budget: Math.round(monthlyBudget * 0.3 / 30), audience: "Based on your best customers" },
-                ].slice(0, adSets > 3 ? 3 : adSets).map((a, i) => (
-                  <div key={i} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: "12px 14px", marginBottom: 8 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>{a.name}</span>
-                      <span style={{ fontSize: 12, color: T.accent, fontWeight: 600 }}>${a.budget}/day</span>
-                    </div>
-                    <div style={{ fontSize: 11, color: T.faint }}>{a.audience}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Creatives */}
-              <div>
-                <div style={{ fontSize: 11, color: T.faint, textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: 10 }}>Creative Briefs Generated</div>
-                {[
-                  { type: "Video Hook", desc: "iPhone-style, raw footage — problem/solution format", count: Math.ceil(creatives / 3) },
-                  { type: "Image Carousel", desc: "Before/after or feature highlights — 5 cards", count: Math.floor(creatives / 3) },
-                  { type: "Testimonial", desc: "Social proof — customer result + photo", count: Math.floor(creatives / 3) },
-                ].map((c, i) => (
-                  <div key={i} style={{ display: "flex", gap: 10, padding: "8px 0", borderBottom: i < 2 ? `1px solid ${T.border}` : "none" }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: T.accent, minWidth: 18, textAlign: "center" as const }}>{c.count}</span>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>{c.type}</div>
-                      <div style={{ fontSize: 11, color: T.faint, marginTop: 2 }}>{c.desc}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Rules */}
-              <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "14px 16px" }}>
-                <div style={{ fontSize: 11, color: T.faint, textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: 10 }}>AI Rules Set</div>
-                {[
-                  { label: isLeads ? "Pause if CPL exceeds" : "Pause if ROAS drops below", value: isLeads ? `$${Math.round(parseInt(cplTarget) * 1.4)}` : `${(parseFloat(cplTarget) * 0.6).toFixed(1)}x` },
-                  { label: isLeads ? "Scale if CPL under" : "Scale if ROAS above", value: isLeads ? `$${cplTarget}` : `${cplTarget}x` },
-                  { label: "Creative fatigue threshold", value: "3.0x frequency" },
-                  { label: "Morning WhatsApp report", value: "8:00am daily" },
-                ].map((r, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: i < 3 ? `1px solid ${T.border}` : "none" }}>
-                    <span style={{ fontSize: 12, color: T.muted }}>{r.label}</span>
-                    <span style={{ fontSize: 12, color: T.text, fontWeight: 600 }}>{r.value}</span>
-                  </div>
-                ))}
-              </div>
-
-              <Link href="/#pricing" style={{ display: "block", textAlign: "center" as const, padding: "14px", borderRadius: 10, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 14, fontWeight: 800, textDecoration: "none" }}>
-                Start Free — launch your first campaign →
-              </Link>
-              <button onClick={() => setStep("form")} style={{ width: "100%", padding: "10px", borderRadius: 10, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                ← Try different settings
-              </button>
-            </div>
+          {done && (
+            <Link href="/#pricing" style={{ display: "block", textAlign: "center" as const, padding: "12px", borderRadius: 10, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 13, fontWeight: 800, textDecoration: "none" }}>
+              Start Free — launch your first real campaign →
+            </Link>
           )}
         </div>
       </div>
     </>
   );
 }
+
+// ── Demo Chat Popup (AI assistant) ────────────────────────────────────────────
+
+interface ChatMsg { id: string; role: "user" | "assistant"; content: string; }
+
+const DEMO_SUGGESTIONS = [
+  "Which ad sets should I scale?",
+  "How does the campaign builder work?",
+  "How do I lower my CPL?",
+  "Show me the anomaly alerts feature",
+];
+
+function DemoChatPopup({ onClose }: { onClose: () => void }) {
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  async function sendMessage(text?: string) {
+    const content = (text ?? input).trim();
+    if (!content || loading) return;
+    setInput("");
+    const userMsg: ChatMsg = { id: Date.now().toString(), role: "user", content };
+    const streamingId = (Date.now() + 1).toString();
+    setMessages(prev => [...prev, userMsg, { id: streamingId, role: "assistant", content: "" }]);
+    setLoading(true);
+
+    try {
+      const history = [...messages, userMsg].map(m => ({ role: m.role, content: m.content }));
+      const res = await fetch("/api/demo/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: history }),
+      });
+      if (!res.body) throw new Error("No stream");
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6).trim();
+          if (data === "[DONE]") break;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.text) {
+              setMessages(prev => prev.map(m => m.id === streamingId ? { ...m, content: m.content + parsed.text } : m));
+            }
+          } catch { /* ignore */ }
+        }
+      }
+    } catch {
+      setMessages(prev => prev.map(m => m.id === streamingId ? { ...m, content: "Sorry, something went wrong. Try again." } : m));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function renderMd(text: string): React.ReactNode {
+    return text.split("\n").map((line, i, arr) => {
+      const parts = line.split(/(\*\*[^*]+\*\*)/g).map((p, j) =>
+        p.startsWith("**") && p.endsWith("**")
+          ? <strong key={j} style={{ color: T.text, fontWeight: 700 }}>{p.slice(2, -2)}</strong>
+          : <span key={j}>{p.replace(/--/g, "—")}</span>
+      );
+      return <span key={i}>{parts}{i < arr.length - 1 && <br />}</span>;
+    });
+  }
+
+  return (
+    <div style={{ position: "fixed", bottom: 84, right: 24, width: 340, maxHeight: 520, background: "#13151d", border: `1px solid rgba(245,166,35,0.3)`, borderRadius: 16, boxShadow: "0 16px 48px rgba(0,0,0,0.6)", display: "flex", flexDirection: "column", zIndex: 1050, overflow: "hidden", animation: "tourFadeIn 0.3s ease both" }}>
+      {/* Header */}
+      <div style={{ padding: "14px 16px 12px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 24, height: 24, borderRadius: "50%", background: "linear-gradient(135deg,#f5a623,#f76b1c)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>✦</div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Buena Onda AI</div>
+            <div style={{ fontSize: 10, color: T.muted }}>Ask me anything about the platform</div>
+          </div>
+        </div>
+        <button onClick={onClose} style={{ background: "transparent", border: "none", color: T.muted, fontSize: 16, cursor: "pointer", fontFamily: "inherit" }}>✕</button>
+      </div>
+
+      {/* Messages */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "14px", display: "flex", flexDirection: "column", gap: 10, minHeight: 200 }}>
+        {messages.length === 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ fontSize: 12, color: T.muted, marginBottom: 4 }}>Suggested questions:</div>
+            {DEMO_SUGGESTIONS.map(s => (
+              <button key={s} onClick={() => sendMessage(s)} style={{ padding: "8px 12px", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, color: T.text, fontSize: 12, textAlign: "left" as const, cursor: "pointer", fontFamily: "inherit" }}>
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+        {messages.map(msg => (
+          <div key={msg.id} style={{ display: "flex", gap: 8, flexDirection: msg.role === "user" ? "row-reverse" : "row" }}>
+            {msg.role === "assistant" && (
+              <div style={{ width: 22, height: 22, borderRadius: "50%", background: "linear-gradient(135deg,#f5a623,#f76b1c)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, flexShrink: 0, marginTop: 2 }}>✦</div>
+            )}
+            <div style={{ maxWidth: "85%", background: msg.role === "user" ? T.accentBg : T.surface, border: `1px solid ${msg.role === "user" ? T.accent + "40" : T.border}`, borderRadius: msg.role === "user" ? "10px 10px 2px 10px" : "10px 10px 10px 2px", padding: "8px 12px", fontSize: 12, color: T.text, lineHeight: 1.6 }}>
+              {msg.content ? renderMd(msg.content) : <span style={{ display: "inline-block", width: 16, height: 3, background: T.muted, borderRadius: 2 }} />}
+            </div>
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <div style={{ padding: "10px 12px", borderTop: `1px solid ${T.border}`, flexShrink: 0 }}>
+        <div style={{ display: "flex", gap: 6 }}>
+          <input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); sendMessage(); } }}
+            placeholder="Ask a question…"
+            disabled={loading}
+            style={{ flex: 1, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 7, padding: "8px 10px", fontSize: 12, color: T.text, fontFamily: "inherit", outline: "none" }}
+          />
+          <button onClick={() => sendMessage()} disabled={loading || !input.trim()} style={{ padding: "8px 12px", borderRadius: 7, border: "none", background: input.trim() && !loading ? "linear-gradient(135deg,#f5a623,#f76b1c)" : "rgba(245,166,35,0.2)", color: "#0d0f14", fontSize: 12, fontWeight: 700, cursor: input.trim() && !loading ? "pointer" : "not-allowed", fontFamily: "inherit" }}>→</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 function MetricBox({ label, value, sub, color }: { label: string; value: string; sub: string; color?: string }) {
   return (
@@ -429,7 +487,17 @@ export default function DemoPage() {
   const [tourActive, setTourActive] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "ads" | "campaigns" | "reports">("overview");
   const [showBriefPanel, setShowBriefPanel] = useState(false);
+  const [showChatPopup, setShowChatPopup] = useState(false);
   const [showCharts, setShowCharts] = useState(false);
+  const [reportGenerating, setReportGenerating] = useState(false);
+  const [reportGenerated, setReportGenerated] = useState(false);
+  const [selectedReportClient, setSelectedReportClient] = useState<string>(clients[0]?.name ?? "");
+  const [reportStartDate, setReportStartDate] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().split("T")[0];
+  });
+  const [reportEndDate, setReportEndDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [reportSendEmail, setReportSendEmail] = useState(false);
+  const [reportEmail, setReportEmail] = useState("");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
@@ -441,6 +509,7 @@ export default function DemoPage() {
     if (!cfg) return;
     if (cfg.tab) setActiveTab(cfg.tab as "ads" | "campaigns" | "reports");
     if (cfg.openCreator) setShowBriefPanel(true);
+    if (targetStep === 9) setShowChatPopup(true);
   }
   function applyPrevRoute(targetStep: number) {
     const cfg = STEPS[targetStep];
@@ -476,7 +545,7 @@ export default function DemoPage() {
 
   // Active client campaigns for campaigns tab
   const activeClientObj = clients.find(c => c.name === activeClient) ?? clients[0];
-  const activeCampaigns = getDemoCampaigns(activeClientObj.meta_ad_account_id, 30) as Array<{ name?: string; spend: number; leads: number; cpl: number; purchases: number; purchase_value: number; roas: number; status: string }>;
+  const activeCampaigns = getDemoCampaigns(activeClientObj.meta_ad_account_id, 30) as Array<{ name?: string; spend: number; leads: number; cpl: number; purchases: number; purchase_value: number; roas: number; status: string; ctr: number; frequency: number }>;
 
   return (
     <>
@@ -726,130 +795,387 @@ export default function DemoPage() {
           )}
 
           {/* Campaigns tab */}
-          {activeTab === "campaigns" && (
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                <div style={{ fontSize: 22, fontWeight: 800, color: T.text, letterSpacing: "-0.5px" }}>Campaigns</div>
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button id="tour-chart-toggle" onClick={() => setShowCharts(v => !v)}
-                    style={{ fontSize: 12, padding: "7px 14px", borderRadius: 7, border: `1px solid ${T.border}`, background: T.surface, color: T.muted, cursor: "pointer", fontFamily: "inherit", ...highlightStyle("tour-chart-toggle") }}>
-                    {showCharts ? "Hide Charts ↙" : "Show Charts ↗"}
-                  </button>
-                  <button id="tour-share-report"
-                    style={{ fontSize: 12, padding: "7px 14px", borderRadius: 7, border: `1px solid ${T.border}`, background: T.surface, color: T.muted, cursor: "pointer", fontFamily: "inherit", ...highlightStyle("tour-share-report") }}>
-                    ↗ Share Report
-                  </button>
-                </div>
-              </div>
-              {showCharts && (
-                <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "24px", marginBottom: 20, textAlign: "center" as const }}>
-                  <div style={{ fontSize: 13, color: T.muted, marginBottom: 8 }}>Performance Chart — {activeClient}</div>
-                  <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 16 }}>
-                    {["Spend", "CPL", "ROAS", "CTR", "Frequency"].map(m => (
-                      <button key={m} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 5, border: `1px solid ${T.border}`, background: m === "Spend" ? T.accentBg : "transparent", color: m === "Spend" ? T.accent : T.faint, cursor: "pointer", fontFamily: "inherit" }}>{m}</button>
-                    ))}
+          {activeTab === "campaigns" && (() => {
+            const cmpnSpend = activeCampaigns.reduce((s, c) => s + c.spend, 0);
+            const cmpnLeads = activeCampaigns.reduce((s, c) => s + (c.leads ?? 0), 0);
+            const cmpnAvgCPL = cmpnLeads > 0 ? cmpnSpend / cmpnLeads : 0;
+            const cmpnPurchases = activeCampaigns.reduce((s, c) => s + (c.purchases ?? 0), 0);
+            const cmpnPurchaseValue = activeCampaigns.reduce((s, c) => s + (c.purchase_value ?? 0), 0);
+            const cmpnROAS = cmpnSpend > 0 && cmpnPurchaseValue > 0 ? cmpnPurchaseValue / cmpnSpend : 0;
+            const isLeadsAcc = (activeClientObj.vertical === "leads");
+            // Simple sparkline data (daily spend last 7 days)
+            const sparkVals = [42, 58, 51, 73, 66, 80, Math.round(cmpnSpend / 30)];
+            const sparkMax = Math.max(...sparkVals);
+            const W = 560; const H = 100; const pts = sparkVals.map((v, i) => `${(i / (sparkVals.length - 1)) * W},${H - (v / sparkMax) * H * 0.85}`).join(" ");
+            return (
+              <div>
+                {/* Header */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 11, color: T.faint, letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 4 }}>Campaigns</div>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: T.text, letterSpacing: "-0.3px" }}>{activeClient}</div>
+                    <div style={{ fontSize: 12, color: T.muted, marginTop: 3 }}>{activeCampaigns.filter(c => c.status === "active" || c.status === "ACTIVE").length} active · {activeCampaigns.filter(c => c.status === "paused" || c.status === "PAUSED").length} paused</div>
                   </div>
-                  <div style={{ height: 120, display: "flex", alignItems: "flex-end", gap: 6, justifyContent: "center" }}>
-                    {[40, 65, 55, 80, 70, 90, 75].map((h, i) => (
-                      <div key={i} style={{ width: 32, height: `${h}%`, background: `linear-gradient(180deg, rgba(245,166,35,0.8), rgba(247,107,28,0.4))`, borderRadius: "4px 4px 0 0" }} />
-                    ))}
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "center", gap: 16, marginTop: 8 }}>
-                    {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => (
-                      <span key={d} style={{ fontSize: 10, color: T.faint, width: 32, textAlign: "center" as const }}>{d}</span>
-                    ))}
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button id="tour-chart-toggle" onClick={() => setShowCharts(v => !v)}
+                      style={{ fontSize: 12, padding: "7px 14px", borderRadius: 7, border: `1px solid ${T.border}`, background: T.surface, color: T.muted, cursor: "pointer", fontFamily: "inherit", ...highlightStyle("tour-chart-toggle") }}>
+                      {showCharts ? "Hide Charts ↙" : "Show Charts ↗"}
+                    </button>
+                    <button id="tour-share-report"
+                      style={{ fontSize: 12, padding: "7px 14px", borderRadius: 7, border: `1px solid ${T.border}`, background: T.surface, color: T.muted, cursor: "pointer", fontFamily: "inherit", ...highlightStyle("tour-share-report") }}>
+                      ↗ Share Report
+                    </button>
                   </div>
                 </div>
-              )}
-              <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 80px", gap: 0, padding: "10px 16px", borderBottom: `1px solid ${T.border}`, fontSize: 10, color: T.faint, textTransform: "uppercase" as const, letterSpacing: "0.5px" }}>
-                  <div>Campaign</div>
-                  <div style={{ textAlign: "right" as const }}>Spend</div>
-                  <div style={{ textAlign: "right" as const }}>Leads</div>
-                  <div style={{ textAlign: "right" as const }}>CPL</div>
-                  <div style={{ textAlign: "right" as const }}>ROAS</div>
-                  <div style={{ textAlign: "right" as const }}>Status</div>
-                </div>
-                {activeCampaigns.slice(0, 8).map((c, i) => {
-                  const statusColor = c.status === "active" ? T.healthy : c.status === "paused" ? T.warning : T.faint;
-                  return (
-                    <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 80px", gap: 0, padding: "12px 16px", borderBottom: i < Math.min(activeCampaigns.length, 8) - 1 ? `1px solid ${T.border}` : "none", alignItems: "center" }}>
-                      <div style={{ fontSize: 13, color: T.text, fontWeight: 600 }}>{c.name ?? `Campaign ${i + 1}`}</div>
-                      <div style={{ fontSize: 12, color: T.muted, textAlign: "right" as const }}>${c.spend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-                      <div style={{ fontSize: 12, color: T.muted, textAlign: "right" as const }}>{c.leads ?? "—"}</div>
-                      <div style={{ fontSize: 12, color: c.cpl > 50 ? T.warning : T.muted, textAlign: "right" as const }}>{c.cpl > 0 ? `$${c.cpl.toFixed(0)}` : "—"}</div>
-                      <div style={{ fontSize: 12, color: c.roas >= 2 ? T.healthy : T.muted, textAlign: "right" as const }}>{c.roas > 0 ? `${c.roas.toFixed(2)}x` : "—"}</div>
-                      <div style={{ textAlign: "right" as const }}><span style={{ fontSize: 10, fontWeight: 600, color: statusColor, background: statusColor + "20", padding: "3px 8px", borderRadius: 4 }}>{c.status}</span></div>
+
+                {/* Stat cards */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
+                  {[
+                    { label: "Spend (30d)", value: `$${cmpnSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
+                    isLeadsAcc
+                      ? { label: "Leads (30d)", value: String(cmpnLeads), color: T.leads }
+                      : { label: "Purchases (30d)", value: String(cmpnPurchases), color: T.ecomm },
+                    isLeadsAcc
+                      ? { label: "Avg CPL", value: cmpnAvgCPL > 0 ? `$${cmpnAvgCPL.toFixed(0)}` : "—", color: cmpnAvgCPL > 50 ? T.warning : T.healthy, target: "$50" }
+                      : { label: "Avg ROAS", value: cmpnROAS > 0 ? `${cmpnROAS.toFixed(2)}x` : "—", color: cmpnROAS >= 2 ? T.healthy : T.warning },
+                    { label: "Active Campaigns", value: String(activeCampaigns.filter(c => c.status === "active" || c.status === "ACTIVE").length), color: T.accent },
+                  ].map((s, i) => (
+                    <div key={i} style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "18px 20px" }}>
+                      <div style={{ fontSize: 11, color: "#5a5e72", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>{s.label}</div>
+                      <div style={{ fontSize: 26, fontWeight: 700, color: (s as { color?: string }).color ?? T.text, letterSpacing: "-0.5px", marginBottom: 4 }}>{s.value}</div>
+                      {(s as { target?: string }).target && <div style={{ fontSize: 10, color: "#5a5e72" }}>Target: {(s as { target?: string }).target}</div>}
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
+
+                {/* Chart */}
+                {showCharts && (
+                  <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "20px 24px", marginBottom: 20 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Spend — Last 7 Days</div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        {["Spend", "CPL", "ROAS", "CTR", "Frequency"].map(m => (
+                          <button key={m} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 5, border: `1px solid ${T.border}`, background: m === "Spend" ? T.accentBg : "transparent", color: m === "Spend" ? T.accent : T.faint, cursor: "pointer", fontFamily: "inherit" }}>{m}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ position: "relative", height: 110 }}>
+                      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "100%", overflow: "visible" }} preserveAspectRatio="none">
+                        <defs>
+                          <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#f5a623" stopOpacity="0.35" />
+                            <stop offset="100%" stopColor="#f5a623" stopOpacity="0.02" />
+                          </linearGradient>
+                        </defs>
+                        <polyline fill="none" stroke="#f5a623" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" points={pts} />
+                        <polygon fill="url(#chartGrad)" points={`0,${H} ${pts} ${W},${H}`} />
+                        {sparkVals.map((v, i) => (
+                          <circle key={i} cx={(i / (sparkVals.length - 1)) * W} cy={H - (v / sparkMax) * H * 0.85} r="4" fill="#f5a623" />
+                        ))}
+                      </svg>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
+                      {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => (
+                        <span key={d} style={{ fontSize: 10, color: T.faint }}>{d}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Campaign table */}
+                <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr 80px", padding: "10px 16px", borderBottom: `1px solid ${T.border}`, fontSize: 10, color: T.faint, textTransform: "uppercase" as const, letterSpacing: "0.5px" }}>
+                    <div>Campaign</div>
+                    <div style={{ textAlign: "right" as const }}>Spend</div>
+                    <div style={{ textAlign: "right" as const }}>Leads</div>
+                    <div style={{ textAlign: "right" as const }}>CPL</div>
+                    <div style={{ textAlign: "right" as const }}>CTR</div>
+                    <div style={{ textAlign: "right" as const }}>Freq</div>
+                    <div style={{ textAlign: "right" as const }}>Status</div>
+                  </div>
+                  {activeCampaigns.slice(0, 8).map((c, i) => {
+                    const statusColor = (c.status === "active" || c.status === "ACTIVE") ? T.healthy : T.warning;
+                    return (
+                      <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr 80px", padding: "12px 16px", borderBottom: i < Math.min(activeCampaigns.length, 8) - 1 ? `1px solid ${T.border}` : "none", alignItems: "center" }}>
+                        <div style={{ fontSize: 13, color: T.text, fontWeight: 600 }}>{c.name ?? `Campaign ${i + 1}`}</div>
+                        <div style={{ fontSize: 12, color: T.muted, textAlign: "right" as const }}>${c.spend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                        <div style={{ fontSize: 12, color: T.muted, textAlign: "right" as const }}>{c.leads ?? "—"}</div>
+                        <div style={{ fontSize: 12, color: c.cpl > 50 ? T.warning : T.muted, textAlign: "right" as const }}>{c.cpl > 0 ? `$${c.cpl.toFixed(0)}` : "—"}</div>
+                        <div style={{ fontSize: 12, color: T.muted, textAlign: "right" as const }}>{c.ctr > 0 ? `${(c.ctr * 100).toFixed(2)}%` : "—"}</div>
+                        <div style={{ fontSize: 12, color: c.frequency > 3 ? T.warning : T.muted, textAlign: "right" as const }}>{c.frequency > 0 ? c.frequency.toFixed(1) : "—"}</div>
+                        <div style={{ textAlign: "right" as const }}><span style={{ fontSize: 10, fontWeight: 600, color: statusColor, background: statusColor + "20", padding: "3px 8px", borderRadius: 4, textTransform: "lowercase" as const }}>{c.status.toLowerCase()}</span></div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Ads tab */}
           {activeTab === "ads" && (
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                <div style={{ fontSize: 22, fontWeight: 800, color: T.text, letterSpacing: "-0.5px" }}>Ads</div>
+            <div style={{ maxWidth: 960 }}>
+              {/* Header */}
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, gap: 16, flexWrap: "wrap" as const }}>
+                <div>
+                  <div style={{ fontSize: 11, color: T.faint, letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6 }}>Ad Manager</div>
+                  <h1 style={{ fontSize: 22, fontWeight: 700, color: T.text, margin: 0, letterSpacing: "-0.3px" }}>{activeClient}</h1>
+                  <div style={{ fontSize: 12, color: T.muted, marginTop: 4 }}>
+                    <span style={{ color: T.accent }}>2 pending approval</span>
+                  </div>
+                </div>
                 <button
                   id="tour-ads-create"
                   onClick={() => setShowBriefPanel(true)}
-                  style={{ fontSize: 12, padding: "7px 16px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontWeight: 800, cursor: "pointer", fontFamily: "inherit", ...highlightStyle("tour-ads-create") }}
+                  style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 20px", background: T.accent, border: "none", borderRadius: 8, color: "#0d0f14", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0, ...highlightStyle("tour-ads-create") }}
                 >
-                  + New Campaign
+                  ✦ Create with Buena Onda
                 </button>
               </div>
-              <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "48px", textAlign: "center" as const }}>
-                <div style={{ fontSize: 32, marginBottom: 12 }}>🚀</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 8 }}>Build your first campaign</div>
-                <div style={{ fontSize: 13, color: T.muted, marginBottom: 20, maxWidth: 380, margin: "0 auto 20px" }}>
-                  Tell the AI your offer, audience, and budget. It writes the copy, sets up targeting, and presents everything for your approval.
-                </div>
-                <button
-                  onClick={() => setShowBriefPanel(true)}
-                  style={{ fontSize: 13, padding: "12px 28px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}
-                >
-                  Launch with AI →
-                </button>
+
+              {/* Tabs */}
+              <div style={{ display: "flex", gap: 4, background: "#161820", border: `1px solid ${T.border}`, borderRadius: 8, padding: 4, marginBottom: 24, width: "fit-content" }}>
+                {[
+                  { key: "pending", label: "Pending Approval", count: 2, color: T.accent },
+                  { key: "live", label: "Live", count: 2, color: "#2ecc71" },
+                ].map(t => (
+                  <button key={t.key} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", borderRadius: 5, border: "none", fontSize: 12, fontWeight: t.key === "pending" ? 600 : 400, background: t.key === "pending" ? "rgba(245,166,35,0.12)" : "transparent", color: t.key === "pending" ? T.accent : T.muted, cursor: "pointer", fontFamily: "inherit" }}>
+                    {t.key === "pending" && <span style={{ width: 6, height: 6, borderRadius: "50%", background: T.accent, flexShrink: 0 }} />}
+                    {t.label}
+                    <span style={{ fontSize: 10, opacity: 0.7 }}>{t.count}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Campaign cards */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {[
+                  {
+                    name: "Summit Roofing | Storm Season | Video Lead Gen",
+                    status: "PAUSED" as const,
+                    objective: "Lead Generation",
+                    budget: 75,
+                    adName: "Storm Damage UGC v2",
+                    headline: "Free Roof Inspection — Book Today",
+                    body: "Your roof took a hit this storm season — and you might not even know it. Get a FREE inspection from Summit Roofing before the damage gets worse.",
+                    targeting: "San Diego, CA · Ages 35–65",
+                  },
+                  {
+                    name: "Summit Roofing | Free Quote | Retargeting",
+                    status: "PAUSED" as const,
+                    objective: "Lead Generation",
+                    budget: 40,
+                    adName: "Free Quote Offer — Static",
+                    headline: "Get Your Free Roofing Quote",
+                    body: "Still thinking about that roof? Summit Roofing is offering free quotes this week only. Takes 10 minutes. Could save you thousands.",
+                    targeting: "San Diego, CA · Retargeting 30d",
+                  },
+                ].map((campaign, idx) => (
+                  <div key={idx} style={{ background: "#161820", border: `1px solid rgba(245,166,35,0.2)`, borderRadius: 12, overflow: "hidden" }}>
+                    {/* Card header */}
+                    <div style={{ padding: "16px 20px 12px", borderBottom: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: T.accent, background: "rgba(245,166,35,0.12)", padding: "2px 8px", borderRadius: 4 }}>Pending Approval</span>
+                          <span style={{ fontSize: 11, color: T.faint }}>{campaign.objective}</span>
+                        </div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{campaign.name}</div>
+                      </div>
+                      <div style={{ fontSize: 13, color: T.accent, fontWeight: 600 }}>${campaign.budget}/day</div>
+                    </div>
+
+                    {/* Ad preview */}
+                    <div style={{ padding: "16px 20px", display: "grid", gridTemplateColumns: "140px 1fr", gap: 20, alignItems: "start" }}>
+                      {/* Mock image */}
+                      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 8, aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, border: `1px solid ${T.border}` }}>📷</div>
+                      <div>
+                        <div style={{ fontSize: 10, color: T.faint, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 6 }}>Ad Copy</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 8 }}>{campaign.headline}</div>
+                        <div style={{ fontSize: 12, color: T.muted, lineHeight: 1.6, marginBottom: 12 }}>{campaign.body}</div>
+                        <div style={{ fontSize: 11, color: T.faint }}>Ad Set: {campaign.targeting}</div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div style={{ padding: "12px 20px", borderTop: `1px solid ${T.border}`, display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                      <button onClick={() => setShowBriefPanel(true)} style={{ padding: "7px 14px", background: "transparent", border: `1px solid ${T.border}`, borderRadius: 7, color: T.muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Edit Copy</button>
+                      <button style={{ padding: "7px 18px", background: "#2ecc71", border: "none", borderRadius: 7, color: "#0d0f14", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>✓ Approve & Go Live</button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
           {/* Reports tab */}
           {activeTab === "reports" && (
-            <div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: T.text, marginBottom: 20 }}>Reports</div>
-              {[
-                { client: "Summit Roofing Co", type: "Weekly", date: "Mar 17–23, 2025", status: "ready" },
-                { client: "Urban Threads", type: "Monthly", date: "February 2025", status: "ready" },
-                { client: "Bright Smile Dental", type: "Weekly", date: "Mar 17–23, 2025", status: "generating" },
-                { client: "Valley Auto Group", type: "Monthly", date: "February 2025", status: "ready" },
-              ].map((r, i) => (
-                <div key={i} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "16px 20px", marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{r.client} — {r.type} Report</div>
-                    <div style={{ fontSize: 12, color: T.muted, marginTop: 3 }}>{r.date}</div>
+            <div style={{ maxWidth: 900 }}>
+              {/* Header */}
+              <div style={{ marginBottom: 28 }}>
+                <h1 style={{ fontSize: 26, fontWeight: 700, color: T.accent, margin: "0 0 6px", letterSpacing: "-0.5px" }}>Reports</h1>
+                <p style={{ color: T.muted, fontSize: 13, margin: 0 }}>Generate performance reports · Email to clients · Print to PDF</p>
+              </div>
+
+              {/* Generate Report panel */}
+              {!reportGenerated && (
+                <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "24px", marginBottom: 28 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase" as const, marginBottom: 20 }}>Generate Report</div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 16 }}>
+                    {/* Client */}
+                    <div>
+                      <label style={{ fontSize: 10, color: T.faint, textTransform: "uppercase" as const, letterSpacing: "0.5px", display: "block", marginBottom: 6 }}>Client</label>
+                      <select value={selectedReportClient} onChange={e => setSelectedReportClient(e.target.value)} style={{ width: "100%", background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 8, color: T.text, fontSize: 12, padding: "8px 10px", fontFamily: "inherit", outline: "none" }}>
+                        {clients.map(c => <option key={c.meta_ad_account_id} value={c.name}>{c.name}</option>)}
+                      </select>
+                    </div>
+                    {/* Start date */}
+                    <div>
+                      <label style={{ fontSize: 10, color: T.faint, textTransform: "uppercase" as const, letterSpacing: "0.5px", display: "block", marginBottom: 6 }}>Start Date</label>
+                      <input type="date" value={reportStartDate} onChange={e => setReportStartDate(e.target.value)} style={{ width: "100%", background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 8, color: T.text, fontSize: 12, padding: "8px 10px", fontFamily: "inherit", outline: "none", boxSizing: "border-box" as const }} />
+                    </div>
+                    {/* End date */}
+                    <div>
+                      <label style={{ fontSize: 10, color: T.faint, textTransform: "uppercase" as const, letterSpacing: "0.5px", display: "block", marginBottom: 6 }}>End Date</label>
+                      <input type="date" value={reportEndDate} onChange={e => setReportEndDate(e.target.value)} style={{ width: "100%", background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 8, color: T.text, fontSize: 12, padding: "8px 10px", fontFamily: "inherit", outline: "none", boxSizing: "border-box" as const }} />
+                    </div>
                   </div>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    {r.status === "ready" ? (
-                      <button style={{ fontSize: 12, padding: "6px 14px", borderRadius: 6, border: `1px solid rgba(34,197,94,0.3)`, background: "rgba(34,197,94,0.1)", color: "#22c55e", cursor: "pointer", fontFamily: "inherit" }}>View Report →</button>
-                    ) : (
-                      <span style={{ fontSize: 11, color: T.muted }}>Generating...</span>
+
+                  {/* Quick presets */}
+                  <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
+                    {[{ label: "Last 7 days", days: 7 }, { label: "Last 30 days", days: 30 }, { label: "This month", days: 0 }].map(({ label, days }) => (
+                      <button key={label} onClick={() => {
+                        const end = new Date(); const start = new Date();
+                        if (days === 0) start.setDate(1); else start.setDate(start.getDate() - days);
+                        setReportStartDate(start.toISOString().split("T")[0]);
+                        setReportEndDate(end.toISOString().split("T")[0]);
+                      }} style={{ padding: "5px 12px", fontSize: 11, borderRadius: 6, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, cursor: "pointer", fontFamily: "inherit" }}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Email option */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, padding: "12px 14px", background: T.surfaceAlt, borderRadius: 8 }}>
+                    <input type="checkbox" id="demoSendEmail" checked={reportSendEmail} onChange={e => setReportSendEmail(e.target.checked)} style={{ width: 14, height: 14, cursor: "pointer" }} />
+                    <label htmlFor="demoSendEmail" style={{ fontSize: 12, color: T.muted, cursor: "pointer" }}>Email this report</label>
+                    {reportSendEmail && (
+                      <input type="email" value={reportEmail} onChange={e => setReportEmail(e.target.value)} placeholder="recipient@email.com" style={{ flex: 1, background: T.bg, border: `1px solid ${T.border}`, borderRadius: 6, color: T.text, fontSize: 12, padding: "6px 10px", fontFamily: "inherit", outline: "none" }} />
                     )}
                   </div>
+
+                  <button
+                    onClick={() => {
+                      setReportGenerating(true);
+                      setTimeout(() => { setReportGenerating(false); setReportGenerated(true); }, 1800);
+                    }}
+                    disabled={reportGenerating}
+                    style={{ width: "100%", padding: "13px", borderRadius: 9, border: "none", background: reportGenerating ? "rgba(245,166,35,0.3)" : "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 13, fontWeight: 800, cursor: reportGenerating ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                  >
+                    {reportGenerating ? (
+                      <>
+                        <div style={{ width: 14, height: 14, border: "2px solid rgba(0,0,0,0.3)", borderTop: "2px solid #0d0f14", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                        Generating report…
+                      </>
+                    ) : "Generate Report →"}
+                  </button>
                 </div>
-              ))}
+              )}
+
+              {/* Generated report */}
+              {reportGenerated && (() => {
+                const clientObj = clients.find(c => c.name === selectedReportClient) ?? clients[0];
+                const cmpns = getDemoCampaigns(clientObj.meta_ad_account_id, 30) as Array<{ name?: string; spend: number; leads: number; cpl: number; purchases: number; purchase_value: number; roas: number; status: string }>;
+                const totalSpend = cmpns.reduce((s, c) => s + c.spend, 0);
+                const totalLeads = cmpns.reduce((s, c) => s + (c.leads ?? 0), 0);
+                const totalPurchases = cmpns.reduce((s, c) => s + (c.purchases ?? 0), 0);
+                const totalPurchaseValue = cmpns.reduce((s, c) => s + (c.purchase_value ?? 0), 0);
+                const avgCPL = totalLeads > 0 ? totalSpend / totalLeads : 0;
+                const avgROAS = totalSpend > 0 && totalPurchaseValue > 0 ? totalPurchaseValue / totalSpend : 0;
+                const isLeadsClient = clientObj.vertical === "leads";
+                return (
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
+                      <div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: T.text }}>{selectedReportClient} — Performance Report</div>
+                        <div style={{ fontSize: 12, color: T.muted, marginTop: 4 }}>{reportStartDate} to {reportEndDate}</div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button onClick={() => setReportGenerated(false)} style={{ fontSize: 12, padding: "7px 14px", borderRadius: 7, border: `1px solid ${T.border}`, background: T.surface, color: T.muted, cursor: "pointer", fontFamily: "inherit" }}>← New Report</button>
+                        <Link href="/#pricing" style={{ fontSize: 12, padding: "7px 14px", borderRadius: 7, border: "none", background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontWeight: 800, textDecoration: "none", display: "inline-block" }}>↗ Share Report</Link>
+                      </div>
+                    </div>
+
+                    {/* Stat cards */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 24 }}>
+                      {[
+                        { label: "Total Spend", value: `$${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
+                        isLeadsClient
+                          ? { label: "Total Leads", value: String(totalLeads), color: T.leads }
+                          : { label: "Total Purchases", value: String(totalPurchases), color: T.ecomm },
+                        isLeadsClient
+                          ? { label: "Avg CPL", value: avgCPL > 0 ? `$${avgCPL.toFixed(0)}` : "—", color: avgCPL > 50 ? T.warning : T.healthy }
+                          : { label: "Avg ROAS", value: avgROAS > 0 ? `${avgROAS.toFixed(2)}x` : "—", color: avgROAS >= 2 ? T.healthy : T.warning },
+                        { label: "Campaigns", value: String(cmpns.length), color: T.accent },
+                      ].map((s, i) => (
+                        <div key={i} style={{ background: T.surfaceAlt, borderRadius: 10, padding: "18px 20px", textAlign: "center" as const }}>
+                          <div style={{ fontSize: 10, color: T.muted, textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: 8 }}>{s.label}</div>
+                          <div style={{ fontSize: 26, fontWeight: 800, color: (s as { color?: string }).color ?? T.accent, letterSpacing: "-1px" }}>{s.value}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Campaign breakdown */}
+                    <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden" }}>
+                      <div style={{ padding: "12px 16px", borderBottom: `1px solid ${T.border}`, fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase" as const }}>Campaign Breakdown</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", padding: "10px 16px", borderBottom: `1px solid ${T.border}`, fontSize: 10, color: T.faint, textTransform: "uppercase" as const, letterSpacing: "0.5px" }}>
+                        <div>Campaign</div>
+                        <div style={{ textAlign: "right" as const }}>Spend</div>
+                        <div style={{ textAlign: "right" as const }}>{isLeadsClient ? "Leads" : "Purchases"}</div>
+                        <div style={{ textAlign: "right" as const }}>{isLeadsClient ? "CPL" : "ROAS"}</div>
+                        <div style={{ textAlign: "right" as const }}>Status</div>
+                      </div>
+                      {cmpns.map((c, i) => {
+                        const statusColor = c.status === "ACTIVE" ? T.healthy : T.warning;
+                        return (
+                          <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", padding: "12px 16px", borderBottom: i < cmpns.length - 1 ? `1px solid ${T.border}` : "none", alignItems: "center" }}>
+                            <div style={{ fontSize: 12, color: T.text, fontWeight: 600 }}>{c.name ?? `Campaign ${i + 1}`}</div>
+                            <div style={{ fontSize: 12, color: T.muted, textAlign: "right" as const }}>${c.spend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                            <div style={{ fontSize: 12, color: T.muted, textAlign: "right" as const }}>{isLeadsClient ? (c.leads ?? "—") : (c.purchases ?? "—")}</div>
+                            <div style={{ fontSize: 12, textAlign: "right" as const, color: isLeadsClient ? (c.cpl > 50 ? T.warning : T.muted) : (c.roas >= 2 ? T.healthy : T.muted) }}>{isLeadsClient ? (c.cpl > 0 ? `$${c.cpl.toFixed(0)}` : "—") : (c.roas > 0 ? `${c.roas.toFixed(2)}x` : "—")}</div>
+                            <div style={{ textAlign: "right" as const }}><span style={{ fontSize: 10, fontWeight: 600, color: statusColor, background: statusColor + "20", padding: "3px 8px", borderRadius: 4 }}>{c.status.toLowerCase()}</span></div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div style={{ marginTop: 16, padding: "14px 16px", background: T.surfaceAlt, borderRadius: 10, fontSize: 12, color: T.muted, lineHeight: 1.6 }}>
+                      <strong style={{ color: T.text }}>AI Summary:</strong> {isLeadsClient
+                        ? `${selectedReportClient} generated ${totalLeads} leads at an average CPL of ${avgCPL > 0 ? `$${avgCPL.toFixed(0)}` : "N/A"} over the selected period with $${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })} in total spend. ${cmpns.filter(c => c.cpl > 50).length > 0 ? "Some campaigns are above target CPL — recommend creative rotation." : "Performance is within target range."}`
+                        : `${selectedReportClient} drove ${totalPurchases} purchases at a ${avgROAS > 0 ? `${avgROAS.toFixed(2)}x` : "N/A"} average ROAS with $${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })} total spend. ${avgROAS >= 2 ? "Strong ROAS — consider scaling the top-performing ad set." : "ROAS is below 2x — review targeting and creative strategy."}`}
+                    </div>
+
+                    <div style={{ marginTop: 12, textAlign: "center" as const }}>
+                      <Link href="/#pricing" style={{ display: "inline-block", padding: "12px 28px", borderRadius: 9, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 13, fontWeight: 800, textDecoration: "none" }}>
+                        Start Free — run reports on your real accounts →
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
         </div>
 
-        {/* ── Campaign builder panel ── */}
-        {showBriefPanel && <CampaignBuilderPanel onClose={() => setShowBriefPanel(false)} />}
+        {/* ── Ad creator chat overlay ── */}
+        {showBriefPanel && <DemoAdCreatorChat onClose={() => setShowBriefPanel(false)} />}
+
+        {/* ── AI chat popup ── */}
+        {showChatPopup && <DemoChatPopup onClose={() => setShowChatPopup(false)} />}
 
         {/* ── AI button (always visible, bottom-right) ── */}
-        <button id="tour-agent-btn" style={{ position: "fixed", bottom: 24, right: 24, width: 48, height: 48, borderRadius: "50%", background: "linear-gradient(135deg,#f5a623,#f76b1c)", border: "none", color: "#0d0f14", fontSize: 18, cursor: "pointer", zIndex: 1001, boxShadow: "0 4px 20px rgba(245,166,35,0.4)", ...highlightStyle("tour-agent-btn") }}>✦</button>
+        <button id="tour-agent-btn" onClick={() => setShowChatPopup(v => !v)} style={{ position: "fixed", bottom: 24, right: 24, width: 48, height: 48, borderRadius: "50%", background: "linear-gradient(135deg,#f5a623,#f76b1c)", border: "none", color: "#0d0f14", fontSize: 18, cursor: "pointer", zIndex: 1001, boxShadow: "0 4px 20px rgba(245,166,35,0.4)", ...highlightStyle("tour-agent-btn") }}>✦</button>
 
         {/* ── Tour card ── */}
         {isTourActive && mounted && (() => {

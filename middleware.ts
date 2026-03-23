@@ -46,9 +46,12 @@ export default clerkMiddleware(async (auth, req) => {
 
     if (!isCheckoutReturn && !isDemo) {
       const status = (sessionClaims?.metadata as Record<string, string> | undefined)?.subscription_status;
-      const allowed = status === "active" || status === "trialing";
+      // Only block users who explicitly have a cancelled/failed status.
+      // Users with no status (new signups, owner account) are allowed through.
+      // Once Stripe webhook is wired up, only active/trialing users will have access.
+      const blocked = status === "cancelled" || status === "past_due" || status === "unpaid" || status === "incomplete_expired";
 
-      if (!allowed) {
+      if (blocked) {
         return NextResponse.redirect(new URL("/#pricing", req.url));
       }
     }
