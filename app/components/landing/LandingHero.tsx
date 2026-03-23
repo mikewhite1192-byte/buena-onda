@@ -16,8 +16,8 @@ const T = {
   red: "#e74c3c",
 };
 
-const PLATFORMS = ["Meta", "Google", "TikTok"];
-const PLATFORM_COLORS = ["#4a90d9", "#34a853", "#ff2d6b"];
+const PLATFORMS = ["Meta", "Google", "TikTok", "Shopify"];
+const PLATFORM_COLORS = ["#4a90d9", "#34a853", "#ff2d6b", "#96bf48"];
 
 const TICKER = [
   { icon: "⚡", text: "Budget scaled +20% — Summit Roofing CPL dropped to $22", color: T.green },
@@ -378,6 +378,7 @@ export default function LandingHero() {
               { name: "Meta Ads", color: "#4a90d9" },
               { name: "Google Ads", color: "#5fad56" },
               { name: "TikTok Ads", color: "#e05c8a" },
+              { name: "Shopify", color: "#96bf48" },
             ].map((p) => (
               <div
                 key={p.name}
