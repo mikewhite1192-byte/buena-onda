@@ -282,6 +282,21 @@ CREATE TABLE IF NOT EXISTS shopify_metrics (
 
 CREATE INDEX IF NOT EXISTS idx_shopify_metrics_user ON shopify_metrics(clerk_user_id);
 CREATE INDEX IF NOT EXISTS idx_shopify_metrics_date ON shopify_metrics(date_recorded);
+
+-- Slack workspace connections
+CREATE TABLE IF NOT EXISTS slack_connections (
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  clerk_user_id    TEXT        UNIQUE NOT NULL,
+  team_id          TEXT        NOT NULL,
+  team_name        TEXT,
+  access_token     TEXT        NOT NULL,
+  webhook_url      TEXT,
+  webhook_channel  TEXT,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_slack_conn_user ON slack_connections(clerk_user_id);
 `;
 
 // TypeScript types matching the tables
