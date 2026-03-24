@@ -311,6 +311,26 @@ function DashboardInner() {
               </div>
             </div>
 
+            {/* Next payout banner */}
+            {data.stats.monthly_total > 0 && (
+              <div style={{ background: "linear-gradient(135deg, rgba(245,166,35,0.12), rgba(247,107,28,0.08))", border: `1px solid ${T.accentBorder}`, borderRadius: 14, padding: "20px 24px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+                <div>
+                  <div style={{ fontSize: 11, color: T.accent, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4 }}>Next Payout</div>
+                  <div style={{ fontSize: 32, fontWeight: 800, color: T.text, letterSpacing: "-1px" }}>{fmt(data.stats.monthly_total)}</div>
+                  <div style={{ fontSize: 12, color: T.muted, marginTop: 4 }}>
+                    {data.stats.active_referrals} active client{data.stats.active_referrals !== 1 ? "s" : ""} · pays out 1st of next month
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 11, color: T.faint, marginBottom: 4 }}>Lifetime earned</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: T.green }}>{fmt(data.stats.lifetime_paid)}</div>
+                  {data.stats.pending_payout > 0 && (
+                    <div style={{ fontSize: 11, color: T.accent, marginTop: 4 }}>{fmt(data.stats.pending_payout)} pending</div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Stats strip */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 24 }}>
               {[
