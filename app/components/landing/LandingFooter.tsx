@@ -60,8 +60,8 @@ export default function LandingFooter() {
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 16 }}>Legal</div>
             {[
-              { label: "Privacy Policy", href: "/privacy" },
-              { label: "Terms of Service", href: "/terms" },
+              { label: "Privacy Policy", href: "/privacy-policy" },
+              { label: "Terms of Service", href: "/terms-of-service" },
             ].map(l => (
               <a key={l.label} href={l.href} style={{ display: "block", fontSize: 13, color: T.faint, textDecoration: "none", marginBottom: 10 }}>
                 {l.label}

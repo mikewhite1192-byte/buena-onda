@@ -38,7 +38,9 @@ export default clerkMiddleware(async (auth, req) => {
     path === "/legal" ||
     path.startsWith("/legal/") ||
     path === "/privacy-policy" ||
-    path === "/terms-of-service"
+    path === "/terms-of-service" ||
+    path === "/privacy" ||
+    path === "/terms"
   ) {
     return NextResponse.next();
   }
