@@ -45,6 +45,7 @@ interface Client {
   roas_target: number | null;
   monthly_budget: number | null;
   notes: string | null;
+  google_customer_id: string | null;
 }
 
 interface CampaignDetail {
@@ -286,6 +287,22 @@ function ClientCard({
   const [notesSaving, setNotesSaving] = useState(false);
   const [notesSaved, setNotesSaved] = useState(false);
 
+  // Google Ads metrics for this client
+  const [googleMetrics, setGoogleMetrics] = useState<{ spend: number; conversions: number; cpa: number | null } | null>(null);
+  useEffect(() => {
+    if (!client.google_customer_id) return;
+    fetch(`/api/google-ads/metrics?customer_id=${client.google_customer_id}`)
+      .then(r => r.json())
+      .then(data => {
+        const rows = (data.metrics ?? []) as { spend: number; conversions: number }[];
+        const spend = rows.reduce((s, r) => s + (r.spend ?? 0), 0);
+        const conversions = rows.reduce((s, r) => s + (r.conversions ?? 0), 0);
+        const cpa = conversions > 0 ? spend / conversions : null;
+        setGoogleMetrics({ spend, conversions, cpa });
+      })
+      .catch(() => {});
+  }, [client.google_customer_id]);
+
   useEffect(() => {
     setLoading(true);
     if (!client.meta_connected) {
@@ -403,6 +420,34 @@ function ClientCard({
           </div>
         )}
       </div>
+
+      {/* Platform rows — only shown when multiple platforms active */}
+      {(client.meta_connected || googleMetrics) && (
+        <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 5 }}>
+          {client.meta_connected && metrics && metrics.campaignCount > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: T.muted }}>
+              <span>📘</span>
+              <span style={{ color: T.faint, minWidth: 46 }}>Meta</span>
+              <span style={{ color: T.accent, fontWeight: 600 }}>${metrics.totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+              <span style={{ color: T.faint }}>·</span>
+              {isLeads
+                ? <span style={{ color: T.leads }}>{metrics.totalLeads} leads</span>
+                : <span style={{ color: T.ecomm }}>{metrics.totalPurchases} purchases · {metrics.avgROAS > 0 ? `${metrics.avgROAS.toFixed(2)}x ROAS` : "—"}</span>
+              }
+            </div>
+          )}
+          {googleMetrics && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: T.muted }}>
+              <span>🔍</span>
+              <span style={{ color: T.faint, minWidth: 46 }}>Google</span>
+              <span style={{ color: T.accent, fontWeight: 600 }}>${googleMetrics.spend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+              <span style={{ color: T.faint }}>·</span>
+              <span style={{ color: "#4fc3f7" }}>{googleMetrics.conversions} conversions</span>
+              {googleMetrics.cpa && <><span style={{ color: T.faint }}>·</span><span>${googleMetrics.cpa.toFixed(0)} CPA</span></>}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Footer */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, paddingTop: 10, borderTop: `1px solid ${T.border}` }}>
