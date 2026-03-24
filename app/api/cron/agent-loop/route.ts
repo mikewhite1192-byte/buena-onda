@@ -10,6 +10,7 @@ import { runLearningEngine } from "@/lib/agent/learning-engine";
 import { fetchAdInsightsForFatigue } from "@/lib/meta/insights";
 import { runFatigueDetection } from "@/lib/agent/fatigue-detector";
 import type { CampaignBrief } from "@/lib/db/schema";
+import { sendWhatsAppMessage } from "@/lib/whatsapp/client";
 
 // Vercel cron jobs call with a secret in the Authorization header.
 // Set CRON_SECRET in env to secure this endpoint.
@@ -195,6 +196,27 @@ export async function GET(req: Request) {
           reason: decision.reason,
           meta_result: metaResult,
         });
+
+        // Notify client owner via WhatsApp if they have a number set
+        if (brief.client_id) {
+          sql`
+            SELECT us.whatsapp_number, c.name AS client_name
+            FROM clients c
+            JOIN user_subscriptions us ON us.clerk_user_id = c.owner_id
+            WHERE c.id = ${brief.client_id}
+              AND us.whatsapp_number IS NOT NULL
+            LIMIT 1
+          `.then(rows => {
+            if (rows.length > 0) {
+              const { whatsapp_number, client_name } = rows[0];
+              const emoji = decision.action === 'pause' ? '⏸️' : decision.action === 'scale' ? '📈' : '🔍';
+              const msg = `${emoji} *Agent Action — ${client_name}*\n\n*${decision.action.toUpperCase()}* on ad set ${decision.ad_set_id}\n*Reason:* ${decision.reason}\n*Result:* ${metaResult}\n\n_Reply to ask questions or give instructions._`;
+              sendWhatsAppMessage(whatsapp_number, msg).catch(err =>
+                console.error('[agent-loop] WhatsApp notify error:', err)
+              );
+            }
+          }).catch(() => { /* non-fatal */ });
+        }
       }
     } catch (err) {
       briefSummary.error = (err as Error).message;

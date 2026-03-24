@@ -165,6 +165,9 @@ CREATE TABLE IF NOT EXISTS user_subscriptions (
 
 CREATE INDEX IF NOT EXISTS idx_user_subscriptions_clerk_user_id ON user_subscriptions(clerk_user_id);
 CREATE INDEX IF NOT EXISTS idx_user_subscriptions_stripe_customer_id ON user_subscriptions(stripe_customer_id);
+
+-- User WhatsApp number for agent alerts and weekly reports
+ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS whatsapp_number TEXT;
 `;
 
 // TypeScript types matching the tables
