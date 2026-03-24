@@ -66,14 +66,20 @@ interface DashboardData {
 
 function DashboardInner() {
   const params = useSearchParams();
-  const emailParam = params.get("email") || "";
   const connectStatus = params.get("connect");
+  const errorParam = params.get("error");
 
-  const [email, setEmail] = useState(emailParam);
-  const [inputEmail, setInputEmail] = useState(emailParam);
+  const [email, setEmail] = useState("");
+  const [inputEmail, setInputEmail] = useState("");
+  const [sentLink, setSentLink] = useState(false);
+  const [sendingLink, setSendingLink] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(
+    errorParam === "expired" ? "Your login link expired. Request a new one below." :
+    errorParam === "used" ? "That login link has already been used. Request a new one." :
+    errorParam === "invalid" ? "Invalid login link. Request a new one below." : ""
+  );
   const [copied, setCopied] = useState(false);
   const [connectLoading, setConnectLoading] = useState(false);
   const [connectMsg, setConnectMsg] = useState(
@@ -88,19 +94,17 @@ function DashboardInner() {
       const res = await fetch(`/api/affiliates/dashboard?email=${encodeURIComponent(em)}`);
       if (!res.ok) {
         const j = await res.json();
-        setError(j.error || "Not found. Make sure you use the email you signed up with.");
+        setError(j.error || "Not found.");
         setData(null);
       } else {
         const d = await res.json();
         setData(d);
-        // If connect=success, verify with backend
         if (connectStatus === "success" && !d.stripe_onboarded) {
           await fetch("/api/affiliates/connect/complete", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email: em }),
           });
-          // Refetch
           const res2 = await fetch(`/api/affiliates/dashboard?email=${encodeURIComponent(em)}`);
           if (res2.ok) setData(await res2.json());
         }
@@ -112,14 +116,45 @@ function DashboardInner() {
     }
   }, [connectStatus]);
 
+  // On mount: check cookie for logged-in email
   useEffect(() => {
-    if (emailParam) fetchDashboard(emailParam);
-  }, [emailParam, fetchDashboard]);
+    fetch("/api/affiliates/login/me")
+      .then(r => r.json())
+      .then(d => {
+        if (d.email) {
+          setEmail(d.email);
+          fetchDashboard(d.email);
+        } else {
+          setLoading(false);
+        }
+      })
+      .catch(() => setLoading(false));
+  }, [fetchDashboard]);
 
-  function handleLookup(e: React.FormEvent) {
+  async function requestLink(e: React.FormEvent) {
     e.preventDefault();
-    setEmail(inputEmail);
-    fetchDashboard(inputEmail);
+    if (!inputEmail.trim()) return;
+    setSendingLink(true);
+    setError("");
+    try {
+      await fetch("/api/affiliates/login/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inputEmail.trim() }),
+      });
+      setSentLink(true);
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setSendingLink(false);
+    }
+  }
+
+  async function logout() {
+    await fetch("/api/affiliates/login/me", { method: "DELETE" });
+    setData(null);
+    setEmail("");
+    setSentLink(false);
   }
 
   function copyLink() {
@@ -166,31 +201,52 @@ function DashboardInner() {
             Buena Onda
           </span>
         </Link>
-        <Link href="/affiliates" style={{ fontSize: 12, color: T.muted, textDecoration: "none" }}>← Affiliate program</Link>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <Link href="/affiliates" style={{ fontSize: 12, color: T.muted, textDecoration: "none" }}>← Affiliate program</Link>
+          {email && (
+            <button onClick={logout} style={{ fontSize: 12, color: T.faint, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>Sign out</button>
+          )}
+        </div>
       </div>
 
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "40px 24px" }}>
         <h1 style={{ fontSize: 26, fontWeight: 800, color: T.text, margin: "0 0 4px" }}>Affiliate Dashboard</h1>
         <p style={{ fontSize: 13, color: T.muted, margin: "0 0 32px" }}>Track your referrals, earnings, and milestones.</p>
 
-        {/* Email lookup if no email in URL */}
-        {!email && (
-          <form onSubmit={handleLookup} style={{ display: "flex", gap: 10, maxWidth: 480, marginBottom: 32 }}>
-            <input
-              type="email"
-              value={inputEmail}
-              onChange={(e) => setInputEmail(e.target.value)}
-              placeholder="your@email.com"
-              required
-              style={{ flex: 1, background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: "11px 14px", color: T.text, fontSize: 13, fontFamily: "inherit" }}
-            />
-            <button
-              type="submit"
-              style={{ background: "linear-gradient(135deg,#f5a623,#f76b1c)", border: "none", borderRadius: 8, padding: "11px 20px", color: "#0d0f14", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
-            >
-              Load Dashboard
-            </button>
-          </form>
+        {/* Magic link login if not authenticated */}
+        {!email && !loading && (
+          <div style={{ maxWidth: 440, marginBottom: 32 }}>
+            {sentLink ? (
+              <div style={{ background: T.greenBg, border: "1px solid rgba(34,197,94,0.25)", borderRadius: 12, padding: "20px 24px" }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: T.green, marginBottom: 6 }}>Check your email</div>
+                <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.6 }}>
+                  We sent a login link to <strong style={{ color: T.text }}>{inputEmail}</strong>. It expires in 30 minutes.
+                </div>
+                <button onClick={() => setSentLink(false)} style={{ marginTop: 14, background: "none", border: "none", color: T.muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit", padding: 0 }}>
+                  Use a different email →
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={requestLink}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 6 }}>Sign in to your dashboard</div>
+                <div style={{ fontSize: 12, color: T.muted, marginBottom: 16 }}>We'll email you a secure login link — no password needed.</div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <input
+                    type="email"
+                    value={inputEmail}
+                    onChange={e => setInputEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    required
+                    style={{ flex: 1, background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: "11px 14px", color: T.text, fontSize: 13, fontFamily: "inherit", outline: "none" }}
+                  />
+                  <button type="submit" disabled={sendingLink || !inputEmail.trim()}
+                    style={{ background: "linear-gradient(135deg,#f5a623,#f76b1c)", border: "none", borderRadius: 8, padding: "11px 20px", color: "#0d0f14", fontWeight: 700, fontSize: 13, cursor: sendingLink ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: sendingLink ? 0.7 : 1, whiteSpace: "nowrap" }}>
+                    {sendingLink ? "Sending…" : "Send Link"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
         )}
 
         {loading && (
