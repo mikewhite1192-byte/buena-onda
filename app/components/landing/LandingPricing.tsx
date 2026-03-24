@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@clerk/nextjs";
 
 const T = {
   accent: "#f5a623",
@@ -75,8 +76,13 @@ const PLANS = [
 
 export default function LandingPricing() {
   const [loading, setLoading] = useState<string | null>(null);
+  const { isSignedIn } = useAuth();
 
   async function checkout(plan: typeof PLANS[0]) {
+    if (!isSignedIn) {
+      window.location.href = `/sign-up?redirect_url=${encodeURIComponent("/#pricing")}`;
+      return;
+    }
     setLoading(plan.name);
     try {
       const res = await fetch("/api/stripe/checkout", {

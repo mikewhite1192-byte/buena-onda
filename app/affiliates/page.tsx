@@ -275,18 +275,19 @@ export default function AffiliatesPage() {
 
               <div style={{ display: "flex", gap: 10, justifyContent: "center", marginBottom: 20 }}>
                 <a
-                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`I use @BuenaOndaAI to manage Meta, Google, and TikTok ads with AI. Try it: ${referralLink}`)}`}
+                  href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}&quote=${encodeURIComponent(`I use Buena Onda AI to manage Meta ads with AI. Try it free:`)}`}
                   target="_blank" rel="noopener noreferrer"
                   style={{ padding: "8px 16px", borderRadius: 7, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, fontSize: 12, textDecoration: "none", fontWeight: 600 }}
                 >
-                  Share on X
+                  Share on Facebook
                 </a>
                 <a
-                  href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(referralLink)}`}
+                  href={`https://www.instagram.com/`}
                   target="_blank" rel="noopener noreferrer"
-                  style={{ padding: "8px 16px", borderRadius: 7, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, fontSize: 12, textDecoration: "none", fontWeight: 600 }}
+                  onClick={(e) => { e.preventDefault(); navigator.clipboard.writeText(`I use Buena Onda AI to manage Meta ads with AI. Try it free: ${referralLink}`); alert("Caption copied! Paste it into your Instagram post."); }}
+                  style={{ padding: "8px 16px", borderRadius: 7, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, fontSize: 12, textDecoration: "none", fontWeight: 600, cursor: "pointer" }}
                 >
-                  Share on LinkedIn
+                  Share on Instagram
                 </a>
               </div>
 
