@@ -17,7 +17,6 @@ export async function handleIncomingMessage(from: string, message: string): Prom
     const userRows = await sql`
       SELECT clerk_user_id FROM user_subscriptions
       WHERE whatsapp_number = ${from}
-        AND status IN ('active', 'trialing')
       LIMIT 1
     `
 

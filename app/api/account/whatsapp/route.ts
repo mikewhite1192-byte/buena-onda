@@ -28,9 +28,11 @@ export async function PATCH(req: NextRequest) {
   const normalized = whatsapp_number ? digits : null;
 
   await sql`
-    UPDATE user_subscriptions
-    SET whatsapp_number = ${normalized}, updated_at = NOW()
-    WHERE clerk_user_id = ${userId}
+    INSERT INTO user_subscriptions (clerk_user_id, stripe_customer_id, stripe_subscription_id, status, whatsapp_number)
+    VALUES (${userId}, '', '', 'active', ${normalized})
+    ON CONFLICT (clerk_user_id) DO UPDATE SET
+      whatsapp_number = ${normalized},
+      updated_at = NOW()
   `;
 
   return NextResponse.json({ ok: true, whatsapp_number: normalized });
