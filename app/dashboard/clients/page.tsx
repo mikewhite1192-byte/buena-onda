@@ -20,6 +20,8 @@ interface Client {
   monthly_budget: number | null;
   website_url: string | null;
   google_customer_id: string | null;
+  tiktok_advertiser_id: string | null;
+  shopify_domain: string | null;
 }
 
 interface AdAccount {
@@ -73,6 +75,16 @@ export default function ClientsPage() {
   const [googleConnectClientId, setGoogleConnectClientId] = useState<string | null>(null);
   const [googleCustomerInput, setGoogleCustomerInput] = useState("");
   const [savingGoogle, setSavingGoogle] = useState(false);
+
+  // TikTok connect
+  const [tiktokConnectClientId, setTiktokConnectClientId] = useState<string | null>(null);
+  const [tiktokAdvertiserInput, setTiktokAdvertiserInput] = useState("");
+  const [savingTiktok, setSavingTiktok] = useState(false);
+
+  // Shopify connect
+  const [shopifyConnectClientId, setShopifyConnectClientId] = useState<string | null>(null);
+  const [shopifyDomainInput, setShopifyDomainInput] = useState("");
+  const [savingShopify, setSavingShopify] = useState(false);
 
   // Client rules / memory panel
   const [rulesClientId, setRulesClientId] = useState<string | null>(null);
@@ -247,6 +259,49 @@ export default function ClientsPage() {
       setError("Failed to save Google customer ID");
     } finally {
       setSavingGoogle(false);
+    }
+  }
+
+  async function saveTiktokAdvertiserId() {
+    if (!tiktokConnectClientId || !tiktokAdvertiserInput.trim()) return;
+    setSavingTiktok(true);
+    try {
+      const res = await fetch(`/api/clients/${tiktokConnectClientId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tiktok_advertiser_id: tiktokAdvertiserInput.trim() }),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      setTiktokConnectClientId(null);
+      setTiktokAdvertiserInput("");
+      setSuccessMsg("TikTok Ads connected to client.");
+      await loadClients();
+    } catch {
+      setError("Failed to save TikTok advertiser ID");
+    } finally {
+      setSavingTiktok(false);
+    }
+  }
+
+  async function saveShopifyDomain() {
+    if (!shopifyConnectClientId || !shopifyDomainInput.trim()) return;
+    setSavingShopify(true);
+    try {
+      const domain = shopifyDomainInput.trim().toLowerCase().replace(/^https?:\/\//, "");
+      const res = await fetch(`/api/clients/${shopifyConnectClientId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shopify_domain: domain }),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      setShopifyConnectClientId(null);
+      setShopifyDomainInput("");
+      setSuccessMsg("Shopify connected to client.");
+      await loadClients();
+    } catch {
+      setError("Failed to save Shopify domain");
+    } finally {
+      setSavingShopify(false);
     }
   }
 
@@ -456,38 +511,45 @@ export default function ClientsPage() {
                   {c.meta_page_id ? ` · Page: ${c.meta_page_id}` : " · No page ID"}
                   {c.whatsapp_number ? ` · WA: ${c.whatsapp_number}` : ""}
                 </div>
-                <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  {/* Facebook */}
                   {(() => {
                     const status = getTokenStatus(c);
-                    const badge = status === "connected"
-                      ? { bg: "#0f2f1a", color: "#4ade80", text: "FB Connected" }
-                      : status === "expiring"
-                      ? { bg: "#2a2000", color: "#facc15", text: "Token expiring" }
-                      : { bg: "#1a1a1a", color: "#8b8fa8", text: "FB Not connected" };
+                    if (status === "connected") return (
+                      <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, background: "#0f2f1a", color: "#4ade80", fontWeight: 700, letterSpacing: "0.04em" }}>FB ✓</span>
+                    );
+                    if (status === "expiring") return (
+                      <a href={`/api/auth/facebook?clientId=${c.id}`} style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, background: "#2a2000", color: "#facc15", fontWeight: 700, textDecoration: "none", letterSpacing: "0.04em" }}>FB expiring</a>
+                    );
                     return (
-                      <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 4, background: badge.bg, color: badge.color, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>
-                        {badge.text}
-                      </span>
+                      <a href={`/api/auth/facebook?clientId=${c.id}`} style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, background: "rgba(245,166,35,0.1)", color: "#f5a623", fontWeight: 700, textDecoration: "none", letterSpacing: "0.04em" }}>+ Connect FB</a>
                     );
                   })()}
-                  {getTokenStatus(c) !== "connected" && (
-                    <a
-                      href={`/api/auth/facebook?clientId=${c.id}`}
-                      style={{ fontSize: 10, color: "#f5a623", textDecoration: "none", fontWeight: 600 }}
-                    >
-                      Connect Facebook →
-                    </a>
-                  )}
+
+                  {/* Google Ads */}
                   {c.google_customer_id ? (
-                    <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 4, background: "#0f1f2f", color: "#4fc3f7", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>
-                      Google Connected
-                    </span>
+                    <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, background: "#0f1f2f", color: "#4fc3f7", fontWeight: 700, letterSpacing: "0.04em" }}>Google ✓</span>
                   ) : (
-                    <button
-                      onClick={() => { setGoogleConnectClientId(c.id); setGoogleCustomerInput(""); }}
-                      style={{ fontSize: 10, color: "#4fc3f7", background: "none", border: "none", padding: 0, cursor: "pointer", fontWeight: 600, fontFamily: "inherit" }}
-                    >
-                      Connect Google Ads →
+                    <button onClick={() => { setGoogleConnectClientId(c.id); setGoogleCustomerInput(""); }} style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, background: "rgba(79,195,247,0.1)", color: "#4fc3f7", fontWeight: 700, border: "none", cursor: "pointer", fontFamily: "inherit", letterSpacing: "0.04em" }}>
+                      + Connect Google Ads
+                    </button>
+                  )}
+
+                  {/* TikTok Ads */}
+                  {c.tiktok_advertiser_id ? (
+                    <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, background: "rgba(255,0,80,0.12)", color: "#ff0050", fontWeight: 700, letterSpacing: "0.04em" }}>TikTok ✓</span>
+                  ) : (
+                    <button onClick={() => { setTiktokConnectClientId(c.id); setTiktokAdvertiserInput(""); }} style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, background: "rgba(255,0,80,0.08)", color: "#ff0050", fontWeight: 700, border: "none", cursor: "pointer", fontFamily: "inherit", letterSpacing: "0.04em" }}>
+                      + Connect TikTok Ads
+                    </button>
+                  )}
+
+                  {/* Shopify */}
+                  {c.shopify_domain ? (
+                    <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, background: "rgba(150,191,98,0.12)", color: "#96bf62", fontWeight: 700, letterSpacing: "0.04em" }}>Shopify ✓</span>
+                  ) : (
+                    <button onClick={() => { setShopifyConnectClientId(c.id); setShopifyDomainInput(""); }} style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, background: "rgba(150,191,98,0.08)", color: "#96bf62", fontWeight: 700, border: "none", cursor: "pointer", fontFamily: "inherit", letterSpacing: "0.04em" }}>
+                      + Connect Shopify
                     </button>
                   )}
                 </div>
@@ -622,6 +684,70 @@ export default function ClientsPage() {
                 onClick={() => setGoogleConnectClientId(null)}
                 style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 16px", fontSize: 13, color: "#8b8fa8", cursor: "pointer", fontFamily: "inherit" }}
               >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TikTok Ads Connect Modal */}
+      {tiktokConnectClientId && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setTiktokConnectClientId(null); }}>
+          <div style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "28px 32px", width: 440, maxWidth: "90vw" }}>
+            <h2 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 700, color: "#e8eaf0", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
+              Connect TikTok Ads
+            </h2>
+            <p style={{ margin: "0 0 20px", fontSize: 12, color: "#8b8fa8", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
+              Enter the TikTok Ads Advertiser ID for this client. Find it in TikTok Ads Manager → Account Info.
+            </p>
+            <input
+              type="text"
+              placeholder="e.g. 7123456789012345678"
+              value={tiktokAdvertiserInput}
+              onChange={e => setTiktokAdvertiserInput(e.target.value)}
+              style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#e8eaf0", fontFamily: "'DM Mono', 'Fira Mono', monospace", outline: "none", boxSizing: "border-box" as const }}
+            />
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button onClick={saveTiktokAdvertiserId} disabled={savingTiktok || !tiktokAdvertiserInput.trim()}
+                style={{ flex: 1, background: "#ff0050", border: "none", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 700, color: "#fff", cursor: savingTiktok || !tiktokAdvertiserInput.trim() ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: savingTiktok || !tiktokAdvertiserInput.trim() ? 0.5 : 1 }}>
+                {savingTiktok ? "Saving…" : "Save"}
+              </button>
+              <button onClick={() => setTiktokConnectClientId(null)}
+                style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 16px", fontSize: 13, color: "#8b8fa8", cursor: "pointer", fontFamily: "inherit" }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shopify Connect Modal */}
+      {shopifyConnectClientId && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShopifyConnectClientId(null); }}>
+          <div style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "28px 32px", width: 440, maxWidth: "90vw" }}>
+            <h2 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 700, color: "#e8eaf0", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
+              Connect Shopify
+            </h2>
+            <p style={{ margin: "0 0 20px", fontSize: 12, color: "#8b8fa8", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
+              Enter this client&apos;s Shopify store domain.
+            </p>
+            <input
+              type="text"
+              placeholder="mystore.myshopify.com"
+              value={shopifyDomainInput}
+              onChange={e => setShopifyDomainInput(e.target.value)}
+              style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#e8eaf0", fontFamily: "'DM Mono', 'Fira Mono', monospace", outline: "none", boxSizing: "border-box" as const }}
+            />
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button onClick={saveShopifyDomain} disabled={savingShopify || !shopifyDomainInput.trim()}
+                style={{ flex: 1, background: "#96bf62", border: "none", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 700, color: "#0d0f14", cursor: savingShopify || !shopifyDomainInput.trim() ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: savingShopify || !shopifyDomainInput.trim() ? 0.5 : 1 }}>
+                {savingShopify ? "Saving…" : "Save"}
+              </button>
+              <button onClick={() => setShopifyConnectClientId(null)}
+                style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 16px", fontSize: 13, color: "#8b8fa8", cursor: "pointer", fontFamily: "inherit" }}>
                 Cancel
               </button>
             </div>

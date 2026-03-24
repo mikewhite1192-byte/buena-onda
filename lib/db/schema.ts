@@ -51,6 +51,8 @@ ALTER TABLE clients ADD COLUMN IF NOT EXISTS whatsapp_number TEXT;
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS notes TEXT;
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS google_customer_id TEXT;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS tiktok_advertiser_id TEXT;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS shopify_domain TEXT;
 
 CREATE TABLE IF NOT EXISTS campaign_briefs (
   id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
