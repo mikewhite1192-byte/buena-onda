@@ -2,6 +2,7 @@
 // Handles WhatsApp webhook verification (GET) and incoming messages (POST)
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 
 import { NextResponse } from 'next/server'
 import { handleIncomingMessage } from '@/lib/whatsapp/conversation'
@@ -35,27 +36,25 @@ export async function POST(req: Request) {
     const value = body.entry[0].changes[0].value
     const messages = value.messages
 
+    // Process all text messages — await so Vercel doesn't kill the function before reply sends
+    const tasks: Promise<void>[] = []
     for (const msg of messages) {
-      // Only handle text messages for now
-      if (msg.type !== 'text') {
-        console.log(`[whatsapp] Skipping non-text message type: ${msg.type}`)
-        continue
-      }
-
-      const from = msg.from        // sender's WhatsApp number
-      const text = msg.text.body   // message content
-
-      // Handle async — don't await so Meta doesn't timeout
-      handleIncomingMessage(from, text).catch(err => {
-        console.error('[whatsapp] handleIncomingMessage error:', err)
-      })
+      if (msg.type !== 'text') continue
+      const from = msg.from
+      const text = msg.text.body
+      tasks.push(
+        handleIncomingMessage(from, text).catch(err =>
+          console.error('[whatsapp] handleIncomingMessage error:', err)
+        )
+      )
     }
 
-    // Always return 200 immediately — Meta will retry if it doesn't get this
+    await Promise.all(tasks)
+
     return NextResponse.json({ ok: true })
 
   } catch (err) {
     console.error('[whatsapp] Webhook POST error:', err)
-    return NextResponse.json({ ok: true }) // Still return 200 to prevent Meta retries
+    return NextResponse.json({ ok: true })
   }
 }
