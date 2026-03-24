@@ -465,6 +465,21 @@ function DashboardContent() {
   const [actionError, setActionError] = useState<Record<string, string>>({});
   const [recentBudgetIncreases, setRecentBudgetIncreases] = useState<Set<string>>(new Set());
 
+  // Google platform breakdown
+  const [googleBreakdown, setGoogleBreakdown] = useState<{ totalSpend: number; totalConversions: number } | null>(null);
+  useEffect(() => {
+    fetch("/api/google-ads/metrics")
+      .then(r => r.json())
+      .then(data => {
+        if (!data.connected) return;
+        const metrics = (data.metrics ?? []) as { spend: number; conversions: number }[];
+        const totalSpend = metrics.reduce((s: number, c: { spend: number }) => s + (c.spend ?? 0), 0);
+        const totalConversions = metrics.reduce((s: number, c: { conversions: number }) => s + (c.conversions ?? 0), 0);
+        setGoogleBreakdown({ totalSpend, totalConversions });
+      })
+      .catch(() => {});
+  }, []);
+
   // ── Date range ─────────────────────────────────────────────────────────────
   function daysAgo(n: number) {
     return new Date(Date.now() - n * 86400000).toISOString().split("T")[0];
@@ -774,6 +789,78 @@ function DashboardContent() {
             <div style={{ fontSize: 12, color: T.muted, marginTop: 4 }}>{s.sub}</div>
           </div>
         ))}
+      </div>
+
+      {/* Platform Breakdown */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 12 }}>Platform Breakdown</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
+          {/* Meta */}
+          <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "16px 18px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <span style={{ fontSize: 16 }}>📘</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Meta</span>
+              <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: connectedCount > 0 ? T.healthyBg : "rgba(139,143,168,0.1)", color: connectedCount > 0 ? T.healthy : T.muted, fontWeight: 600 }}>
+                {connectedCount > 0 ? `${connectedCount} connected` : "Not connected"}
+              </span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div>
+                <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Spend</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: T.accent }}>${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Leads</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: T.leads }}>{totalLeads.toLocaleString()}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Google */}
+          <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "16px 18px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <span style={{ fontSize: 16 }}>🔍</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Google</span>
+              <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: googleBreakdown ? T.healthyBg : "rgba(139,143,168,0.1)", color: googleBreakdown ? T.healthy : T.muted, fontWeight: 600 }}>
+                {googleBreakdown ? "Connected" : "Not connected"}
+              </span>
+            </div>
+            {googleBreakdown ? (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Spend</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: T.accent }}>${googleBreakdown.totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Conversions</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: "#4fc3f7" }}>{googleBreakdown.totalConversions.toLocaleString()}</div>
+                </div>
+              </div>
+            ) : (
+              <a href="/dashboard/settings" style={{ fontSize: 11, color: "#4285f4", textDecoration: "none" }}>Connect in Settings →</a>
+            )}
+          </div>
+
+          {/* TikTok */}
+          <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "16px 18px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <span style={{ fontSize: 16 }}>🎵</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>TikTok</span>
+              <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: "rgba(139,143,168,0.08)", color: T.faint, fontWeight: 600 }}>Soon</span>
+            </div>
+            <div style={{ fontSize: 11, color: T.faint }}>Integration coming soon</div>
+          </div>
+
+          {/* Shopify */}
+          <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "16px 18px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <span style={{ fontSize: 16 }}>🛍</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Shopify</span>
+              <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: "rgba(139,143,168,0.08)", color: T.faint, fontWeight: 600 }}>Soon</span>
+            </div>
+            <div style={{ fontSize: 11, color: T.faint }}>Integration coming soon</div>
+          </div>
+        </div>
       </div>
 
       {/* Two-column layout */}

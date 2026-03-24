@@ -686,6 +686,15 @@ function getDefaultStatCards(vertical: string) {
 export default function CampaignsPage() {
   const { activeClient } = useActiveClient();
 
+  type CampaignPlatform = "meta" | "google" | "tiktok" | "shopify";
+  const [activePlatform, setActivePlatform] = useState<CampaignPlatform>("meta");
+
+  // Google Ads state
+  const [googleCampaigns, setGoogleCampaigns] = useState<{campaign_id: string; campaign_name: string | null; spend: number; conversions: number; cpa: number | null; ctr: number; impressions: number; clicks: number; status?: string}[]>([]);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleConnected, setGoogleConnected] = useState(false);
+  const [googleCustomerId, setGoogleCustomerId] = useState<string | null>(null);
+
   const [campaigns, setCampaigns] = useState<CampaignMetric[]>([]);
   const [apiError, setApiError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -831,6 +840,20 @@ export default function CampaignsPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => { if (showCharts) fetchTimeseries(); }, [showCharts, fetchTimeseries]);
+
+  useEffect(() => {
+    if (activePlatform !== "google") return;
+    setGoogleLoading(true);
+    fetch("/api/google-ads/metrics")
+      .then(r => r.json())
+      .then(data => {
+        setGoogleConnected(data.connected ?? false);
+        setGoogleCustomerId(data.customer_id ?? null);
+        setGoogleCampaigns(data.metrics ?? []);
+      })
+      .catch(() => setGoogleCampaigns([]))
+      .finally(() => setGoogleLoading(false));
+  }, [activePlatform]);
 
   // Expand/collapse campaign → load its ad sets
   async function toggleCampaignExpand(campaignId: string) {
@@ -1019,6 +1042,40 @@ export default function CampaignsPage() {
             )}
           </div>
         </div>
+
+        {/* Platform Tabs */}
+        <div style={{ display: "flex", gap: 4, marginBottom: 28, borderBottom: "1px solid rgba(255,255,255,0.06)", paddingBottom: 0 }}>
+          {[
+            { value: "meta", label: "📘 Meta", color: "#1877f2" },
+            { value: "google", label: "🔍 Google", color: "#4285f4" },
+            { value: "tiktok", label: "🎵 TikTok", color: "#ff0050" },
+            { value: "shopify", label: "🛍 Shopify", color: "#96bf48" },
+          ].map(p => (
+            <button
+              key={p.value}
+              onClick={() => setActivePlatform(p.value as CampaignPlatform)}
+              style={{
+                padding: "8px 18px",
+                fontSize: 13,
+                fontWeight: 600,
+                background: "transparent",
+                border: "none",
+                borderBottom: activePlatform === p.value ? `2px solid ${p.color}` : "2px solid transparent",
+                color: activePlatform === p.value ? "#e8eaf0" : "#5a5e72",
+                cursor: "pointer",
+                fontFamily: "'DM Mono', 'Fira Mono', monospace",
+                marginBottom: -1,
+                transition: "all 0.15s",
+              }}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Meta Tab */}
+        {activePlatform === "meta" && (
+        <>
 
         {/* Stat Cards */}
         {loading ? (
@@ -1430,6 +1487,122 @@ export default function CampaignsPage() {
             </div>
           </>
         )}
+
+        </>
+        )}
+        {/* End Meta Tab */}
+
+        {/* Google Ads Tab */}
+        {activePlatform === "google" && (
+          <div>
+            {!googleConnected ? (
+              <div style={{ textAlign: "center", padding: "80px 0" }}>
+                <div style={{ fontSize: 40, marginBottom: 16 }}>🔍</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#e8eaf0", marginBottom: 8 }}>Google Ads not connected</div>
+                <div style={{ fontSize: 13, color: "#8b8fa8", marginBottom: 24 }}>Connect your Google Ads account in Settings to see campaign data here.</div>
+                <a href="/dashboard/settings" style={{ padding: "10px 24px", background: "#4285f4", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
+                  Go to Settings →
+                </a>
+              </div>
+            ) : googleLoading ? (
+              <div style={{ textAlign: "center", padding: "60px 0", color: "#8b8fa8", fontSize: 13 }}>Loading Google campaigns…</div>
+            ) : (
+              <div>
+                {/* Header row */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+                  <div style={{ fontSize: 12, color: "#8b8fa8" }}>Customer ID: {googleCustomerId} · {googleCampaigns.length} campaign{googleCampaigns.length !== 1 ? "s" : ""}</div>
+                  <button onClick={() => {
+                    setGoogleLoading(true);
+                    fetch("/api/google-ads/metrics").then(r => r.json()).then(data => { setGoogleCampaigns(data.metrics ?? []); }).finally(() => setGoogleLoading(false));
+                  }} style={{ fontSize: 12, color: "#8b8fa8", background: "transparent", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit" }}>
+                    Refresh
+                  </button>
+                </div>
+
+                {/* Stat cards row */}
+                {googleCampaigns.length > 0 && (() => {
+                  const totalSpend = googleCampaigns.reduce((s, c) => s + (c.spend ?? 0), 0);
+                  const totalConv = googleCampaigns.reduce((s, c) => s + (c.conversions ?? 0), 0);
+                  const avgCPA = totalConv > 0 ? totalSpend / totalConv : null;
+                  const totalImpr = googleCampaigns.reduce((s, c) => s + (c.impressions ?? 0), 0);
+                  const avgCTR = googleCampaigns.length > 0 ? googleCampaigns.reduce((s, c) => s + (c.ctr ?? 0), 0) / googleCampaigns.length : 0;
+                  void totalImpr;
+                  return (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
+                      {[
+                        { label: "Total Spend", value: `$${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, color: "#f5a623" },
+                        { label: "Conversions", value: totalConv.toLocaleString(), color: "#2ecc71" },
+                        { label: "Avg CPA", value: avgCPA ? `$${avgCPA.toFixed(2)}` : "—", color: "#e8eaf0" },
+                        { label: "Avg CTR", value: `${(avgCTR * 100).toFixed(2)}%`, color: "#4fc3f7" },
+                      ].map(s => (
+                        <div key={s.label} style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "16px 20px" }}>
+                          <div style={{ fontSize: 11, color: "#5a5e72", textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 8 }}>{s.label}</div>
+                          <div style={{ fontSize: 24, fontWeight: 700, color: s.color, letterSpacing: "-0.5px" }}>{s.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+
+                {/* Campaign table */}
+                {googleCampaigns.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "60px 0", color: "#8b8fa8", fontSize: 13 }}>
+                    No Google Ads data yet. Data syncs daily at 7am UTC.
+                  </div>
+                ) : (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                      <thead>
+                        <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                          {["Campaign", "Status", "Spend", "Impressions", "Clicks", "CTR", "Conversions", "CPA"].map(h => (
+                            <th key={h} style={{ padding: "8px 12px", textAlign: h === "Campaign" ? "left" : "right" as const, color: "#5a5e72", fontSize: 11, textTransform: "uppercase" as const, letterSpacing: "0.08em", fontWeight: 600 }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {googleCampaigns.map((c, i) => (
+                          <tr key={c.campaign_id} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)" }}>
+                            <td style={{ padding: "10px 12px", color: "#e8eaf0", fontWeight: 600, maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.campaign_name ?? c.campaign_id}</td>
+                            <td style={{ padding: "10px 12px", textAlign: "right" as const }}>
+                              <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 4, background: c.status === "ENABLED" ? "rgba(46,204,113,0.1)" : "rgba(139,143,168,0.1)", color: c.status === "ENABLED" ? "#2ecc71" : "#8b8fa8", fontWeight: 700 }}>
+                                {c.status ?? "—"}
+                              </span>
+                            </td>
+                            <td style={{ padding: "10px 12px", textAlign: "right" as const, color: "#f5a623" }}>${(c.spend ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                            <td style={{ padding: "10px 12px", textAlign: "right" as const, color: "#e8eaf0" }}>{(c.impressions ?? 0).toLocaleString()}</td>
+                            <td style={{ padding: "10px 12px", textAlign: "right" as const, color: "#e8eaf0" }}>{(c.clicks ?? 0).toLocaleString()}</td>
+                            <td style={{ padding: "10px 12px", textAlign: "right" as const, color: "#4fc3f7" }}>{((c.ctr ?? 0) * 100).toFixed(2)}%</td>
+                            <td style={{ padding: "10px 12px", textAlign: "right" as const, color: "#2ecc71" }}>{(c.conversions ?? 0).toLocaleString()}</td>
+                            <td style={{ padding: "10px 12px", textAlign: "right" as const, color: "#e8eaf0" }}>{c.cpa ? `$${c.cpa.toFixed(2)}` : "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TikTok Coming Soon */}
+        {activePlatform === "tiktok" && (
+          <div style={{ textAlign: "center", padding: "80px 0" }}>
+            <div style={{ fontSize: 40, marginBottom: 16 }}>🎵</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#e8eaf0", marginBottom: 8 }}>TikTok Ads — Coming Soon</div>
+            <div style={{ fontSize: 13, color: "#8b8fa8" }}>TikTok Ads integration is on the roadmap. Check back soon.</div>
+          </div>
+        )}
+
+        {/* Shopify Coming Soon */}
+        {activePlatform === "shopify" && (
+          <div style={{ textAlign: "center", padding: "80px 0" }}>
+            <div style={{ fontSize: 40, marginBottom: 16 }}>🛍</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#e8eaf0", marginBottom: 8 }}>Shopify — Coming Soon</div>
+            <div style={{ fontSize: 13, color: "#8b8fa8" }}>Shopify integration is on the roadmap. Check back soon.</div>
+          </div>
+        )}
+
       </div>
     </div>
   );

@@ -96,6 +96,7 @@ export default function ReportsPage() {
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [emailSent, setEmailSent] = useState(false);
+  const [platform, setPlatform] = useState<"meta" | "google" | "tiktok" | "shopify">("meta");
 
   useEffect(() => {
     fetch("/api/clients")
@@ -156,9 +157,45 @@ export default function ReportsPage() {
           <p style={{ color: T.muted, fontSize: 13, margin: 0 }}>Generate performance reports · Email to clients · Print to PDF</p>
         </div>
 
+        {/* Platform Tabs */}
+        <div className="no-print" style={{ display: "flex", gap: 4, marginBottom: 20, borderBottom: `1px solid ${T.border}`, paddingBottom: 0 }}>
+          {[
+            { value: "meta", label: "📘 Meta" },
+            { value: "google", label: "🔍 Google" },
+            { value: "tiktok", label: "🎵 TikTok" },
+            { value: "shopify", label: "🛍 Shopify" },
+          ].map(p => (
+            <button
+              key={p.value}
+              onClick={() => { setPlatform(p.value as typeof platform); setReport(null); setError(null); }}
+              style={{
+                padding: "8px 18px", fontSize: 13, fontWeight: 600,
+                background: "transparent", border: "none",
+                borderBottom: platform === p.value ? `2px solid ${T.accent}` : "2px solid transparent",
+                color: platform === p.value ? T.text : T.faint,
+                cursor: "pointer", fontFamily: "inherit", marginBottom: -1, transition: "all 0.15s",
+              }}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Coming soon for TikTok/Shopify */}
+        {(platform === "tiktok" || platform === "shopify") && (
+          <div className="no-print" style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "60px 24px", marginBottom: 28, textAlign: "center" }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>{platform === "tiktok" ? "🎵" : "🛍"}</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 8 }}>{platform === "tiktok" ? "TikTok" : "Shopify"} Reports — Coming Soon</div>
+            <div style={{ fontSize: 13, color: T.muted }}>This integration is on the roadmap. Check back soon.</div>
+          </div>
+        )}
+
         {/* Generator panel */}
+        {(platform === "meta" || platform === "google") && (
         <div className="no-print" style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "24px", marginBottom: 28 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 20 }}>Generate Report</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 20 }}>
+            Generate {platform === "google" ? "Google Ads" : "Meta"} Report
+          </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 16 }}>
             {/* Client */}
@@ -267,6 +304,7 @@ export default function ReportsPage() {
             </div>
           )}
         </div>
+        )}
 
         {/* Report output */}
         {report && (
