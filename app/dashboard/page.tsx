@@ -597,6 +597,14 @@ function DashboardContent() {
   const totalLeads = clients
     .filter(c => c.vertical === "leads")
     .reduce((s, c) => s + (allMetrics[c.id]?.totalLeads ?? 0), 0);
+  const totalRevenue = clients
+    .filter(c => c.vertical === "ecomm")
+    .reduce((s, c) => s + (allMetrics[c.id]?.totalPurchaseValue ?? 0), 0);
+  const ecommSpend = clients
+    .filter(c => c.vertical === "ecomm")
+    .reduce((s, c) => s + (allMetrics[c.id]?.totalSpend ?? 0), 0);
+  const avgROAS = ecommSpend > 0 ? totalRevenue / ecommSpend : 0;
+  const ecommClientCount = clients.filter(c => c.vertical === "ecomm").length;
   const attentionCount = Object.values(allMetrics).filter(m => m.status === "critical" || m.status === "warning").length;
   const connectedCount = clients.filter(c => c.meta_connected).length;
 
@@ -807,12 +815,26 @@ function DashboardContent() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               <div>
                 <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Spend</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: T.accent }}>${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: T.accent }}>${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               </div>
               <div>
                 <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Leads</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: T.leads }}>{totalLeads.toLocaleString()}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: T.leads }}>{totalLeads.toLocaleString()}</div>
               </div>
+              {ecommClientCount > 0 && (
+                <>
+                  <div>
+                    <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Revenue</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: T.ecomm }}>${totalRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Avg ROAS</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: avgROAS >= 2 ? T.healthy : avgROAS > 0 ? T.warning : T.faint }}>
+                      {avgROAS > 0 ? `${avgROAS.toFixed(2)}x` : "—"}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
