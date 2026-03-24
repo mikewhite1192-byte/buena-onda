@@ -169,6 +169,13 @@ CREATE INDEX IF NOT EXISTS idx_user_subscriptions_stripe_customer_id ON user_sub
 -- User WhatsApp number for agent alerts and weekly reports
 ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS whatsapp_number TEXT;
 
+-- Platform support on campaign_briefs (meta | google | tiktok | shopify)
+ALTER TABLE campaign_briefs ADD COLUMN IF NOT EXISTS platform TEXT NOT NULL DEFAULT 'meta';
+ALTER TABLE campaign_briefs ADD COLUMN IF NOT EXISTS google_campaign_resource_name TEXT;
+ALTER TABLE campaign_briefs ADD COLUMN IF NOT EXISTS google_budget_resource_name TEXT;
+ALTER TABLE campaign_briefs ADD COLUMN IF NOT EXISTS google_ad_group_resource_name TEXT;
+ALTER TABLE campaign_briefs ADD COLUMN IF NOT EXISTS google_customer_id TEXT;
+
 -- Google Ads OAuth connections
 CREATE TABLE IF NOT EXISTS google_ads_connections (
   id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),

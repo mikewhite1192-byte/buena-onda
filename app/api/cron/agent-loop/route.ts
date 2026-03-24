@@ -11,6 +11,8 @@ import { fetchAdInsightsForFatigue } from "@/lib/meta/insights";
 import { runFatigueDetection } from "@/lib/agent/fatigue-detector";
 import type { CampaignBrief } from "@/lib/db/schema";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/client";
+import { refreshGoogleAdsToken } from "@/lib/google-ads/client";
+import { pauseCampaign, enableCampaign, updateCampaignBudget } from "@/lib/google-ads/campaigns";
 
 // Vercel cron jobs call with a secret in the Authorization header.
 // Set CRON_SECRET in env to secure this endpoint.
@@ -226,6 +228,84 @@ export async function GET(req: Request) {
     summary.push(briefSummary);
   }
 
+  // ── Google Ads Campaign Management ────────────────────────────────────────
+  let google_actions_taken = 0;
+  try {
+    const googleConnections = await sql`
+      SELECT clerk_user_id, refresh_token, customer_id, manager_id
+      FROM google_ads_connections
+      WHERE refresh_token IS NOT NULL AND customer_id IS NOT NULL
+    `;
+
+    for (const conn of googleConnections) {
+      try {
+        const accessToken = await refreshGoogleAdsToken(conn.refresh_token as string);
+
+        // Get last 7 days of metrics aggregated by campaign
+        const metrics = await sql`
+          SELECT campaign_id, campaign_name,
+            SUM(spend) AS total_spend,
+            SUM(conversions) AS total_conversions,
+            AVG(ctr) AS avg_ctr,
+            MAX(date_recorded) AS last_date
+          FROM google_ad_metrics
+          WHERE clerk_user_id = ${conn.clerk_user_id}
+            AND date_recorded >= NOW() - INTERVAL '7 days'
+          GROUP BY campaign_id, campaign_name
+        `;
+
+        // Get user's campaign briefs for thresholds
+        const googleBriefs = await sql`
+          SELECT cb.*, c.cpl_target, c.roas_target
+          FROM campaign_briefs cb
+          LEFT JOIN clients c ON c.id = cb.client_id
+          WHERE cb.platform = 'google'
+            AND cb.google_customer_id = ${conn.customer_id}
+            AND cb.status = 'active'
+        `;
+
+        for (const metric of metrics) {
+          const spend = parseFloat(metric.total_spend as string ?? '0');
+          const conversions = parseFloat(metric.total_conversions as string ?? '0');
+          const cpa = conversions > 0 ? spend / conversions : null;
+
+          // Match to brief for thresholds
+          const brief = googleBriefs.find(b => b.google_campaign_resource_name?.includes(metric.campaign_id as string));
+          const cpaCap = brief?.cpl_cap ? parseFloat(brief.cpl_cap as string) : null;
+          const dailyBudget = brief?.daily_budget ? parseFloat(brief.daily_budget as string) : null;
+          const campaignResourceName = `customers/${(conn.customer_id as string).replace(/-/g, '')}/campaigns/${metric.campaign_id}`;
+          const budgetResourceName = brief?.google_budget_resource_name as string | undefined;
+
+          if (cpaCap && cpa && conversions >= 3) {
+            if (cpa > cpaCap * 1.3) {
+              // Pause — CPA 30% over cap with enough data
+              await pauseCampaign(accessToken, conn.customer_id as string, campaignResourceName, conn.manager_id as string | null);
+              if (brief) {
+                await sql`INSERT INTO agent_actions (campaign_brief_id, action_type, details, triggered_by)
+                  VALUES (${brief.id}, 'pause', ${JSON.stringify({ campaign_id: metric.campaign_id, reason: `Google Ads CPA $${cpa?.toFixed(2)} exceeds cap $${cpaCap} by 30%`, platform: 'google' })}, 'agent')`;
+              }
+              google_actions_taken++;
+            } else if (cpa < cpaCap * 0.7 && conversions >= 5 && dailyBudget && budgetResourceName) {
+              // Scale — CPA 30% under cap with 5+ conversions
+              const newBudget = dailyBudget * 1.2;
+              await updateCampaignBudget(accessToken, conn.customer_id as string, budgetResourceName, newBudget, conn.manager_id as string | null);
+              if (brief) {
+                await sql`INSERT INTO agent_actions (campaign_brief_id, action_type, details, triggered_by)
+                  VALUES (${brief.id}, 'scale', ${JSON.stringify({ campaign_id: metric.campaign_id, reason: `Google Ads CPA $${cpa?.toFixed(2)} well under cap $${cpaCap}`, new_budget: newBudget, platform: 'google' })}, 'agent')`;
+              }
+              google_actions_taken++;
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`[agent-loop] Google Ads processing error for user ${conn.clerk_user_id}:`, err);
+      }
+    }
+  } catch (err) {
+    console.error('[agent-loop] Google Ads section error:', err);
+  }
+  // ── End Google Ads Campaign Management ────────────────────────────────────
+
   // ── Creative Fatigue Detection ─────────────────────────────────────────────
   console.log('[agent-loop] Running creative fatigue detection...')
   let fatigue_flagged = 0;
@@ -267,6 +347,7 @@ export async function GET(req: Request) {
     completedAt: new Date().toISOString(),
     briefs_processed: briefs.length,
     fatigue_flagged,
+    google_actions_taken,
     summary,
   });
 }
