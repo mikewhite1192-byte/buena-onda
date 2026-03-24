@@ -31,12 +31,8 @@ export async function GET() {
 
   for (const conn of connections) {
     try {
-      // Fetch last 30 days of orders
-      const since = new Date()
-      since.setDate(since.getDate() - 30)
-      const sinceStr = since.toISOString()
-
-      const orders = await getShopifyOrders(conn.shop, conn.access_token, sinceStr)
+      // Fetch all orders (paginated)
+      const orders = await getShopifyOrders(conn.shop, conn.access_token)
 
       // Group orders by day
       const byDay: Record<string, { orders: number; revenue: number }> = {}

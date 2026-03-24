@@ -52,26 +52,34 @@ export async function getShopInfo(shop: string, accessToken: string): Promise<Sh
   return data.shop
 }
 
+// Fetches ALL orders via cursor pagination (no date limit)
 export async function getShopifyOrders(
   shop: string,
-  accessToken: string,
-  sinceDate: string
+  accessToken: string
 ): Promise<ShopifyOrder[]> {
-  const url = new URL(`https://${shop}/admin/api/2024-01/orders.json`)
-  url.searchParams.set('status', 'any')
-  url.searchParams.set('created_at_min', sinceDate)
-  url.searchParams.set('limit', '250')
-  url.searchParams.set('fields', 'id,total_price,created_at,financial_status')
+  const allOrders: ShopifyOrder[] = []
+  let nextUrl: string | null = `https://${shop}/admin/api/2024-01/orders.json?status=any&limit=250&fields=id,total_price,created_at,financial_status`
 
-  const res = await fetch(url.toString(), {
-    headers: {
-      'X-Shopify-Access-Token': accessToken,
-      'Content-Type': 'application/json',
-    },
-  })
-  if (!res.ok) throw new Error(`Failed to fetch orders: ${res.status}`)
-  const data = await res.json()
-  return data.orders ?? []
+  while (nextUrl) {
+    const pageRes: Response = await fetch(nextUrl, {
+      headers: {
+        'X-Shopify-Access-Token': accessToken,
+        'Content-Type': 'application/json',
+      },
+    })
+    if (!pageRes.ok) throw new Error(`Failed to fetch orders: ${pageRes.status}`)
+
+    const data = await pageRes.json()
+    const page: ShopifyOrder[] = data.orders ?? []
+    allOrders.push(...page)
+
+    // Follow cursor-based pagination via Link header
+    const linkHeader: string = pageRes.headers.get('Link') ?? ''
+    const nextMatch: RegExpMatchArray | null = linkHeader.match(/<([^>]+)>;\s*rel="next"/)
+    nextUrl = nextMatch ? nextMatch[1] : null
+  }
+
+  return allOrders
 }
 
 export async function getShopifyAnalytics(
