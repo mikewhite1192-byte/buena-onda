@@ -71,20 +71,19 @@ export default function ClientsPage() {
   const [discoveredAccounts, setDiscoveredAccounts] = useState<AdAccount[]>([]);
   const [pickingAccount, setPickingAccount] = useState(false);
 
-  // Google Ads connect
+  // Google Ads multi-account picker (after OAuth)
   const [googleConnectClientId, setGoogleConnectClientId] = useState<string | null>(null);
-  const [googleCustomerInput, setGoogleCustomerInput] = useState("");
+  const [googleCustomers, setGoogleCustomers] = useState<string[]>([]);
   const [savingGoogle, setSavingGoogle] = useState(false);
 
-  // TikTok connect
+  // TikTok multi-advertiser picker (after OAuth)
   const [tiktokConnectClientId, setTiktokConnectClientId] = useState<string | null>(null);
-  const [tiktokAdvertiserInput, setTiktokAdvertiserInput] = useState("");
+  const [tiktokAdvertisers, setTiktokAdvertisers] = useState<{advertiser_id: string; advertiser_name: string}[]>([]);
   const [savingTiktok, setSavingTiktok] = useState(false);
 
-  // Shopify connect
+  // Shopify domain input (needed before OAuth redirect)
   const [shopifyConnectClientId, setShopifyConnectClientId] = useState<string | null>(null);
   const [shopifyDomainInput, setShopifyDomainInput] = useState("");
-  const [savingShopify, setSavingShopify] = useState(false);
 
   // Client rules / memory panel
   const [rulesClientId, setRulesClientId] = useState<string | null>(null);
@@ -101,8 +100,43 @@ export default function ClientsPage() {
     const params = new URLSearchParams(window.location.search);
     const connected = params.get("connected");
     const accounts = params.get("accounts");
+    const googleConnected = params.get("google_connected");
+    const googleCustomersParam = params.get("customers");
+    const tiktokConnected = params.get("tiktok_connected");
+    const tiktokAdvertisersParam = params.get("advertisers");
+    const shopifyConnected = params.get("shopify_connected");
     const oauthError = params.get("error");
     window.history.replaceState({}, "", window.location.pathname);
+
+    // Google Ads callback
+    if (googleConnected && googleCustomersParam) {
+      try {
+        const decoded = JSON.parse(Buffer.from(googleCustomersParam, "base64").toString()) as string[];
+        setGoogleConnectClientId(googleConnected);
+        setGoogleCustomers(decoded);
+        setSuccessMsg("Google Ads authorized! Select which customer account to use.");
+      } catch { setSuccessMsg("Google Ads connected."); }
+    } else if (googleConnected) {
+      setSuccessMsg("Google Ads connected to client.");
+    }
+
+    // TikTok callback
+    if (tiktokConnected && tiktokAdvertisersParam) {
+      try {
+        const decoded = JSON.parse(Buffer.from(tiktokAdvertisersParam, "base64").toString()) as {advertiser_id: string; advertiser_name: string}[];
+        setTiktokConnectClientId(tiktokConnected);
+        setTiktokAdvertisers(decoded);
+        setSuccessMsg("TikTok Ads authorized! Select which advertiser account to use.");
+      } catch { setSuccessMsg("TikTok Ads connected."); }
+    } else if (tiktokConnected) {
+      setSuccessMsg("TikTok Ads connected to client.");
+    }
+
+    // Shopify callback
+    if (shopifyConnected) {
+      setSuccessMsg("Shopify connected to client.");
+    }
+
     if (connected && accounts) {
       try {
         const decoded = JSON.parse(Buffer.from(accounts, "base64").toString()) as AdAccount[];
@@ -241,67 +275,43 @@ export default function ClientsPage() {
     }
   }
 
-  async function saveGoogleCustomerId() {
-    if (!googleConnectClientId || !googleCustomerInput.trim()) return;
+  async function selectGoogleCustomer(customerId: string) {
+    if (!googleConnectClientId) return;
     setSavingGoogle(true);
     try {
-      const res = await fetch(`/api/clients/${googleConnectClientId}`, {
+      await fetch(`/api/clients/${googleConnectClientId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ google_customer_id: googleCustomerInput.trim().replace(/-/g, "") }),
+        body: JSON.stringify({ google_customer_id: customerId }),
       });
-      if (!res.ok) throw new Error("Save failed");
       setGoogleConnectClientId(null);
-      setGoogleCustomerInput("");
-      setSuccessMsg("Google Ads connected to client.");
+      setGoogleCustomers([]);
+      setSuccessMsg("Google Ads customer account linked to client.");
       await loadClients();
     } catch {
-      setError("Failed to save Google customer ID");
+      setError("Failed to link Google customer account");
     } finally {
       setSavingGoogle(false);
     }
   }
 
-  async function saveTiktokAdvertiserId() {
-    if (!tiktokConnectClientId || !tiktokAdvertiserInput.trim()) return;
+  async function selectTiktokAdvertiser(advertiserId: string) {
+    if (!tiktokConnectClientId) return;
     setSavingTiktok(true);
     try {
-      const res = await fetch(`/api/clients/${tiktokConnectClientId}`, {
+      await fetch(`/api/clients/${tiktokConnectClientId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tiktok_advertiser_id: tiktokAdvertiserInput.trim() }),
+        body: JSON.stringify({ tiktok_advertiser_id: advertiserId }),
       });
-      if (!res.ok) throw new Error("Save failed");
       setTiktokConnectClientId(null);
-      setTiktokAdvertiserInput("");
-      setSuccessMsg("TikTok Ads connected to client.");
+      setTiktokAdvertisers([]);
+      setSuccessMsg("TikTok advertiser account linked to client.");
       await loadClients();
     } catch {
-      setError("Failed to save TikTok advertiser ID");
+      setError("Failed to link TikTok advertiser");
     } finally {
       setSavingTiktok(false);
-    }
-  }
-
-  async function saveShopifyDomain() {
-    if (!shopifyConnectClientId || !shopifyDomainInput.trim()) return;
-    setSavingShopify(true);
-    try {
-      const domain = shopifyDomainInput.trim().toLowerCase().replace(/^https?:\/\//, "");
-      const res = await fetch(`/api/clients/${shopifyConnectClientId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shopify_domain: domain }),
-      });
-      if (!res.ok) throw new Error("Save failed");
-      setShopifyConnectClientId(null);
-      setShopifyDomainInput("");
-      setSuccessMsg("Shopify connected to client.");
-      await loadClients();
-    } catch {
-      setError("Failed to save Shopify domain");
-    } finally {
-      setSavingShopify(false);
     }
   }
 
@@ -530,21 +540,21 @@ export default function ClientsPage() {
                   {c.google_customer_id ? (
                     <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, background: "#0f1f2f", color: "#4fc3f7", fontWeight: 700, letterSpacing: "0.04em" }}>Google ✓</span>
                   ) : (
-                    <button onClick={() => { setGoogleConnectClientId(c.id); setGoogleCustomerInput(""); }} style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, background: "rgba(79,195,247,0.1)", color: "#4fc3f7", fontWeight: 700, border: "none", cursor: "pointer", fontFamily: "inherit", letterSpacing: "0.04em" }}>
+                    <a href={`/api/google-ads/connect?clientId=${c.id}`} style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, background: "rgba(79,195,247,0.1)", color: "#4fc3f7", fontWeight: 700, textDecoration: "none", letterSpacing: "0.04em" }}>
                       + Connect Google Ads
-                    </button>
+                    </a>
                   )}
 
                   {/* TikTok Ads */}
                   {c.tiktok_advertiser_id ? (
                     <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, background: "rgba(255,0,80,0.12)", color: "#ff0050", fontWeight: 700, letterSpacing: "0.04em" }}>TikTok ✓</span>
                   ) : (
-                    <button onClick={() => { setTiktokConnectClientId(c.id); setTiktokAdvertiserInput(""); }} style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, background: "rgba(255,0,80,0.08)", color: "#ff0050", fontWeight: 700, border: "none", cursor: "pointer", fontFamily: "inherit", letterSpacing: "0.04em" }}>
+                    <a href={`/api/tiktok-ads/connect?clientId=${c.id}`} style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, background: "rgba(255,0,80,0.08)", color: "#ff0050", fontWeight: 700, textDecoration: "none", letterSpacing: "0.04em" }}>
                       + Connect TikTok Ads
-                    </button>
+                    </a>
                   )}
 
-                  {/* Shopify */}
+                  {/* Shopify — needs domain first, then OAuth redirect */}
                   {c.shopify_domain ? (
                     <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, background: "rgba(150,191,98,0.12)", color: "#96bf62", fontWeight: 700, letterSpacing: "0.04em" }}>Shopify ✓</span>
                   ) : (
@@ -652,100 +662,74 @@ export default function ClientsPage() {
         </div>
       )}
 
-      {/* Google Ads Connect Modal */}
-      {googleConnectClientId && (
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center" }}
-          onClick={(e) => { if (e.target === e.currentTarget) setGoogleConnectClientId(null); }}
-        >
-          <div style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "28px 32px", width: 440, maxWidth: "90vw" }}>
-            <h2 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 700, color: "#e8eaf0", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
-              Connect Google Ads
-            </h2>
-            <p style={{ margin: "0 0 20px", fontSize: 12, color: "#8b8fa8", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
-              Enter the Google Ads Customer ID for this client (digits only, e.g. 1234567890).
-            </p>
-            <input
-              type="text"
-              placeholder="e.g. 1234567890"
-              value={googleCustomerInput}
-              onChange={e => setGoogleCustomerInput(e.target.value)}
-              style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#e8eaf0", fontFamily: "'DM Mono', 'Fira Mono', monospace", outline: "none", boxSizing: "border-box" }}
-            />
-            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-              <button
-                onClick={saveGoogleCustomerId}
-                disabled={savingGoogle || !googleCustomerInput.trim()}
-                style={{ flex: 1, background: "#4fc3f7", border: "none", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 700, color: "#0d0f14", cursor: savingGoogle || !googleCustomerInput.trim() ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: savingGoogle || !googleCustomerInput.trim() ? 0.5 : 1 }}
-              >
-                {savingGoogle ? "Saving…" : "Save"}
-              </button>
-              <button
-                onClick={() => setGoogleConnectClientId(null)}
-                style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 16px", fontSize: 13, color: "#8b8fa8", cursor: "pointer", fontFamily: "inherit" }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TikTok Ads Connect Modal */}
-      {tiktokConnectClientId && (
+      {/* Google Ads — Multi-account picker (after OAuth) */}
+      {googleConnectClientId && googleCustomers.length > 0 && (
         <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center" }}
-          onClick={(e) => { if (e.target === e.currentTarget) setTiktokConnectClientId(null); }}>
-          <div style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "28px 32px", width: 440, maxWidth: "90vw" }}>
-            <h2 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 700, color: "#e8eaf0", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
-              Connect TikTok Ads
-            </h2>
-            <p style={{ margin: "0 0 20px", fontSize: 12, color: "#8b8fa8", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
-              Enter the TikTok Ads Advertiser ID for this client. Find it in TikTok Ads Manager → Account Info.
-            </p>
-            <input
-              type="text"
-              placeholder="e.g. 7123456789012345678"
-              value={tiktokAdvertiserInput}
-              onChange={e => setTiktokAdvertiserInput(e.target.value)}
-              style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#e8eaf0", fontFamily: "'DM Mono', 'Fira Mono', monospace", outline: "none", boxSizing: "border-box" as const }}
-            />
-            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-              <button onClick={saveTiktokAdvertiserId} disabled={savingTiktok || !tiktokAdvertiserInput.trim()}
-                style={{ flex: 1, background: "#ff0050", border: "none", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 700, color: "#fff", cursor: savingTiktok || !tiktokAdvertiserInput.trim() ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: savingTiktok || !tiktokAdvertiserInput.trim() ? 0.5 : 1 }}>
-                {savingTiktok ? "Saving…" : "Save"}
-              </button>
-              <button onClick={() => setTiktokConnectClientId(null)}
-                style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 16px", fontSize: 13, color: "#8b8fa8", cursor: "pointer", fontFamily: "inherit" }}>
-                Cancel
-              </button>
+          onClick={(e) => { if (e.target === e.currentTarget) { setGoogleConnectClientId(null); setGoogleCustomers([]); } }}>
+          <div style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "28px 32px", width: 480, maxWidth: "90vw" }}>
+            <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 700, color: "#e8eaf0", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>Select Google Ads Account</h2>
+            <p style={{ margin: "0 0 20px", fontSize: 12, color: "#8b8fa8", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>Multiple accounts found. Choose which one to use for this client.</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {googleCustomers.map(cid => (
+                <button key={cid} onClick={() => selectGoogleCustomer(cid)} disabled={savingGoogle}
+                  style={{ background: "#0d0f14", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "12px 16px", cursor: savingGoogle ? "not-allowed" : "pointer", textAlign: "left", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = "#4fc3f7")}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)")}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#e8eaf0" }}>{cid}</div>
+                </button>
+              ))}
             </div>
+            <button onClick={() => { setGoogleConnectClientId(null); setGoogleCustomers([]); }} style={{ marginTop: 16, background: "transparent", border: "none", color: "#8b8fa8", fontSize: 12, cursor: "pointer", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>Cancel</button>
           </div>
         </div>
       )}
 
-      {/* Shopify Connect Modal */}
+      {/* TikTok Ads — Multi-advertiser picker (after OAuth) */}
+      {tiktokConnectClientId && tiktokAdvertisers.length > 0 && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={(e) => { if (e.target === e.currentTarget) { setTiktokConnectClientId(null); setTiktokAdvertisers([]); } }}>
+          <div style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "28px 32px", width: 480, maxWidth: "90vw" }}>
+            <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 700, color: "#e8eaf0", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>Select TikTok Advertiser</h2>
+            <p style={{ margin: "0 0 20px", fontSize: 12, color: "#8b8fa8", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>Multiple advertisers found. Choose which one to use for this client.</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {tiktokAdvertisers.map(adv => (
+                <button key={adv.advertiser_id} onClick={() => selectTiktokAdvertiser(adv.advertiser_id)} disabled={savingTiktok}
+                  style={{ background: "#0d0f14", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "12px 16px", cursor: savingTiktok ? "not-allowed" : "pointer", textAlign: "left", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = "#ff0050")}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)")}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#e8eaf0" }}>{adv.advertiser_name}</div>
+                  <div style={{ fontSize: 11, color: "#8b8fa8", marginTop: 2 }}>{adv.advertiser_id}</div>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => { setTiktokConnectClientId(null); setTiktokAdvertisers([]); }} style={{ marginTop: 16, background: "transparent", border: "none", color: "#8b8fa8", fontSize: 12, cursor: "pointer", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Shopify — Enter domain first, then OAuth redirect */}
       {shopifyConnectClientId && (
         <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center" }}
           onClick={(e) => { if (e.target === e.currentTarget) setShopifyConnectClientId(null); }}>
           <div style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "28px 32px", width: 440, maxWidth: "90vw" }}>
-            <h2 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 700, color: "#e8eaf0", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
-              Connect Shopify
-            </h2>
+            <h2 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 700, color: "#e8eaf0", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>Connect Shopify</h2>
             <p style={{ margin: "0 0 20px", fontSize: 12, color: "#8b8fa8", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
-              Enter this client&apos;s Shopify store domain.
+              Enter the client&apos;s Shopify store domain. You&apos;ll be redirected to authorize Buena Onda.
             </p>
             <input
               type="text"
               placeholder="mystore.myshopify.com"
               value={shopifyDomainInput}
-              onChange={e => setShopifyDomainInput(e.target.value)}
+              onChange={e => setShopifyDomainInput(e.target.value.toLowerCase().trim())}
               style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#e8eaf0", fontFamily: "'DM Mono', 'Fira Mono', monospace", outline: "none", boxSizing: "border-box" as const }}
             />
             <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-              <button onClick={saveShopifyDomain} disabled={savingShopify || !shopifyDomainInput.trim()}
-                style={{ flex: 1, background: "#96bf62", border: "none", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 700, color: "#0d0f14", cursor: savingShopify || !shopifyDomainInput.trim() ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: savingShopify || !shopifyDomainInput.trim() ? 0.5 : 1 }}>
-                {savingShopify ? "Saving…" : "Save"}
-              </button>
+              <a
+                href={shopifyDomainInput ? `/api/shopify/connect?shop=${shopifyDomainInput}&clientId=${shopifyConnectClientId}` : "#"}
+                onClick={e => { if (!shopifyDomainInput) e.preventDefault(); }}
+                style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: shopifyDomainInput ? "#96bf62" : "rgba(255,255,255,0.05)", border: "none", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 700, color: shopifyDomainInput ? "#0d0f14" : "#5a5e72", cursor: shopifyDomainInput ? "pointer" : "not-allowed", fontFamily: "inherit", textDecoration: "none" }}>
+                Authorize with Shopify →
+              </a>
               <button onClick={() => setShopifyConnectClientId(null)}
                 style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 16px", fontSize: 13, color: "#8b8fa8", cursor: "pointer", fontFamily: "inherit" }}>
                 Cancel

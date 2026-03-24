@@ -9,7 +9,7 @@ const sql = neon(process.env.DATABASE_URL!)
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const code = searchParams.get('code')
-  const state = searchParams.get('state')
+  const state = searchParams.get('state') // userId__shop or userId__shop__clientId
   const shop = searchParams.get('shop')
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://buenaonda.ai'
 
@@ -17,12 +17,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${appUrl}/dashboard/settings?shopify=error`)
   }
 
-  // state = userId__shop
-  const [userId] = state.split('__')
+  const parts = state.split('__')
+  const userId = parts[0]
+  const clientId = parts[2] ?? null // present when connecting from client card
+  const redirectBase = clientId ? `${appUrl}/dashboard/clients` : `${appUrl}/dashboard/settings`
+
   if (!userId) return NextResponse.redirect(`${appUrl}/dashboard/settings?shopify=error`)
 
   try {
-    // Ensure table exists
     await sql`
       CREATE TABLE IF NOT EXISTS shopify_connections (
         id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -56,9 +58,18 @@ export async function GET(req: NextRequest) {
         updated_at   = now()
     `
 
-    return NextResponse.redirect(`${appUrl}/dashboard/settings?shopify=connected`)
+    // Link shop domain to the specific client
+    if (clientId) {
+      await sql`
+        UPDATE clients SET shopify_domain = ${shop}
+        WHERE id = ${clientId} AND owner_id = ${userId}
+      `
+      return NextResponse.redirect(`${redirectBase}?shopify_connected=${clientId}`)
+    }
+
+    return NextResponse.redirect(`${redirectBase}?shopify=connected`)
   } catch (err) {
     console.error('[shopify/callback]', err)
-    return NextResponse.redirect(`${appUrl}/dashboard/settings?shopify=error`)
+    return NextResponse.redirect(`${redirectBase}?shopify=error`)
   }
 }

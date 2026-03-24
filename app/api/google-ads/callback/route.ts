@@ -10,15 +10,19 @@ const sql = neon(process.env.DATABASE_URL!)
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const code = searchParams.get('code')
-  const userId = searchParams.get('state')
+  const state = searchParams.get('state') // userId or userId__clientId
   const error = searchParams.get('error')
 
   const base = process.env.NEXT_PUBLIC_BASE_URL!
 
-  if (error || !code || !userId) {
-    console.error('[google-ads] Callback error or missing params:', { error, code: !!code, userId })
+  if (error || !code || !state) {
+    console.error('[google-ads] Callback error or missing params:', { error, code: !!code, state })
     return NextResponse.redirect(`${base}/dashboard/settings?google_ads=error`)
   }
+
+  // Parse state: userId or userId__clientId
+  const [userId, clientId] = state.split('__')
+  const redirectBase = clientId ? `${base}/dashboard/clients` : `${base}/dashboard/settings`
 
   try {
     // Exchange authorization code for tokens
@@ -37,20 +41,21 @@ export async function GET(req: Request) {
     const tokens = await tokenRes.json()
     if (!tokenRes.ok || !tokens.refresh_token) {
       console.error('[google-ads] Token exchange failed:', tokens)
-      return NextResponse.redirect(`${base}/dashboard/settings?google_ads=error`)
+      return NextResponse.redirect(`${redirectBase}?google_ads=error`)
     }
 
-    // List accessible Google Ads customer accounts — pick the first one
-    let customerId: string | null = null
+    // List accessible Google Ads customer accounts
+    let customers: string[] = []
     try {
-      const customers = await listAccessibleCustomers(tokens.access_token)
-      customerId = customers[0] ?? null
+      customers = await listAccessibleCustomers(tokens.access_token)
       console.log('[google-ads] Accessible customers:', customers)
     } catch (e) {
       console.error('[google-ads] listAccessibleCustomers error:', e)
     }
 
-    // Upsert connection into DB
+    const customerId = customers[0] ?? null
+
+    // Upsert connection into DB (account-level)
     const expiresAt = new Date(Date.now() + (tokens.expires_in ?? 3600) * 1000).toISOString()
     await sql`
       INSERT INTO google_ads_connections (clerk_user_id, access_token, refresh_token, customer_id, token_expires_at)
@@ -63,10 +68,25 @@ export async function GET(req: Request) {
         updated_at       = NOW()
     `
 
-    return NextResponse.redirect(`${base}/dashboard/settings?google_ads=connected`)
+    // If connecting for a specific client, link the customer ID to that client
+    if (clientId && customers.length === 1 && customerId) {
+      await sql`
+        UPDATE clients SET google_customer_id = ${customerId}
+        WHERE id = ${clientId} AND owner_id = ${userId}
+      `
+      return NextResponse.redirect(`${redirectBase}?google_connected=${clientId}`)
+    }
+
+    // Multiple accounts — send them to clients page with a picker
+    if (clientId && customers.length > 1) {
+      const encoded = Buffer.from(JSON.stringify(customers)).toString('base64')
+      return NextResponse.redirect(`${redirectBase}?google_connected=${clientId}&customers=${encoded}`)
+    }
+
+    return NextResponse.redirect(`${redirectBase}?google_ads=connected`)
 
   } catch (err) {
     console.error('[google-ads] Callback error:', err)
-    return NextResponse.redirect(`${base}/dashboard/settings?google_ads=error`)
+    return NextResponse.redirect(`${redirectBase}?google_ads=error`)
   }
 }

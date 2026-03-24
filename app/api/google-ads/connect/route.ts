@@ -4,11 +4,14 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
-export async function GET() {
+export async function GET(req: Request) {
   const { userId } = await auth()
   if (!userId) {
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/sign-in`)
   }
+
+  const { searchParams } = new URL(req.url)
+  const clientId = searchParams.get('clientId') ?? ''
 
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_ADS_CLIENT_ID!,
@@ -17,7 +20,7 @@ export async function GET() {
     scope: 'https://www.googleapis.com/auth/adwords',
     access_type: 'offline',
     prompt: 'consent',
-    state: userId,
+    state: clientId ? `${userId}__${clientId}` : userId,
   })
 
   return NextResponse.redirect(
