@@ -19,14 +19,16 @@ export async function GET(req: Request) {
   const connections = await sql`
     SELECT clerk_user_id, refresh_token, customer_id, manager_id
     FROM google_ads_connections
-    WHERE customer_id IS NOT NULL
-      AND refresh_token IS NOT NULL
   `
 
   let synced = 0
   let errors = 0
 
   for (const conn of connections) {
+    if (!conn.refresh_token || !conn.customer_id) {
+      console.log(`[google-ads-sync] Skipping user ${conn.clerk_user_id} — missing refresh_token or customer_id`)
+      continue
+    }
     try {
       // Refresh access token
       const accessToken = await refreshGoogleAdsToken(conn.refresh_token as string)
@@ -102,5 +104,6 @@ export async function GET(req: Request) {
     }
   }
 
-  return NextResponse.json({ synced, errors, total: connections.length })
+  const debug = connections.map(c => ({ user: c.clerk_user_id, has_token: !!c.refresh_token, has_customer: !!c.customer_id }))
+  return NextResponse.json({ synced, errors, total: connections.length, debug })
 }
