@@ -22,7 +22,7 @@ const BASE_URL = "https://buenaonda.ai";
 
 const MILESTONES = [
   { count: 1,  icon: "🎯", label: "First referral",    reward: "Personal welcome video from the founders" },
-  { count: 3,  icon: "🎁", label: "3 active clients",  reward: "Your account is free — as long as you maintain 3 active clients" },
+  { count: 5,  icon: "🏆", label: "5 active clients",  reward: "Bonus 10% commission bump for the month" },
   { count: 10, icon: "⭐", label: "10 active clients", reward: "Personal strategy call + featured partner" },
 ];
 
@@ -137,7 +137,7 @@ export default function AffiliatesPage() {
             ))}
           </div>
           <p style={{ fontSize: 17, color: T.muted, maxWidth: 500, margin: "0 auto 14px", lineHeight: 1.7 }}>
-            50% on their first month. 40% every month after. Refer 3 clients and your account is free.
+            50% on their first month. 40% every month after.
           </p>
           <p style={{ fontSize: 12, color: T.faint, letterSpacing: "0.2px" }}>
             Early affiliates are locked in at these rates. No cap. No expiry.
@@ -149,7 +149,7 @@ export default function AffiliatesPage() {
           {[
             { label: "Month 1 commission", value: "50%", sub: "on first payment" },
             { label: "Recurring commission", value: "40%", sub: "every month after" },
-            { label: "Free account at", value: "3 refs", sub: "active paying clients" },
+            { label: "Bonus commission at", value: "5 refs", sub: "active paying clients" },
             { label: "Cookie window", value: "90 days", sub: "from first click" },
             { label: "Payout cycle", value: "Monthly", sub: "direct to your bank" },
           ].map(s => (
