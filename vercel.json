@@ -12,6 +12,7 @@
     { "path": "/api/cron/refresh-meta-tokens", "schedule": "0 6 * * *" },
     { "path": "/api/cron/demo-reset", "schedule": "0 5 * * *" },
     { "path": "/api/cron/affiliate-billing", "schedule": "0 9 1 * *" },
-    { "path": "/api/cron/whatsapp-report", "schedule": "0 13 * * 1" }
+    { "path": "/api/cron/whatsapp-report", "schedule": "0 13 * * 1" },
+    { "path": "/api/cron/google-ads-sync", "schedule": "0 7 * * *" }
   ]
 }

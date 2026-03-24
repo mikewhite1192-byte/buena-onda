@@ -168,6 +168,42 @@ CREATE INDEX IF NOT EXISTS idx_user_subscriptions_stripe_customer_id ON user_sub
 
 -- User WhatsApp number for agent alerts and weekly reports
 ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS whatsapp_number TEXT;
+
+-- Google Ads OAuth connections
+CREATE TABLE IF NOT EXISTS google_ads_connections (
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  clerk_user_id    TEXT        UNIQUE NOT NULL,
+  access_token     TEXT,
+  refresh_token    TEXT        NOT NULL,
+  customer_id      TEXT,
+  manager_id       TEXT,
+  token_expires_at TIMESTAMPTZ,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_google_ads_conn_user ON google_ads_connections(clerk_user_id);
+
+-- Google Ads campaign metrics (synced daily)
+CREATE TABLE IF NOT EXISTS google_ad_metrics (
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  clerk_user_id    TEXT        NOT NULL,
+  customer_id      TEXT        NOT NULL,
+  campaign_id      TEXT        NOT NULL,
+  campaign_name    TEXT,
+  date_recorded    DATE        NOT NULL,
+  impressions      INTEGER     NOT NULL DEFAULT 0,
+  clicks           INTEGER     NOT NULL DEFAULT 0,
+  spend            NUMERIC(10,2) NOT NULL DEFAULT 0,
+  conversions      NUMERIC(10,2) NOT NULL DEFAULT 0,
+  cost_per_conv    NUMERIC(10,2),
+  ctr              NUMERIC(8,6),
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(clerk_user_id, campaign_id, date_recorded)
+);
+
+CREATE INDEX IF NOT EXISTS idx_google_ad_metrics_user ON google_ad_metrics(clerk_user_id);
+CREATE INDEX IF NOT EXISTS idx_google_ad_metrics_date ON google_ad_metrics(date_recorded);
 `;
 
 // TypeScript types matching the tables
