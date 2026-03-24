@@ -46,6 +46,13 @@ function SettingsInner() {
   const [savingCustomerId, setSavingCustomerId] = useState(false);
   const [customerIdSaved, setCustomerIdSaved] = useState(false);
 
+  // TikTok Ads state
+  const [tiktokConnected, setTiktokConnected] = useState(false);
+  const [tiktokAdvertiserId, setTiktokAdvertiserId] = useState<string | null>(null);
+  const [tiktokLastSynced, setTiktokLastSynced] = useState<string | null>(null);
+  const [tiktokLoading, setTiktokLoading] = useState(true);
+  const [tiktokStatus, setTiktokStatus] = useState<"" | "connected" | "error">("");
+
   useEffect(() => {
     // Load WhatsApp number
     fetch("/api/account/whatsapp")
@@ -63,10 +70,24 @@ function SettingsInner() {
       })
       .finally(() => setGoogleLoading(false));
 
+    // Load TikTok Ads connection status
+    fetch("/api/tiktok-ads/metrics")
+      .then(r => r.json())
+      .then(d => {
+        setTiktokConnected(d.connected);
+        if (d.advertiser_id) setTiktokAdvertiserId(d.advertiser_id);
+        if (d.last_synced) setTiktokLastSynced(d.last_synced);
+      })
+      .finally(() => setTiktokLoading(false));
+
     // Check for OAuth callback result
     const gads = searchParams.get("google_ads");
     if (gads === "connected") setGoogleStatus("connected");
     if (gads === "error") setGoogleStatus("error");
+
+    const tads = searchParams.get("tiktok_ads");
+    if (tads === "connected") setTiktokStatus("connected");
+    if (tads === "error") setTiktokStatus("error");
   }, [searchParams]);
 
   async function saveWhatsapp() {
@@ -276,6 +297,71 @@ function SettingsInner() {
           }}
         >
           {googleConnected ? "Reconnect Google Ads" : "Connect Google Ads"}
+        </a>
+      </div>
+
+      {/* TikTok Ads */}
+      <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 24, marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+          <span style={{ fontSize: 18 }}>🎵</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: T.text }}>TikTok Ads</span>
+          {!tiktokLoading && tiktokConnected && (
+            <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: T.healthy, background: T.healthyBg, padding: "3px 10px", borderRadius: 20 }}>
+              Connected
+            </span>
+          )}
+        </div>
+        <p style={{ fontSize: 13, color: T.muted, margin: "0 0 20px", lineHeight: 1.6 }}>
+          Connect your TikTok Ads account to sync campaign performance and video metrics.
+        </p>
+
+        {tiktokStatus === "connected" && (
+          <p style={{ fontSize: 12, color: T.healthy, background: T.healthyBg, padding: "8px 12px", borderRadius: 8, marginBottom: 16 }}>
+            ✓ TikTok Ads connected successfully. Metrics will sync daily.
+          </p>
+        )}
+        {tiktokStatus === "error" && (
+          <p style={{ fontSize: 12, color: T.error, background: "rgba(231,76,60,0.12)", padding: "8px 12px", borderRadius: 8, marginBottom: 16 }}>
+            Connection failed. Please try again.
+          </p>
+        )}
+
+        {!tiktokLoading && tiktokConnected && tiktokAdvertiserId && (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>
+              Advertiser ID
+            </label>
+            <div style={{ padding: "10px 14px", background: "rgba(255,255,255,0.04)", border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 13, color: T.text, fontFamily: "monospace" }}>
+              {tiktokAdvertiserId}
+            </div>
+            {tiktokLastSynced && (
+              <p style={{ fontSize: 11, color: T.faint, margin: "8px 0 0" }}>
+                Last synced: {new Date(tiktokLastSynced).toLocaleString()}
+              </p>
+            )}
+          </div>
+        )}
+
+        <a
+          href="/api/tiktok-ads/connect"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "10px 20px",
+            borderRadius: 8,
+            border: "none",
+            background: "rgba(255,0,80,0.12)",
+            color: "#ff0050",
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: "pointer",
+            fontFamily: "inherit",
+            textDecoration: "none",
+            transition: "all 0.2s",
+          }}
+        >
+          {tiktokConnected ? "Reconnect TikTok Ads" : "Connect TikTok Ads"}
         </a>
       </div>
     </div>

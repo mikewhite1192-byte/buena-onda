@@ -525,6 +525,21 @@ function DashboardContent() {
       .catch(() => {});
   }, []);
 
+  // TikTok platform breakdown
+  const [tiktokBreakdown, setTiktokBreakdown] = useState<{ totalSpend: number; totalConversions: number } | null>(null);
+  useEffect(() => {
+    fetch("/api/tiktok-ads/metrics")
+      .then(r => r.json())
+      .then(data => {
+        if (!data.connected) return;
+        const metrics = (data.metrics ?? []) as { spend: number; conversions: number }[];
+        const totalSpend = metrics.reduce((s: number, c: { spend: number }) => s + (c.spend ?? 0), 0);
+        const totalConversions = metrics.reduce((s: number, c: { conversions: number }) => s + (c.conversions ?? 0), 0);
+        setTiktokBreakdown({ totalSpend, totalConversions });
+      })
+      .catch(() => {});
+  }, []);
+
   // ── Date range ─────────────────────────────────────────────────────────────
   function daysAgo(n: number) {
     return new Date(Date.now() - n * 86400000).toISOString().split("T")[0];
@@ -913,9 +928,24 @@ function DashboardContent() {
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <span style={{ fontSize: 16 }}>🎵</span>
               <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>TikTok</span>
-              <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: "rgba(139,143,168,0.08)", color: T.faint, fontWeight: 600 }}>Soon</span>
+              <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: tiktokBreakdown ? T.healthyBg : "rgba(139,143,168,0.1)", color: tiktokBreakdown ? T.healthy : T.muted, fontWeight: 600 }}>
+                {tiktokBreakdown ? "Connected" : "Not connected"}
+              </span>
             </div>
-            <div style={{ fontSize: 11, color: T.faint }}>Integration coming soon</div>
+            {tiktokBreakdown ? (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Spend</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: T.accent }}>${tiktokBreakdown.totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Conversions</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: "#c084fc" }}>{tiktokBreakdown.totalConversions.toLocaleString()}</div>
+                </div>
+              </div>
+            ) : (
+              <a href="/dashboard/settings" style={{ fontSize: 11, color: "#ff0050", textDecoration: "none" }}>Connect in Settings →</a>
+            )}
           </div>
 
           {/* Shopify */}

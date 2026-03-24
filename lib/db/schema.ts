@@ -212,6 +212,43 @@ CREATE TABLE IF NOT EXISTS google_ad_metrics (
 
 CREATE INDEX IF NOT EXISTS idx_google_ad_metrics_user ON google_ad_metrics(clerk_user_id);
 CREATE INDEX IF NOT EXISTS idx_google_ad_metrics_date ON google_ad_metrics(date_recorded);
+
+-- TikTok Ads connections
+CREATE TABLE IF NOT EXISTS tiktok_ads_connections (
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  clerk_user_id    TEXT        UNIQUE NOT NULL,
+  access_token     TEXT,
+  refresh_token    TEXT,
+  advertiser_id    TEXT,
+  token_expires_at TIMESTAMPTZ,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tiktok_ads_conn_user ON tiktok_ads_connections(clerk_user_id);
+
+-- TikTok campaign metrics (synced daily)
+CREATE TABLE IF NOT EXISTS tiktok_ad_metrics (
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  clerk_user_id    TEXT        NOT NULL,
+  advertiser_id    TEXT        NOT NULL,
+  campaign_id      TEXT        NOT NULL,
+  campaign_name    TEXT,
+  campaign_status  TEXT,
+  date_recorded    DATE        NOT NULL,
+  impressions      INTEGER     NOT NULL DEFAULT 0,
+  clicks           INTEGER     NOT NULL DEFAULT 0,
+  spend            NUMERIC(10,2) NOT NULL DEFAULT 0,
+  conversions      NUMERIC(10,2) NOT NULL DEFAULT 0,
+  cpa              NUMERIC(10,2),
+  ctr              NUMERIC(8,6),
+  video_play_actions INTEGER   DEFAULT 0,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(clerk_user_id, campaign_id, date_recorded)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tiktok_ad_metrics_user ON tiktok_ad_metrics(clerk_user_id);
+CREATE INDEX IF NOT EXISTS idx_tiktok_ad_metrics_date ON tiktok_ad_metrics(date_recorded);
 `;
 
 // TypeScript types matching the tables

@@ -695,6 +695,12 @@ export default function CampaignsPage() {
   const [googleConnected, setGoogleConnected] = useState(false);
   const [googleCustomerId, setGoogleCustomerId] = useState<string | null>(null);
 
+  // TikTok Ads state
+  const [tiktokCampaigns, setTiktokCampaigns] = useState<{campaign_id: string; campaign_name: string | null; campaign_status: string | null; spend: number; conversions: number; cpa: number | null; ctr: number; impressions: number; clicks: number; video_play_actions: number}[]>([]);
+  const [tiktokLoading, setTiktokLoading] = useState(false);
+  const [tiktokConnected, setTiktokConnected] = useState(false);
+  const [tiktokAdvertiserId, setTiktokAdvertiserId] = useState<string | null>(null);
+
   const [campaigns, setCampaigns] = useState<CampaignMetric[]>([]);
   const [apiError, setApiError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -853,6 +859,20 @@ export default function CampaignsPage() {
       })
       .catch(() => setGoogleCampaigns([]))
       .finally(() => setGoogleLoading(false));
+  }, [activePlatform]);
+
+  useEffect(() => {
+    if (activePlatform !== "tiktok") return;
+    setTiktokLoading(true);
+    fetch("/api/tiktok-ads/metrics")
+      .then(r => r.json())
+      .then(data => {
+        setTiktokConnected(data.connected ?? false);
+        setTiktokAdvertiserId(data.advertiser_id ?? null);
+        setTiktokCampaigns(data.metrics ?? []);
+      })
+      .catch(() => setTiktokCampaigns([]))
+      .finally(() => setTiktokLoading(false));
   }, [activePlatform]);
 
   // Expand/collapse campaign → load its ad sets
@@ -1585,12 +1605,90 @@ export default function CampaignsPage() {
           </div>
         )}
 
-        {/* TikTok Coming Soon */}
+        {/* TikTok Ads Tab */}
         {activePlatform === "tiktok" && (
-          <div style={{ textAlign: "center", padding: "80px 0" }}>
-            <div style={{ fontSize: 40, marginBottom: 16 }}>🎵</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: "#e8eaf0", marginBottom: 8 }}>TikTok Ads — Coming Soon</div>
-            <div style={{ fontSize: 13, color: "#8b8fa8" }}>TikTok Ads integration is on the roadmap. Check back soon.</div>
+          <div>
+            {!tiktokConnected ? (
+              <div style={{ textAlign: "center", padding: "80px 0" }}>
+                <div style={{ fontSize: 40, marginBottom: 16 }}>🎵</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#e8eaf0", marginBottom: 8 }}>TikTok Ads not connected</div>
+                <div style={{ fontSize: 13, color: "#8b8fa8", marginBottom: 24 }}>Connect your TikTok Ads account in Settings to see campaign data here.</div>
+                <a href="/dashboard/settings" style={{ padding: "10px 24px", background: "#ff0050", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
+                  Go to Settings →
+                </a>
+              </div>
+            ) : tiktokLoading ? (
+              <div style={{ textAlign: "center", padding: "60px 0", color: "#8b8fa8", fontSize: 13 }}>Loading TikTok campaigns…</div>
+            ) : (
+              <div>
+                {/* Header row */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+                  <div style={{ fontSize: 12, color: "#8b8fa8" }}>Advertiser ID: {tiktokAdvertiserId} · {tiktokCampaigns.length} campaign{tiktokCampaigns.length !== 1 ? "s" : ""}</div>
+                  <button onClick={() => {
+                    setTiktokLoading(true);
+                    fetch("/api/tiktok-ads/metrics").then(r => r.json()).then(data => { setTiktokCampaigns(data.metrics ?? []); }).finally(() => setTiktokLoading(false));
+                  }} style={{ fontSize: 12, color: "#8b8fa8", background: "transparent", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit" }}>
+                    Refresh
+                  </button>
+                </div>
+
+                {/* Stat cards row */}
+                {tiktokCampaigns.length > 0 && (() => {
+                  const totalSpend = tiktokCampaigns.reduce((s, c) => s + (c.spend ?? 0), 0);
+                  const totalConv = tiktokCampaigns.reduce((s, c) => s + (c.conversions ?? 0), 0);
+                  const avgCPA = totalConv > 0 ? totalSpend / totalConv : null;
+                  const avgCTR = tiktokCampaigns.length > 0 ? tiktokCampaigns.reduce((s, c) => s + (c.ctr ?? 0), 0) / tiktokCampaigns.length : 0;
+                  return (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
+                      {[
+                        { label: "Total Spend", value: `$${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, color: "#f5a623" },
+                        { label: "Conversions", value: totalConv.toLocaleString(), color: "#2ecc71" },
+                        { label: "Avg CPA", value: avgCPA ? `$${avgCPA.toFixed(2)}` : "—", color: "#e8eaf0" },
+                        { label: "Avg CTR", value: `${(avgCTR * 100).toFixed(2)}%`, color: "#4fc3f7" },
+                      ].map(s => (
+                        <div key={s.label} style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "16px 20px" }}>
+                          <div style={{ fontSize: 11, color: "#5a5e72", textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 8 }}>{s.label}</div>
+                          <div style={{ fontSize: 24, fontWeight: 700, color: s.color, letterSpacing: "-0.5px" }}>{s.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+
+                {/* Campaign table */}
+                {tiktokCampaigns.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "60px 0", color: "#8b8fa8", fontSize: 13 }}>
+                    No TikTok Ads data yet. Data syncs daily at 7am UTC.
+                  </div>
+                ) : (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                      <thead>
+                        <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                          {["Campaign", "Spend", "Impressions", "Clicks", "CTR", "Conversions", "CPA", "Video Plays"].map(h => (
+                            <th key={h} style={{ padding: "8px 12px", textAlign: h === "Campaign" ? "left" : "right" as const, color: "#5a5e72", fontSize: 11, textTransform: "uppercase" as const, letterSpacing: "0.08em", fontWeight: 600 }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tiktokCampaigns.map((c, i) => (
+                          <tr key={c.campaign_id} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)" }}>
+                            <td style={{ padding: "10px 12px", color: "#e8eaf0", fontWeight: 600, maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.campaign_name ?? c.campaign_id}</td>
+                            <td style={{ padding: "10px 12px", textAlign: "right" as const, color: "#f5a623" }}>${(c.spend ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                            <td style={{ padding: "10px 12px", textAlign: "right" as const, color: "#e8eaf0" }}>{(c.impressions ?? 0).toLocaleString()}</td>
+                            <td style={{ padding: "10px 12px", textAlign: "right" as const, color: "#e8eaf0" }}>{(c.clicks ?? 0).toLocaleString()}</td>
+                            <td style={{ padding: "10px 12px", textAlign: "right" as const, color: "#4fc3f7" }}>{((c.ctr ?? 0) * 100).toFixed(2)}%</td>
+                            <td style={{ padding: "10px 12px", textAlign: "right" as const, color: "#2ecc71" }}>{(c.conversions ?? 0).toLocaleString()}</td>
+                            <td style={{ padding: "10px 12px", textAlign: "right" as const, color: "#e8eaf0" }}>{c.cpa ? `$${(c.cpa as number).toFixed(2)}` : "—"}</td>
+                            <td style={{ padding: "10px 12px", textAlign: "right" as const, color: "#c084fc" }}>{(c.video_play_actions ?? 0).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
