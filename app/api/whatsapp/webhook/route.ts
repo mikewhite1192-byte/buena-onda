@@ -45,13 +45,6 @@ export async function POST(req: Request) {
       const from = msg.from        // sender's WhatsApp number
       const text = msg.text.body   // message content
 
-      // Only respond to Mike's number for security
-      const mikeNumber = process.env.MIKE_WHATSAPP_NUMBER
-      if (mikeNumber && from !== mikeNumber) {
-        console.log(`[whatsapp] Message from unknown number ${from} — ignoring`)
-        continue
-      }
-
       // Handle async — don't await so Meta doesn't timeout
       handleIncomingMessage(from, text).catch(err => {
         console.error('[whatsapp] handleIncomingMessage error:', err)
