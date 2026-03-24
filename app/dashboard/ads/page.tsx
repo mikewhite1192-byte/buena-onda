@@ -702,10 +702,20 @@ function renderChatMd(text: string): React.ReactNode {
   });
 }
 
+const PLATFORMS = [
+  { value: "meta", label: "Meta Ads", icon: "📘", desc: "Facebook & Instagram" },
+  { value: "google", label: "Google Ads", icon: "🔍", desc: "Search, Display, Performance Max" },
+  { value: "tiktok", label: "TikTok Ads", icon: "🎵", desc: "Short-form video campaigns" },
+  { value: "shopify", label: "Shopify", icon: "🛍️", desc: "Ecommerce & product ads" },
+] as const;
+
+type AdPlatform = typeof PLATFORMS[number]["value"];
+
 function AdCreatorOverlay({ client, onClose }: {
   client: { id: string; name: string; meta_ad_account_id: string; vertical: string };
   onClose: () => void;
 }) {
+  const [platform, setPlatform] = useState<AdPlatform | null>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -841,17 +851,22 @@ function AdCreatorOverlay({ client, onClose }: {
     }
   }, [messages, loading, client, creative]);
 
-  // Auto-start the conversation
+  // Auto-start the conversation once platform is selected
   useEffect(() => {
-    if (initiated.current) return;
+    if (!platform || initiated.current) return;
     initiated.current = true;
     const vertical = client.vertical === "ecomm" ? "ecommerce/DTC" : "lead generation";
-    sendMessage(
-      `I want to create a new Facebook ad for ${client.name}, a ${vertical} client. Rules: ask ONE question at a time — never combine questions. Start by asking if there is an existing ad set to add this ad to (or create a new campaign). If yes, call list_campaigns and let them pick. Then gather info one question at a time: offer, audience, budget, landing page, etc. Once you have enough, present 3 headline options and 3 primary text options — let them pick and refine. Only call create_ad_campaign when they explicitly say they are ready. Never create anything without their go-ahead.`,
-      true
-    );
+
+    const prompts: Record<AdPlatform, string> = {
+      meta: `I want to create a new Meta (Facebook/Instagram) ad for ${client.name}, a ${vertical} client. Rules: ask ONE question at a time — never combine questions. Start by asking if there is an existing ad set to add this ad to (or create a new campaign). If yes, call list_campaigns and let them pick. Then gather info one question at a time: offer, audience, budget, landing page, etc. Once you have enough, present 3 headline options and 3 primary text options — let them pick and refine. Only call create_ad_campaign when they explicitly say they are ready. Never create anything without their go-ahead.`,
+      google: `I want to create a new Google Ads campaign for ${client.name}, a ${vertical} client. Rules: ask ONE question at a time — never combine questions. Start by asking what type of campaign (Search, Display, or Performance Max). Then gather: campaign name, daily budget, bidding strategy (Maximize Conversions / Target CPA / Manual CPC), target CPA if applicable, landing page URL, 3 headlines, 2 descriptions, and keywords if Search. Present the full summary and get explicit confirmation before calling create_google_campaign. Never create anything without their go-ahead.`,
+      tiktok: `I want to create a new TikTok Ads campaign for ${client.name}, a ${vertical} client. Rules: ask ONE question at a time — never combine questions. Gather: campaign objective (Traffic/Conversions/Lead Gen), daily budget, target audience (age, interests, location), video creative URL, ad copy. TikTok ads are coming soon — for now, gather the brief and confirm the details with the user so we can launch it once TikTok integration is live.`,
+      shopify: `I want to create product ads for ${client.name}'s Shopify store. Rules: ask ONE question at a time — never combine questions. Gather: which products to promote, campaign objective (Sales/Traffic), daily budget, target audience, landing page (product or collection page URL). Shopify integration is coming soon — gather the full brief and confirm details with the user.`,
+    };
+
+    sendMessage(prompts[platform], true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [platform]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -874,14 +889,49 @@ function AdCreatorOverlay({ client, onClose }: {
             <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg,#f5a623,#f76b1c)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 13, color: "#fff" }}>✦</div>
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Create with Buena Onda</div>
-              <div style={{ fontSize: 11, color: T.faint }}>{client.name}</div>
+              <div style={{ fontSize: 11, color: T.faint }}>
+                {client.name}{platform ? ` · ${PLATFORMS.find(p => p.value === platform)?.label}` : ""}
+              </div>
             </div>
           </div>
           <button onClick={onClose} style={{ background: "transparent", border: "none", color: T.muted, fontSize: 22, cursor: "pointer", lineHeight: 1, padding: "4px 8px" }}>×</button>
         </div>
 
+        {/* Platform selector — shown before chat starts */}
+        {!platform && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 48 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 8 }}>What platform are you building on?</div>
+            <div style={{ fontSize: 13, color: T.muted, marginBottom: 32 }}>Choose a platform to get started.</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, width: "100%", maxWidth: 560 }}>
+              {PLATFORMS.map(p => (
+                <button
+                  key={p.value}
+                  onClick={() => setPlatform(p.value)}
+                  style={{
+                    padding: "20px 24px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    background: "rgba(255,255,255,0.04)",
+                    color: T.text,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    transition: "all 0.15s",
+                    fontFamily: "inherit",
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.border = `1px solid ${T.accent}`; (e.currentTarget as HTMLButtonElement).style.background = T.accentBg; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.border = "1px solid rgba(255,255,255,0.08)"; (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.04)"; }}
+                >
+                  <div style={{ fontSize: 24, marginBottom: 8 }}>{p.icon}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{p.label}</div>
+                  <div style={{ fontSize: 11, color: T.muted }}>{p.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Body */}
-        <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 380px", overflow: "hidden" }}>
+        {platform && <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 380px", overflow: "hidden" }}>
 
           {/* Left — Chat */}
           <div style={{ display: "flex", flexDirection: "column", borderRight: "1px solid rgba(255,255,255,0.06)", overflow: "hidden" }}>
@@ -1024,7 +1074,7 @@ function AdCreatorOverlay({ client, onClose }: {
               </div>
             )}
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   );

@@ -19,6 +19,7 @@ interface Client {
   roas_target: number | null;
   monthly_budget: number | null;
   website_url: string | null;
+  google_customer_id: string | null;
 }
 
 interface AdAccount {
@@ -67,6 +68,11 @@ export default function ClientsPage() {
   const [accountPickerClientId, setAccountPickerClientId] = useState<string | null>(null);
   const [discoveredAccounts, setDiscoveredAccounts] = useState<AdAccount[]>([]);
   const [pickingAccount, setPickingAccount] = useState(false);
+
+  // Google Ads connect
+  const [googleConnectClientId, setGoogleConnectClientId] = useState<string | null>(null);
+  const [googleCustomerInput, setGoogleCustomerInput] = useState("");
+  const [savingGoogle, setSavingGoogle] = useState(false);
 
   // Client rules / memory panel
   const [rulesClientId, setRulesClientId] = useState<string | null>(null);
@@ -220,6 +226,27 @@ export default function ClientsPage() {
       setError("Failed to save ad account");
     } finally {
       setPickingAccount(false);
+    }
+  }
+
+  async function saveGoogleCustomerId() {
+    if (!googleConnectClientId || !googleCustomerInput.trim()) return;
+    setSavingGoogle(true);
+    try {
+      const res = await fetch(`/api/clients/${googleConnectClientId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ google_customer_id: googleCustomerInput.trim().replace(/-/g, "") }),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      setGoogleConnectClientId(null);
+      setGoogleCustomerInput("");
+      setSuccessMsg("Google Ads connected to client.");
+      await loadClients();
+    } catch {
+      setError("Failed to save Google customer ID");
+    } finally {
+      setSavingGoogle(false);
     }
   }
 
@@ -429,7 +456,7 @@ export default function ClientsPage() {
                   {c.meta_page_id ? ` · Page: ${c.meta_page_id}` : " · No page ID"}
                   {c.whatsapp_number ? ` · WA: ${c.whatsapp_number}` : ""}
                 </div>
-                <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   {(() => {
                     const status = getTokenStatus(c);
                     const badge = status === "connected"
@@ -450,6 +477,18 @@ export default function ClientsPage() {
                     >
                       Connect Facebook →
                     </a>
+                  )}
+                  {c.google_customer_id ? (
+                    <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 4, background: "#0f1f2f", color: "#4fc3f7", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>
+                      Google Connected
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => { setGoogleConnectClientId(c.id); setGoogleCustomerInput(""); }}
+                      style={{ fontSize: 10, color: "#4fc3f7", background: "none", border: "none", padding: 0, cursor: "pointer", fontWeight: 600, fontFamily: "inherit" }}
+                    >
+                      Connect Google Ads →
+                    </button>
                   )}
                 </div>
               </div>
@@ -547,6 +586,45 @@ export default function ClientsPage() {
             >
               Skip for now
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Google Ads Connect Modal */}
+      {googleConnectClientId && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setGoogleConnectClientId(null); }}
+        >
+          <div style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "28px 32px", width: 440, maxWidth: "90vw" }}>
+            <h2 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 700, color: "#e8eaf0", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
+              Connect Google Ads
+            </h2>
+            <p style={{ margin: "0 0 20px", fontSize: 12, color: "#8b8fa8", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
+              Enter the Google Ads Customer ID for this client (digits only, e.g. 1234567890).
+            </p>
+            <input
+              type="text"
+              placeholder="e.g. 1234567890"
+              value={googleCustomerInput}
+              onChange={e => setGoogleCustomerInput(e.target.value)}
+              style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#e8eaf0", fontFamily: "'DM Mono', 'Fira Mono', monospace", outline: "none", boxSizing: "border-box" }}
+            />
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button
+                onClick={saveGoogleCustomerId}
+                disabled={savingGoogle || !googleCustomerInput.trim()}
+                style={{ flex: 1, background: "#4fc3f7", border: "none", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 700, color: "#0d0f14", cursor: savingGoogle || !googleCustomerInput.trim() ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: savingGoogle || !googleCustomerInput.trim() ? 0.5 : 1 }}
+              >
+                {savingGoogle ? "Saving…" : "Save"}
+              </button>
+              <button
+                onClick={() => setGoogleConnectClientId(null)}
+                style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 16px", fontSize: 13, color: "#8b8fa8", cursor: "pointer", fontFamily: "inherit" }}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

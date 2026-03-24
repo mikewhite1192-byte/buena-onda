@@ -11,16 +11,18 @@ export async function GET() {
 
   await sql`
     ALTER TABLE clients
-      ADD COLUMN IF NOT EXISTS cpl_target     DECIMAL(10,2),
-      ADD COLUMN IF NOT EXISTS roas_target    DECIMAL(10,2),
-      ADD COLUMN IF NOT EXISTS monthly_budget DECIMAL(12,2),
-      ADD COLUMN IF NOT EXISTS website_url    TEXT
+      ADD COLUMN IF NOT EXISTS cpl_target        DECIMAL(10,2),
+      ADD COLUMN IF NOT EXISTS roas_target       DECIMAL(10,2),
+      ADD COLUMN IF NOT EXISTS monthly_budget    DECIMAL(12,2),
+      ADD COLUMN IF NOT EXISTS website_url       TEXT,
+      ADD COLUMN IF NOT EXISTS google_customer_id TEXT
   `;
 
   const rows = await sql`
     SELECT id, name, meta_ad_account_id, meta_page_id, vertical, status,
            whatsapp_number, notes, created_at,
            cpl_target, roas_target, monthly_budget, website_url,
+           google_customer_id,
            CASE WHEN (meta_access_token IS NOT NULL AND meta_token_expires_at > NOW()) OR meta_ad_account_id LIKE 'act_demo%' THEN true ELSE false END as meta_connected,
            meta_token_expires_at
     FROM clients

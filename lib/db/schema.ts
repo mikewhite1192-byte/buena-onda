@@ -50,6 +50,7 @@ ALTER TABLE clients ADD COLUMN IF NOT EXISTS vertical TEXT NOT NULL DEFAULT 'lea
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS whatsapp_number TEXT;
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS notes TEXT;
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS google_customer_id TEXT;
 
 CREATE TABLE IF NOT EXISTS campaign_briefs (
   id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
