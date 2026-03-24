@@ -10,6 +10,16 @@ import {
   createMetaCampaign, addAdToAdSet, listCampaignsWithAdSets,
   listLeadForms, resolveGeoLocations,
 } from "@/lib/meta/actions";
+import { refreshGoogleAdsToken } from "@/lib/google-ads/client";
+import { listCampaigns as listGoogleCampaigns } from "@/lib/google-ads/accounts";
+import {
+  createCampaignBudget, createCampaign, createAdGroup,
+  createResponsiveSearchAd, createKeywords,
+  pauseCampaign as pauseGoogleCampaign,
+  enableCampaign as enableGoogleCampaign,
+  updateCampaignBudget as updateGoogleCampaignBudget,
+  type CampaignType, type BiddingStrategy, type MatchType,
+} from "@/lib/google-ads/campaigns";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const sql = neon(process.env.DATABASE_URL!);
@@ -169,6 +179,70 @@ const TOOLS: Anthropic.Tool[] = [
       required: ["industry", "creative_url"],
     },
   },
+  // ── Google Ads ────────────────────────────────────────────────────────────
+  {
+    name: "list_google_campaigns",
+    description: "List all Google Ads campaigns for the current user. Call this first when the user asks about their Google campaigns or wants to manage them.",
+    input_schema: { type: "object" as const, properties: {}, required: [] },
+  },
+  {
+    name: "create_google_campaign",
+    description: "Create a full Google Ads campaign (budget → campaign → ad group → responsive search ad → keywords). Campaign is created PAUSED for review. Use this when user asks to create a Google Ads campaign.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        name: { type: "string", description: "Campaign name" },
+        type: { type: "string", enum: ["SEARCH", "DISPLAY", "PERFORMANCE_MAX", "SHOPPING"], description: "Campaign type. Default: SEARCH" },
+        daily_budget: { type: "number", description: "Daily budget in USD" },
+        bidding_strategy: { type: "string", enum: ["MAXIMIZE_CONVERSIONS", "TARGET_CPA", "TARGET_ROAS", "MANUAL_CPC"], description: "Bidding strategy. Default: MAXIMIZE_CONVERSIONS" },
+        target_cpa: { type: "number", description: "Target CPA in USD (only for TARGET_CPA bidding)" },
+        target_roas: { type: "number", description: "Target ROAS as multiplier, e.g. 3.5 for 350% (only for TARGET_ROAS bidding)" },
+        cpc_bid: { type: "number", description: "Default CPC bid in USD (only for MANUAL_CPC). Default: 1.00" },
+        final_url: { type: "string", description: "Landing page URL for the ads" },
+        headlines: { type: "array", items: { type: "string" }, description: "3–15 ad headlines, max 30 chars each. Write these based on the user's offer." },
+        descriptions: { type: "array", items: { type: "string" }, description: "2–4 ad descriptions, max 90 chars each. Write these based on the user's offer." },
+        keywords: { type: "array", items: { type: "string" }, description: "Keywords for Search campaigns. Plain strings — all added as Broad match." },
+      },
+      required: ["name", "daily_budget", "final_url", "headlines", "descriptions"],
+    },
+  },
+  {
+    name: "pause_google_campaign",
+    description: "Pause a Google Ads campaign",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        campaign_resource_name: { type: "string", description: "Full resource name, e.g. customers/123/campaigns/456" },
+        customer_id: { type: "string", description: "Google Ads customer ID (no dashes)" },
+      },
+      required: ["campaign_resource_name", "customer_id"],
+    },
+  },
+  {
+    name: "enable_google_campaign",
+    description: "Enable/unpause a Google Ads campaign",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        campaign_resource_name: { type: "string", description: "Full resource name, e.g. customers/123/campaigns/456" },
+        customer_id: { type: "string", description: "Google Ads customer ID (no dashes)" },
+      },
+      required: ["campaign_resource_name", "customer_id"],
+    },
+  },
+  {
+    name: "scale_google_campaign_budget",
+    description: "Update the daily budget of a Google Ads campaign",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        budget_resource_name: { type: "string", description: "Budget resource name, e.g. customers/123/campaignBudgets/456" },
+        customer_id: { type: "string", description: "Google Ads customer ID (no dashes)" },
+        new_daily_budget: { type: "number", description: "New daily budget in USD" },
+      },
+      required: ["budget_resource_name", "customer_id", "new_daily_budget"],
+    },
+  },
   // ── Client memory ─────────────────────────────────────────────────────────
   {
     name: "save_client_rule",
@@ -247,6 +321,121 @@ async function executeTool(
     }
   }
   const metaToken = clientInfo?.meta_access_token ?? process.env.META_ACCESS_TOKEN;
+
+  // ── Google Ads ────────────────────────────────────────────────────────────
+  if (name === "list_google_campaigns" || name === "create_google_campaign" || name === "pause_google_campaign" || name === "enable_google_campaign" || name === "scale_google_campaign_budget") {
+    const userId = context?.userId;
+    if (!userId) return "Not authenticated.";
+
+    const connRows = await sql`
+      SELECT refresh_token, customer_id, manager_id FROM google_ads_connections
+      WHERE clerk_user_id = ${userId} LIMIT 1
+    `;
+    if (connRows.length === 0 || !connRows[0].customer_id) {
+      return "Google Ads not connected. Go to Settings → Connect Google Ads first.";
+    }
+    const { refresh_token, customer_id, manager_id } = connRows[0] as { refresh_token: string; customer_id: string; manager_id: string | null };
+
+    let accessToken: string;
+    try {
+      accessToken = await refreshGoogleAdsToken(refresh_token);
+    } catch {
+      return "Failed to refresh Google Ads token. Please reconnect in Settings.";
+    }
+
+    if (name === "list_google_campaigns") {
+      try {
+        const campaigns = await listGoogleCampaigns(accessToken, customer_id, manager_id);
+        if (campaigns.length === 0) return "No active campaigns found in Google Ads. You can create one by describing what you want.";
+        const lines = campaigns.map(c =>
+          `**${c.name}** (ID: ${c.campaignId}) — ${c.status} — ${c.type} — $${(c.dailyBudgetMicros / 1_000_000).toFixed(0)}/day\n  Resource: ${c.resourceName}\n  Budget: ${c.budgetResourceName}`
+        );
+        return `Google Ads campaigns:\n\n${lines.join("\n\n")}`;
+      } catch (err) {
+        return `Failed to fetch campaigns: ${(err as Error).message}`;
+      }
+    }
+
+    if (name === "create_google_campaign") {
+      try {
+        const campaignName = input.name as string;
+        const campaignType = (input.type as CampaignType) ?? "SEARCH";
+        const dailyBudget = input.daily_budget as number;
+        const biddingStrategy = (input.bidding_strategy as BiddingStrategy) ?? "MAXIMIZE_CONVERSIONS";
+        const finalUrl = input.final_url as string;
+        const headlines = (input.headlines as string[]).slice(0, 15);
+        const descriptions = (input.descriptions as string[]).slice(0, 4);
+        const keywords = (input.keywords as string[] | undefined) ?? [];
+
+        const budgetResourceName = await createCampaignBudget(accessToken, customer_id, dailyBudget, `${campaignName} Budget`, manager_id);
+        const campaignResourceName = await createCampaign(accessToken, customer_id, {
+          name: campaignName,
+          type: campaignType,
+          budgetResourceName,
+          biddingStrategy,
+          targetCpaMicros: input.target_cpa ? Math.round((input.target_cpa as number) * 1_000_000) : undefined,
+          targetRoas: input.target_roas as number | undefined,
+        }, manager_id);
+        const adGroupResourceName = await createAdGroup(accessToken, customer_id, campaignResourceName, `${campaignName} - Ad Group 1`, (input.cpc_bid as number) ?? 1.0, manager_id);
+        await createResponsiveSearchAd(accessToken, customer_id, adGroupResourceName, { headlines, descriptions, finalUrl }, manager_id);
+        if (campaignType === "SEARCH" && keywords.length > 0) {
+          await createKeywords(accessToken, customer_id, adGroupResourceName, keywords.map(k => ({ text: k, matchType: "BROAD" as MatchType })), manager_id);
+        }
+
+        // Save brief to DB
+        await sql`
+          INSERT INTO campaign_briefs (platform, avatar, offer, daily_budget, cpl_cap,
+            google_campaign_resource_name, google_budget_resource_name, google_ad_group_resource_name, google_customer_id, status)
+          VALUES ('google', ${campaignName}, ${finalUrl}, ${dailyBudget}, ${(input.target_cpa as number) ?? 0},
+            ${campaignResourceName}, ${budgetResourceName}, ${adGroupResourceName}, ${customer_id}, 'active')
+        `;
+
+        const campaignId = campaignResourceName.split("/").pop();
+        return [
+          `Google Ads campaign created — PAUSED for review.`,
+          ``,
+          `**Campaign:** ${campaignName}`,
+          `**Type:** ${campaignType}`,
+          `**Campaign ID:** ${campaignId}`,
+          `**Resource:** ${campaignResourceName}`,
+          `**Daily Budget:** $${dailyBudget}/day`,
+          `**Bidding:** ${biddingStrategy}${input.target_cpa ? ` — Target CPA: $${input.target_cpa}` : ""}${input.target_roas ? ` — Target ROAS: ${input.target_roas}x` : ""}`,
+          keywords.length > 0 ? `**Keywords:** ${keywords.slice(0, 5).join(", ")}${keywords.length > 5 ? ` +${keywords.length - 5} more` : ""}` : "",
+          ``,
+          `Review in Google Ads and enable when ready.`,
+        ].filter(Boolean).join("\n");
+      } catch (err) {
+        return `Failed to create campaign: ${(err as Error).message}`;
+      }
+    }
+
+    if (name === "pause_google_campaign") {
+      try {
+        await pauseGoogleCampaign(accessToken, input.customer_id as string, input.campaign_resource_name as string, manager_id);
+        return `Paused Google Ads campaign: ${input.campaign_resource_name}`;
+      } catch (err) {
+        return `Failed to pause: ${(err as Error).message}`;
+      }
+    }
+
+    if (name === "enable_google_campaign") {
+      try {
+        await enableGoogleCampaign(accessToken, input.customer_id as string, input.campaign_resource_name as string, manager_id);
+        return `Enabled Google Ads campaign: ${input.campaign_resource_name}`;
+      } catch (err) {
+        return `Failed to enable: ${(err as Error).message}`;
+      }
+    }
+
+    if (name === "scale_google_campaign_budget") {
+      try {
+        await updateGoogleCampaignBudget(accessToken, input.customer_id as string, input.budget_resource_name as string, input.new_daily_budget as number, manager_id);
+        return `Updated Google Ads campaign budget to $${input.new_daily_budget}/day.`;
+      } catch (err) {
+        return `Failed to update budget: ${(err as Error).message}`;
+      }
+    }
+  }
 
   // ── Ad set ────────────────────────────────────────────────────────────────
   if (name === "pause_ad_set") {
