@@ -701,6 +701,12 @@ export default function CampaignsPage() {
   const [tiktokConnected, setTiktokConnected] = useState(false);
   const [tiktokAdvertiserId, setTiktokAdvertiserId] = useState<string | null>(null);
 
+  // Shopify state
+  const [shopifyMetrics, setShopifyMetrics] = useState<{date_recorded: string; orders: number; revenue: number; avg_order_value: number | null}[]>([]);
+  const [shopifyLoading, setShopifyLoading] = useState(false);
+  const [shopifyConnected, setShopifyConnected] = useState(false);
+  const [shopifyShopName, setShopifyShopName] = useState<string | null>(null);
+
   const [campaigns, setCampaigns] = useState<CampaignMetric[]>([]);
   const [apiError, setApiError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -873,6 +879,20 @@ export default function CampaignsPage() {
       })
       .catch(() => setTiktokCampaigns([]))
       .finally(() => setTiktokLoading(false));
+  }, [activePlatform]);
+
+  useEffect(() => {
+    if (activePlatform !== "shopify") return;
+    setShopifyLoading(true);
+    fetch("/api/shopify/metrics")
+      .then(r => r.json())
+      .then(data => {
+        setShopifyConnected(data.connected ?? false);
+        setShopifyShopName(data.shop_name ?? null);
+        setShopifyMetrics(data.metrics ?? []);
+      })
+      .catch(() => setShopifyMetrics([]))
+      .finally(() => setShopifyLoading(false));
   }, [activePlatform]);
 
   // Expand/collapse campaign → load its ad sets
@@ -1692,12 +1712,71 @@ export default function CampaignsPage() {
           </div>
         )}
 
-        {/* Shopify Coming Soon */}
+        {/* Shopify Tab */}
         {activePlatform === "shopify" && (
-          <div style={{ textAlign: "center", padding: "80px 0" }}>
-            <div style={{ fontSize: 40, marginBottom: 16 }}>🛍</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: "#e8eaf0", marginBottom: 8 }}>Shopify — Coming Soon</div>
-            <div style={{ fontSize: 13, color: "#8b8fa8" }}>Shopify integration is on the roadmap. Check back soon.</div>
+          <div>
+            {!shopifyConnected && !shopifyLoading && (
+              <div style={{ textAlign: "center", padding: "80px 0" }}>
+                <div style={{ fontSize: 40, marginBottom: 16 }}>🛍️</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#e8eaf0", marginBottom: 8 }}>Shopify not connected</div>
+                <div style={{ fontSize: 13, color: "#8b8fa8", marginBottom: 24 }}>Connect your Shopify store in Settings to see revenue and order data here.</div>
+                <a href="/dashboard/settings" style={{ padding: "10px 24px", background: "rgba(150,191,98,0.15)", color: "#96bf62", borderRadius: 8, fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
+                  Go to Settings
+                </a>
+              </div>
+            )}
+            {shopifyLoading && (
+              <div style={{ textAlign: "center", padding: "60px 0", color: "#8b8fa8", fontSize: 13 }}>Loading Shopify data…</div>
+            )}
+            {shopifyConnected && !shopifyLoading && (
+              <div>
+                {shopifyShopName && (
+                  <div style={{ marginBottom: 20, fontSize: 13, color: "#8b8fa8" }}>
+                    Store: <span style={{ color: "#96bf62", fontWeight: 600 }}>{shopifyShopName}</span>
+                  </div>
+                )}
+                {shopifyMetrics.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "60px 0", color: "#8b8fa8", fontSize: 13 }}>
+                    No Shopify data yet. Data syncs daily at 7:30am UTC.
+                  </div>
+                ) : (
+                  <div>
+                    {/* Summary cards */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16, marginBottom: 28 }}>
+                      {[
+                        { label: "Total Revenue", value: `$${shopifyMetrics.reduce((s, r) => s + Number(r.revenue), 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+                        { label: "Total Orders", value: shopifyMetrics.reduce((s, r) => s + r.orders, 0).toLocaleString() },
+                        { label: "Avg Order Value", value: (() => { const r = shopifyMetrics.filter(r => r.avg_order_value); return r.length ? `$${(r.reduce((s, x) => s + Number(x.avg_order_value), 0) / r.length).toFixed(2)}` : "—" })() },
+                        { label: "Days with Data", value: shopifyMetrics.length },
+                      ].map(card => (
+                        <div key={card.label} style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "16px 20px" }}>
+                          <div style={{ fontSize: 11, color: "#8b8fa8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>{card.label}</div>
+                          <div style={{ fontSize: 22, fontWeight: 800, color: "#e8eaf0" }}>{card.value}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Daily table */}
+                    <div style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 100px 120px 130px", padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", fontSize: 11, fontWeight: 700, color: "#5a5e72", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                        <span>Date</span>
+                        <span style={{ textAlign: "right" }}>Orders</span>
+                        <span style={{ textAlign: "right" }}>Revenue</span>
+                        <span style={{ textAlign: "right" }}>Avg Order</span>
+                      </div>
+                      {shopifyMetrics.slice(0, 30).map((row, i) => (
+                        <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 100px 120px 130px", padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)", fontSize: 13, color: "#e8eaf0" }}>
+                          <span style={{ color: "#8b8fa8" }}>{row.date_recorded}</span>
+                          <span style={{ textAlign: "right" }}>{row.orders}</span>
+                          <span style={{ textAlign: "right", color: "#96bf62", fontWeight: 600 }}>${Number(row.revenue).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          <span style={{ textAlign: "right" }}>{row.avg_order_value ? `$${Number(row.avg_order_value).toFixed(2)}` : "—"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

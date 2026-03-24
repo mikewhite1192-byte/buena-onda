@@ -53,6 +53,15 @@ function SettingsInner() {
   const [tiktokLoading, setTiktokLoading] = useState(true);
   const [tiktokStatus, setTiktokStatus] = useState<"" | "connected" | "error">("");
 
+  // Shopify state
+  const [shopifyConnected, setShopifyConnected] = useState(false);
+  const [shopifyShop, setShopifyShop] = useState<string | null>(null);
+  const [shopifyShopName, setShopifyShopName] = useState<string | null>(null);
+  const [shopifyLastSynced, setShopifyLastSynced] = useState<string | null>(null);
+  const [shopifyLoading, setShopifyLoading] = useState(true);
+  const [shopifyStatus, setShopifyStatus] = useState<"" | "connected" | "error">("");
+  const [shopifyInput, setShopifyInput] = useState("");
+
   useEffect(() => {
     // Load WhatsApp number
     fetch("/api/account/whatsapp")
@@ -80,6 +89,17 @@ function SettingsInner() {
       })
       .finally(() => setTiktokLoading(false));
 
+    // Load Shopify connection status
+    fetch("/api/shopify/metrics")
+      .then(r => r.json())
+      .then(d => {
+        setShopifyConnected(d.connected);
+        if (d.shop) setShopifyShop(d.shop);
+        if (d.shop_name) setShopifyShopName(d.shop_name);
+        if (d.last_synced) setShopifyLastSynced(d.last_synced);
+      })
+      .finally(() => setShopifyLoading(false));
+
     // Check for OAuth callback result
     const gads = searchParams.get("google_ads");
     if (gads === "connected") setGoogleStatus("connected");
@@ -88,6 +108,10 @@ function SettingsInner() {
     const tads = searchParams.get("tiktok_ads");
     if (tads === "connected") setTiktokStatus("connected");
     if (tads === "error") setTiktokStatus("error");
+
+    const sads = searchParams.get("shopify");
+    if (sads === "connected") setShopifyStatus("connected");
+    if (sads === "error") setShopifyStatus("error");
   }, [searchParams]);
 
   async function saveWhatsapp() {
@@ -363,6 +387,122 @@ function SettingsInner() {
         >
           {tiktokConnected ? "Reconnect TikTok Ads" : "Connect TikTok Ads"}
         </a>
+      </div>
+
+      {/* Shopify */}
+      <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 24, marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+          <span style={{ fontSize: 18 }}>🛍️</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: T.text }}>Shopify</span>
+          {!shopifyLoading && shopifyConnected && (
+            <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: T.healthy, background: T.healthyBg, padding: "3px 10px", borderRadius: 20 }}>
+              Connected
+            </span>
+          )}
+        </div>
+        <p style={{ fontSize: 13, color: T.muted, margin: "0 0 20px", lineHeight: 1.6 }}>
+          Connect your Shopify store to sync revenue, order volume, and AOV alongside your ad campaigns.
+        </p>
+
+        {shopifyStatus === "connected" && (
+          <p style={{ fontSize: 12, color: T.healthy, background: T.healthyBg, padding: "8px 12px", borderRadius: 8, marginBottom: 16 }}>
+            ✓ Shopify connected successfully. Revenue data will sync daily.
+          </p>
+        )}
+        {shopifyStatus === "error" && (
+          <p style={{ fontSize: 12, color: T.error, background: "rgba(231,76,60,0.12)", padding: "8px 12px", borderRadius: 8, marginBottom: 16 }}>
+            Connection failed. Please try again.
+          </p>
+        )}
+
+        {!shopifyLoading && shopifyConnected && shopifyShop && (
+          <div style={{ marginBottom: 16, padding: "10px 14px", background: "rgba(255,255,255,0.04)", border: `1px solid ${T.border}`, borderRadius: 8 }}>
+            <p style={{ fontSize: 12, color: T.muted, margin: 0 }}>Connected store</p>
+            <p style={{ fontSize: 14, color: T.text, margin: "4px 0 0", fontWeight: 600 }}>{shopifyShopName ?? shopifyShop}</p>
+            <p style={{ fontSize: 11, color: T.faint, margin: "2px 0 0", fontFamily: "monospace" }}>{shopifyShop}</p>
+            {shopifyLastSynced && (
+              <p style={{ fontSize: 11, color: T.faint, margin: "6px 0 0" }}>
+                Last synced: {new Date(shopifyLastSynced).toLocaleString()}
+              </p>
+            )}
+          </div>
+        )}
+
+        {!shopifyConnected && (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>
+              Your Shopify Domain
+            </label>
+            <div style={{ display: "flex", gap: 10 }}>
+              <input
+                type="text"
+                value={shopifyInput}
+                onChange={e => setShopifyInput(e.target.value.toLowerCase().trim())}
+                placeholder="mystore.myshopify.com"
+                style={{
+                  flex: 1,
+                  background: "rgba(255,255,255,0.04)",
+                  border: `1px solid ${T.border}`,
+                  borderRadius: 8,
+                  padding: "10px 14px",
+                  fontSize: 13,
+                  color: T.text,
+                  fontFamily: "inherit",
+                  outline: "none",
+                }}
+              />
+              <a
+                href={shopifyInput ? `/api/shopify/connect?shop=${shopifyInput}` : "#"}
+                onClick={e => { if (!shopifyInput) e.preventDefault() }}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  padding: "10px 20px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: shopifyInput ? "rgba(150,191,98,0.15)" : "rgba(255,255,255,0.05)",
+                  color: shopifyInput ? "#96bf62" : T.faint,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: shopifyInput ? "pointer" : "not-allowed",
+                  fontFamily: "inherit",
+                  textDecoration: "none",
+                  whiteSpace: "nowrap",
+                  transition: "all 0.2s",
+                }}
+              >
+                Connect
+              </a>
+            </div>
+            <p style={{ fontSize: 11, color: T.faint, margin: "8px 0 0" }}>
+              Enter your .myshopify.com domain. You'll be redirected to authorize Buena Onda.
+            </p>
+          </div>
+        )}
+
+        {shopifyConnected && (
+          <a
+            href={shopifyShop ? `/api/shopify/connect?shop=${shopifyShop}` : "#"}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "10px 20px",
+              borderRadius: 8,
+              border: "none",
+              background: "rgba(150,191,98,0.15)",
+              color: "#96bf62",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              textDecoration: "none",
+              transition: "all 0.2s",
+            }}
+          >
+            Reconnect Shopify
+          </a>
+        )}
       </div>
     </div>
   );

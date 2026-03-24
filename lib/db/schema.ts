@@ -249,6 +249,37 @@ CREATE TABLE IF NOT EXISTS tiktok_ad_metrics (
 
 CREATE INDEX IF NOT EXISTS idx_tiktok_ad_metrics_user ON tiktok_ad_metrics(clerk_user_id);
 CREATE INDEX IF NOT EXISTS idx_tiktok_ad_metrics_date ON tiktok_ad_metrics(date_recorded);
+
+-- Shopify store connections
+CREATE TABLE IF NOT EXISTS shopify_connections (
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  clerk_user_id    TEXT        UNIQUE NOT NULL,
+  shop             TEXT        NOT NULL,
+  shop_name        TEXT,
+  access_token     TEXT        NOT NULL,
+  scope            TEXT,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_shopify_conn_user ON shopify_connections(clerk_user_id);
+
+-- Shopify daily metrics (synced by cron)
+CREATE TABLE IF NOT EXISTS shopify_metrics (
+  id               UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+  clerk_user_id    TEXT          NOT NULL,
+  shop             TEXT          NOT NULL,
+  date_recorded    DATE          NOT NULL,
+  orders           INTEGER       NOT NULL DEFAULT 0,
+  revenue          NUMERIC(12,2) NOT NULL DEFAULT 0,
+  avg_order_value  NUMERIC(10,2),
+  sessions         INTEGER       NOT NULL DEFAULT 0,
+  created_at       TIMESTAMPTZ   NOT NULL DEFAULT now(),
+  UNIQUE(clerk_user_id, shop, date_recorded)
+);
+
+CREATE INDEX IF NOT EXISTS idx_shopify_metrics_user ON shopify_metrics(clerk_user_id);
+CREATE INDEX IF NOT EXISTS idx_shopify_metrics_date ON shopify_metrics(date_recorded);
 `;
 
 // TypeScript types matching the tables
