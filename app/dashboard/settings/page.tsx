@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
 const T = {
@@ -20,6 +20,14 @@ const T = {
 };
 
 export default function SettingsPage() {
+  return (
+    <Suspense>
+      <SettingsInner />
+    </Suspense>
+  );
+}
+
+function SettingsInner() {
   const searchParams = useSearchParams();
 
   // WhatsApp state
