@@ -44,6 +44,7 @@ const NAV_ITEMS = [
   { label: "Reports", path: "/dashboard/reports" },
   { label: "Review", path: "/dashboard/review" },
   { label: "History", path: "/dashboard/history" },
+  { label: "Team", path: "/dashboard/team" },
   { label: "Settings", path: "/dashboard/settings" },
 ];
 

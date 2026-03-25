@@ -2,12 +2,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { neon } from "@neondatabase/serverless";
+import { getEffectiveUserId } from "@/lib/auth/team";
 
 const sql = neon(process.env.DATABASE_URL!);
 
 export async function GET() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const effectiveUserId = await getEffectiveUserId(userId);
 
   await sql`
     ALTER TABLE clients
@@ -28,7 +30,7 @@ export async function GET() {
            CASE WHEN (meta_access_token IS NOT NULL AND meta_token_expires_at > NOW()) OR meta_ad_account_id LIKE 'act_demo%' THEN true ELSE false END as meta_connected,
            meta_token_expires_at
     FROM clients
-    WHERE owner_id = ${userId}
+    WHERE owner_id = ${effectiveUserId}
     ORDER BY created_at DESC
   `;
 
@@ -37,8 +39,8 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
-  console.log("[POST /api/clients] userId:", userId);
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const effectiveUserId = await getEffectiveUserId(userId);
 
   const body = await req.json();
   const { name, meta_ad_account_id, meta_page_id, vertical, whatsapp_number, notes, status, website_url } = body;
@@ -50,7 +52,7 @@ export async function POST(req: NextRequest) {
   const rows = await sql`
     INSERT INTO clients (owner_id, name, meta_ad_account_id, meta_page_id, vertical, whatsapp_number, notes, status, website_url)
     VALUES (
-      ${userId},
+      ${effectiveUserId},
       ${name.trim()},
       ${meta_ad_account_id ?? null},
       ${meta_page_id ?? null},

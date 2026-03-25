@@ -297,6 +297,36 @@ CREATE TABLE IF NOT EXISTS slack_connections (
 );
 
 CREATE INDEX IF NOT EXISTS idx_slack_conn_user ON slack_connections(clerk_user_id);
+
+-- Team invites — pending email invitations sent by agency owner
+CREATE TABLE IF NOT EXISTS team_invites (
+  id                   UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_clerk_user_id  TEXT        NOT NULL,
+  email                TEXT        NOT NULL,
+  role                 TEXT        NOT NULL DEFAULT 'viewer',
+  token                TEXT        NOT NULL UNIQUE,
+  expires_at           TIMESTAMPTZ NOT NULL,
+  accepted_at          TIMESTAMPTZ,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_team_invites_token ON team_invites(token);
+CREATE INDEX IF NOT EXISTS idx_team_invites_owner ON team_invites(owner_clerk_user_id);
+
+-- Team members — accepted invites linking member Clerk IDs to owner
+CREATE TABLE IF NOT EXISTS team_members (
+  id                   UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_clerk_user_id  TEXT        NOT NULL,
+  member_clerk_user_id TEXT        NOT NULL,
+  role                 TEXT        NOT NULL DEFAULT 'viewer',
+  name                 TEXT,
+  email                TEXT,
+  joined_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(owner_clerk_user_id, member_clerk_user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_team_members_owner ON team_members(owner_clerk_user_id);
+CREATE INDEX IF NOT EXISTS idx_team_members_member ON team_members(member_clerk_user_id);
 `;
 
 // TypeScript types matching the tables
