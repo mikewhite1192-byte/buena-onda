@@ -2,8 +2,8 @@
 
 // components/tour/TourCard.tsx
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 import { useTour } from "@/lib/context/tour-context";
 
 const T = {
@@ -34,6 +34,7 @@ const STEPS: Record<number, StepConfig> = {
     title: "Your Agency Command Center",
     label: `1 / ${TOTAL_STEPS}  ·  Overview`,
     body: "Live spend, leads, ROAS, and account health across all your clients at a glance. Critical accounts automatically surface to the top.",
+    navigateTo: "/dashboard",
     highlightId: "tour-overview-stats",
   },
   2: {
@@ -115,6 +116,7 @@ function getPosition(step: number): React.CSSProperties {
 export default function TourCard() {
   const { tourActive, step, nextStep, prevStep, endTour } = useTour();
   const router = useRouter();
+  const { isSignedIn } = useAuth();
   const [mounted, setMounted] = useState(false);
 
   // Fade-in animation on each step change
@@ -253,18 +255,33 @@ export default function TourCard() {
         {/* Action buttons */}
         {step === TOTAL_STEPS ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <Link
-              href="/sign-up"
-              style={{
-                display: "block", textAlign: "center",
-                padding: "11px 0", borderRadius: 8,
-                background: "linear-gradient(135deg,#f5a623,#f76b1c)",
-                color: "#0d0f14", fontSize: 13, fontWeight: 800,
-                textDecoration: "none",
-              }}
-            >
-              Start Free — launch your first campaign →
-            </Link>
+            {isSignedIn ? (
+              <button
+                onClick={() => { endTour(); router.push("/dashboard/clients"); }}
+                style={{
+                  display: "block", width: "100%", textAlign: "center",
+                  padding: "11px 0", borderRadius: 8,
+                  background: "linear-gradient(135deg,#f5a623,#f76b1c)",
+                  color: "#0d0f14", fontSize: 13, fontWeight: 800,
+                  border: "none", cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                Connect your first ad account →
+              </button>
+            ) : (
+              <a
+                href="/sign-up"
+                style={{
+                  display: "block", textAlign: "center",
+                  padding: "11px 0", borderRadius: 8,
+                  background: "linear-gradient(135deg,#f5a623,#f76b1c)",
+                  color: "#0d0f14", fontSize: 13, fontWeight: 800,
+                  textDecoration: "none",
+                }}
+              >
+                Start Free — launch your first campaign →
+              </a>
+            )}
             <button
               onClick={endTour}
               style={{ background: "transparent", border: "none", color: T.faint, fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}

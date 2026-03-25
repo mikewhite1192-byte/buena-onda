@@ -80,7 +80,8 @@ export default function LandingPricing() {
 
   async function checkout(plan: typeof PLANS[0]) {
     if (!isSignedIn) {
-      window.location.href = `/sign-up?redirect_url=${encodeURIComponent("/#pricing")}`;
+      const checkoutUrl = `/checkout?priceId=${encodeURIComponent(plan.priceId)}&planName=${encodeURIComponent(plan.name)}`;
+      window.location.href = `/sign-up?redirect_url=${encodeURIComponent(checkoutUrl)}`;
       return;
     }
     setLoading(plan.name);

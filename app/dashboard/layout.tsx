@@ -4,7 +4,7 @@
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, useAuth } from "@clerk/nextjs";
 import { ClientProvider, useActiveClient } from "@/lib/context/client-context";
 import { TourProvider, useTour } from "@/lib/context/tour-context";
 import ChatBubble from "@/components/chat/ChatBubble";
@@ -50,7 +50,9 @@ const NAV_ITEMS = [
 
 function DemoBanner() {
   const { demoMode } = useTour();
-  if (!demoMode) return null;
+  const { isSignedIn } = useAuth();
+  // Never show the demo banner to signed-in (paying) users
+  if (!demoMode || isSignedIn) return null;
   return (
     <div style={{
       position: "sticky", top: 52, zIndex: 90,
