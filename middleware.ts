@@ -86,12 +86,15 @@ export default clerkMiddleware(async (auth, req) => {
   if (isDashboardRoute(req)) {
     const { sessionClaims } = await auth();
 
-    // Allow through if coming back from Stripe checkout (webhook may not have fired yet)
-    const isCheckoutReturn = req.nextUrl.searchParams.get("checkout") === "success";
     // Allow through if this is a demo session
     const isDemo = req.nextUrl.searchParams.get("demo") === "1";
 
-    if (!isCheckoutReturn && !isDemo) {
+    // Allow through if coming back from Stripe checkout — set a 10-min grace cookie
+    // so the user can navigate freely while the webhook fires and updates Clerk metadata
+    const isCheckoutReturn = req.nextUrl.searchParams.get("checkout") === "success";
+    const hasGraceCookie = req.cookies.get("bo_sub_grace")?.value === "1";
+
+    if (!isDemo) {
       const { userId } = await auth();
       const status = (sessionClaims?.metadata as Record<string, string> | undefined)?.subscription_status;
 
@@ -99,8 +102,20 @@ export default clerkMiddleware(async (auth, req) => {
       const isOwner = userId === OWNER_USER_ID;
       const hasAccess = status === "active" || status === "trialing";
 
-      if (!isOwner && !hasAccess) {
+      if (!isOwner && !hasAccess && !isCheckoutReturn && !hasGraceCookie) {
         return NextResponse.redirect(new URL("/#pricing", req.url));
+      }
+
+      // Set grace cookie on checkout return so nav links work while webhook fires
+      if (isCheckoutReturn) {
+        const res = NextResponse.next();
+        res.cookies.set("bo_sub_grace", "1", {
+          maxAge: 60 * 10, // 10 minutes
+          path: "/",
+          sameSite: "lax",
+          httpOnly: true,
+        });
+        return res;
       }
     }
   }
