@@ -27,8 +27,10 @@ export default function LandingNav() {
         .nav-desktop-links { display: flex; align-items: center; gap: 20px; }
         .nav-hamburger { display: none; background: none; border: none; cursor: pointer; padding: 4px; color: #8b8fa8; font-size: 20px; line-height: 1; }
         .nav-mobile-menu { display: none; }
+        .nav-mobile-right { display: none; }
         @media (max-width: 640px) {
           .nav-desktop-links { display: none; }
+          .nav-mobile-right { display: flex; align-items: center; gap: 10px; }
           .nav-hamburger { display: flex; align-items: center; justify-content: center; }
           .nav-mobile-menu {
             position: fixed; top: 60px; left: 0; right: 0; z-index: 49;
@@ -88,7 +90,7 @@ export default function LandingNav() {
         </div>
 
         {/* Mobile right side */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="nav-mobile-right">
           <SignedIn>
             <UserButton afterSignOutUrl="/" />
           </SignedIn>
