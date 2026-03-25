@@ -18,7 +18,7 @@ export default function Page() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-6">
-      <SignUp unsafeMetadata={unsafeMetadata} />
+      <SignUp unsafeMetadata={unsafeMetadata} afterSignUpUrl="/#pricing" />
     </div>
   );
 }
