@@ -567,6 +567,42 @@
 
 ---
 
+## 🤖 Autonomous AI Scanning
+
+- [ ] Settings page shows "AI Behavior" card with toggle
+- [ ] Toggle defaults to OFF (Recommendations Mode) for new users
+- [ ] Toggle saves correctly — reload page, setting persists
+- [ ] Switch to Autonomous Mode — toggle shows green/ON state
+- [ ] Switch back to Recommendations Mode — toggle shows blue/OFF state
+- [ ] Agent loop cron fires hourly — confirm in Vercel cron logs
+- [ ] Agent loop authorized with `CRON_SECRET` — returns 401 without it
+- [ ] **Recommendations Mode (guardrails ON):**
+  - [ ] Agent loop runs, finds decisions, stores them as `status='pending'` in `agent_actions`
+  - [ ] No Meta/Google API action is executed (ads NOT paused/scaled yet)
+  - [ ] WhatsApp message sent: "AI Recommendation" (not "Agent Action")
+  - [ ] Review tab → AI Recommendations tab shows pending items
+  - [ ] Each recommendation shows action type, Claude's reasoning, client name
+  - [ ] Approve & Execute → Meta API called → status updated to 'approved'
+  - [ ] Reject → status updated to 'rejected', no API call
+  - [ ] Approved items move out of pending filter
+- [ ] **Autonomous Mode (guardrails OFF):**
+  - [ ] Agent loop runs, executes actions immediately
+  - [ ] Meta/Google API called directly (ads paused/scaled)
+  - [ ] WhatsApp message sent: "Agent Action" with result
+  - [ ] `agent_actions` logged with `status='executed'`
+  - [ ] Review tab → AI Recommendations shows executed items in history
+- [ ] **Claude AI decisions:**
+  - [ ] Decision engine calls Claude Haiku for analysis
+  - [ ] If Claude unavailable, falls back to rule-based logic silently
+  - [ ] Claude reasons holistically (not just CPL threshold matching)
+  - [ ] Decisions include specific reasoning in plain English
+- [ ] **Collective learning:**
+  - [ ] Learning engine runs after each agent loop
+  - [ ] `agent_learnings` table updated with patterns
+  - [ ] Active learned rules feed into next Claude analysis as context
+
+---
+
 ## ⏰ Owner Alert Cron (`/api/cron/owner-alerts`)
 
 - [ ] Cron fires daily at 8am UTC
@@ -600,6 +636,7 @@
 
 ## ⏰ All Cron Jobs
 
+- [ ] `/api/cron/agent-loop` — every hour — autonomous AI scan (NEW)
 - [ ] `/api/cron/refresh-meta-tokens` — 6am UTC daily — refreshes Meta tokens before expiry
 - [ ] `/api/cron/demo-reset` — 5am UTC daily — resets demo account data
 - [ ] `/api/cron/affiliate-billing` — 9am UTC 1st of month — calculates payouts
@@ -621,6 +658,8 @@
 - [ ] `workspace_branding` table exists with all columns
 - [ ] `client_login_tokens` table exists
 - [ ] `clients` table has `contact_email` column
+- [ ] `user_subscriptions` table has `autonomous_mode` column (default false)
+- [ ] `agent_actions` table has `status` column (default 'executed')
 - [ ] All foreign key constraints intact
 - [ ] All indexes created
 
