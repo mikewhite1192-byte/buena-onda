@@ -194,8 +194,20 @@ function DashboardInner() {
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
+      <style>{`
+        .aff-nav { border-bottom: 1px solid rgba(255,255,255,0.06); padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
+        .aff-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .aff-earnings-row { display: flex; justify-content: space-between; font-size: 13px; }
+        .aff-payout-banner { background: linear-gradient(135deg, rgba(245,166,35,0.12), rgba(247,107,28,0.08)); border: 1px solid rgba(245,166,35,0.25); border-radius: 14px; padding: 20px 24px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+        @media (max-width: 640px) {
+          .aff-nav { padding: 14px 16px; }
+          .aff-earnings-row { flex-direction: column; gap: 2px; }
+          .aff-earnings-row span:last-child { font-size: 14px; }
+          .aff-payout-banner { flex-direction: column; align-items: flex-start; }
+        }
+      `}</style>
       {/* Nav */}
-      <div style={{ borderBottom: `1px solid ${T.border}`, padding: "16px 32px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="aff-nav">
         <Link href="/" style={{ textDecoration: "none" }}>
           <span style={{ fontWeight: 800, fontSize: 15, background: "linear-gradient(135deg,#f5a623,#f76b1c)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
             Buena Onda
@@ -313,7 +325,7 @@ function DashboardInner() {
 
             {/* Next payout banner */}
             {data.stats.monthly_total > 0 && (
-              <div style={{ background: "linear-gradient(135deg, rgba(245,166,35,0.12), rgba(247,107,28,0.08))", border: `1px solid ${T.accentBorder}`, borderRadius: 14, padding: "20px 24px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+              <div className="aff-payout-banner">
                 <div>
                   <div style={{ fontSize: 11, color: T.accent, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4 }}>Next Payout</div>
                   <div style={{ fontSize: 32, fontWeight: 800, color: T.text, letterSpacing: "-1px" }}>{fmt(data.stats.monthly_total)}</div>
@@ -353,17 +365,17 @@ function DashboardInner() {
               <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px 24px", marginBottom: 24 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 14 }}>Earnings Breakdown</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                  <div className="aff-earnings-row">
                     <span style={{ color: T.muted }}>Recurring (40% × {data.stats.active_referrals} active clients)</span>
                     <span style={{ color: T.text, fontWeight: 700 }}>{fmt(data.stats.monthly_recurring)}/mo</span>
                   </div>
                   {data.stats.month1_bonus > 0 && (
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                    <div className="aff-earnings-row">
                       <span style={{ color: T.muted }}>Month 1 bonus (extra 10% for new signups)</span>
                       <span style={{ color: T.accent, fontWeight: 700 }}>+{fmt(data.stats.month1_bonus)}</span>
                     </div>
                   )}
-                  <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 10, display: "flex", justifyContent: "space-between", fontSize: 14 }}>
+                  <div className="aff-earnings-row" style={{ borderTop: `1px solid ${T.border}`, paddingTop: 10, fontSize: 14 }}>
                     <span style={{ color: T.text, fontWeight: 700 }}>This month total</span>
                     <span style={{ color: T.accent, fontWeight: 800 }}>{fmt(data.stats.monthly_total)}</span>
                   </div>
@@ -461,7 +473,8 @@ function DashboardInner() {
             {data.payouts.length > 0 && (
               <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px 24px", marginBottom: 24 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 16 }}>Payout History</div>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <div className="aff-table-wrap">
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 400 }}>
                   <thead>
                     <tr style={{ borderBottom: `1px solid ${T.border}` }}>
                       {["Period", "Amount", "Status", "Paid"].map((h) => (
@@ -491,6 +504,7 @@ function DashboardInner() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
 
@@ -498,7 +512,8 @@ function DashboardInner() {
             {data.referrals.length > 0 && (
               <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px 24px", marginBottom: 24 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 16 }}>Your Referrals</div>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <div className="aff-table-wrap">
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 380 }}>
                   <thead>
                     <tr style={{ borderBottom: `1px solid ${T.border}` }}>
                       {["Email", "Plan", "Status", "Joined"].map((h) => (
@@ -526,6 +541,7 @@ function DashboardInner() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
 

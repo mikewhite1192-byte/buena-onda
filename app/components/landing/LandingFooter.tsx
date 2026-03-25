@@ -13,8 +13,40 @@ const T = {
 export default function LandingFooter() {
   return (
     <footer style={{ background: T.surface, borderTop: `1px solid ${T.border}`, padding: "48px 24px 32px" }}>
+      <style>{`
+        .footer-grid {
+          display: grid;
+          grid-template-columns: 2fr 1fr 1fr 1fr;
+          gap: 40px;
+          margin-bottom: 48px;
+        }
+        .footer-bottom {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+        @media (max-width: 768px) {
+          .footer-grid {
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+          }
+        }
+        @media (max-width: 480px) {
+          .footer-grid {
+            grid-template-columns: 1fr;
+            gap: 28px;
+          }
+          .footer-bottom {
+            flex-direction: column;
+            text-align: center;
+          }
+        }
+      `}</style>
+
       <div style={{ maxWidth: 1020, margin: "0 auto" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 40, marginBottom: 48, flexWrap: "wrap" }}>
+        <div className="footer-grid">
           {/* Brand */}
           <div>
             <div style={{ fontWeight: 800, fontSize: 18, background: "linear-gradient(135deg,#f5a623,#f76b1c)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: 12 }}>
@@ -71,7 +103,7 @@ export default function LandingFooter() {
         </div>
 
         {/* Bottom bar */}
-        <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 24, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div className="footer-bottom" style={{ borderTop: `1px solid ${T.border}`, paddingTop: 24 }}>
           <p style={{ fontSize: 12, color: T.faint, margin: 0 }}>
             © {new Date().getFullYear()} Buena Onda. All rights reserved.
           </p>

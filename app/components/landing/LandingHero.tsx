@@ -198,6 +198,20 @@ export default function LandingHero() {
           0% { transform: translateX(0); }
           100% { transform: translateX(-50%); }
         }
+        .stats-grid {
+          max-width: 640px;
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 24px;
+        }
+        @media (max-width: 480px) {
+          .stats-grid {
+            grid-template-columns: 1fr;
+            gap: 32px;
+            max-width: 260px;
+          }
+        }
         @keyframes livePulse {
           0% { box-shadow: 0 0 0 0 rgba(46,204,113,0.5); }
           70% { box-shadow: 0 0 0 7px rgba(46,204,113,0); }
@@ -532,15 +546,7 @@ export default function LandingHero() {
             padding: "56px 24px",
           }}
         >
-          <div
-            style={{
-              maxWidth: 640,
-              margin: "0 auto",
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: 24,
-            }}
-          >
+          <div className="stats-grid">
             {STATS.map((s) => (
               <StatCounter
                 key={s.label}

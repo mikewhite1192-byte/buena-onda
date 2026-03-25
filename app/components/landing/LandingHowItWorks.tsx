@@ -72,6 +72,56 @@ const STEPS = [
 export default function LandingHowItWorks() {
   return (
     <section id="how-it-works" style={{ padding: "100px 24px", background: T.bg }}>
+      <style>{`
+        .how-step {
+          background: #161820;
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 14px;
+          padding: 28px 32px;
+          display: grid;
+          grid-template-columns: 160px 1fr;
+          gap: 32px;
+          align-items: start;
+        }
+        .how-bullets {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px 24px;
+        }
+        .how-callout {
+          margin-top: 48px;
+          background: #161820;
+          border: 1px solid rgba(245,166,35,0.15);
+          border-radius: 14px;
+          padding: 28px 32px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 20px;
+        }
+        @media (max-width: 640px) {
+          .how-step {
+            grid-template-columns: 1fr;
+            gap: 16px;
+            padding: 22px 20px;
+          }
+          .how-bullets {
+            grid-template-columns: 1fr;
+            gap: 10px;
+          }
+          .how-callout {
+            padding: 22px 20px;
+            flex-direction: column;
+            align-items: flex-start;
+          }
+          .how-callout a {
+            width: 100%;
+            text-align: center;
+          }
+        }
+      `}</style>
+
       <div style={{ maxWidth: 1000, margin: "0 auto" }}>
 
         {/* Header */}
@@ -79,7 +129,7 @@ export default function LandingHowItWorks() {
           <div style={{ display: "inline-block", padding: "5px 16px", background: T.accentBg, border: "1px solid rgba(245,166,35,0.3)", borderRadius: 20, fontSize: 11, color: T.accent, fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: 20 }}>
             How it works
           </div>
-          <h2 style={{ fontSize: "clamp(28px, 4vw, 48px)", fontWeight: 800, color: T.text, margin: "0 0 16px", letterSpacing: "-1.5px" }}>
+          <h2 style={{ fontSize: "clamp(24px, 4vw, 48px)", fontWeight: 800, color: T.text, margin: "0 0 16px", letterSpacing: "-1.5px" }}>
             Launch. Manage. Optimize. Report. Oversee.
           </h2>
           <p style={{ fontSize: 16, color: T.muted, maxWidth: 520, margin: "0 auto", lineHeight: 1.7 }}>
@@ -90,19 +140,7 @@ export default function LandingHowItWorks() {
         {/* Steps */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {STEPS.map((step, i) => (
-            <div
-              key={step.word}
-              style={{
-                background: T.surface,
-                border: `1px solid ${T.border}`,
-                borderRadius: 14,
-                padding: "28px 32px",
-                display: "grid",
-                gridTemplateColumns: "160px 1fr",
-                gap: 32,
-                alignItems: "start",
-              }}
-            >
+            <div key={step.word} className="how-step">
               {/* Left: word + icon */}
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: T.faint, letterSpacing: "0.06em", marginBottom: 8 }}>
@@ -119,7 +157,7 @@ export default function LandingHowItWorks() {
                 <h3 style={{ fontSize: 17, fontWeight: 700, color: T.text, margin: "0 0 16px", letterSpacing: "-0.3px" }}>
                   {step.title}
                 </h3>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 24px" }}>
+                <div className="how-bullets">
                   {step.bullets.map(b => (
                     <div key={b} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                       <span style={{ color: T.accent, fontSize: 12, flexShrink: 0, marginTop: 2 }}>→</span>
@@ -133,7 +171,7 @@ export default function LandingHowItWorks() {
         </div>
 
         {/* Bottom callout */}
-        <div style={{ marginTop: 48, background: T.surface, border: "1px solid rgba(245,166,35,0.15)", borderRadius: 14, padding: "28px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 20 }}>
+        <div className="how-callout">
           <div>
             <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 4 }}>
               Already running ads — or managing them for clients?
