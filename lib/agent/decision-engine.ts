@@ -1,11 +1,11 @@
 // lib/agent/decision-engine.ts
-// Loads active learned rules per vertical at runtime.
-// Falls back to defaults if no learnings exist yet.
+// Claude-powered AI decisions with rule-based fallback.
 
-import { loadRulesForVertical } from "./learning-engine";
+import Anthropic from "@anthropic-ai/sdk";
 import { neon } from "@neondatabase/serverless";
 
 const sql = neon(process.env.DATABASE_URL!);
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
 type Vertical = "leads" | "ecomm";
 
@@ -30,116 +30,118 @@ export interface Decision {
   params?: Record<string, unknown>;
 }
 
-// ─── Main Decision Function ───────────────────────────────────────────────────
+// ─── Main Decision Function (Claude-powered) ──────────────────────────────────
 
 export async function makeDecisions(
   adSets: AdSetSnapshot[],
   clientId: string
 ): Promise<Decision[]> {
-  // Get client's vertical
+  if (adSets.length === 0) return [];
+
   const clientRows = await sql`
-    SELECT vertical FROM clients WHERE id = ${clientId} LIMIT 1
-  `;
-  const vertical: Vertical =
-    (clientRows[0] as { vertical: Vertical })?.vertical ?? "leads";
+    SELECT vertical, name, cpl_target, roas_target FROM clients WHERE id = ${clientId} LIMIT 1
+  `.catch(() => []);
+  const client = (clientRows[0] ?? {}) as {
+    vertical?: string;
+    name?: string;
+    cpl_target?: string;
+    roas_target?: string;
+  };
+  const vertical = (client.vertical ?? "leads") as Vertical;
 
-  // Load rules — learned rules overlay defaults automatically
-  const rules = await loadRulesForVertical(vertical);
+  // Load active learned rules for context
+  const learnings = await sql`
+    SELECT pattern_description, rule_key, rule_value
+    FROM agent_learnings
+    WHERE vertical = ${vertical} AND is_active_rule = true
+    ORDER BY confidence_score DESC LIMIT 5
+  `.catch(() => []);
 
-  console.log(`[DecisionEngine] Loaded rules for ${vertical}:`, rules);
+  const system = `You are an expert performance marketing AI with deep knowledge of Meta Ads optimization for ${vertical === "leads" ? "lead generation" : "e-commerce"} campaigns.
 
-  const decisions: Decision[] = [];
+You analyze real ad set performance data and make intelligent decisions based on:
+- Statistical confidence (more data = more decisive action)
+- Cost efficiency vs. client goals
+- Audience saturation signals (frequency)
+- Creative fatigue indicators (low CTR, high frequency)
+- Budget efficiency and scaling opportunities
 
-  for (const adSet of adSets) {
-    const decision = evaluateAdSet(adSet, rules);
-    if (decision.action !== "none") {
-      decisions.push(decision);
+${client.cpl_target ? `Client CPL target: $${client.cpl_target}` : `Typical ${vertical} CPL benchmark: ${vertical === "leads" ? "$20–$60" : "$30–$80"}`}
+${client.roas_target ? `Client ROAS target: ${client.roas_target}x` : ""}
+${learnings.length > 0 ? `\nLearned patterns from this account:\n${(learnings as Array<{ pattern_description?: string; rule_key?: string; rule_value?: string }>).map(l => `- ${l.pattern_description ?? `${l.rule_key}: ${l.rule_value}`}`).join("\n")}` : ""}
+
+Decision criteria:
+- "pause": CPL consistently over target with enough lead volume (3+ leads), or $20+ spend with zero conversions
+- "scale": CPL well below target (>25% under) with statistical confidence (5+ leads), strong CTR
+- "creative_brief": Frequency >3.0 AND CTR declining, or CTR <0.5% with 1000+ impressions
+- "flag_review": Borderline metrics needing a human eye (CPL within 20% of target, mixed signals)
+- "none": Performing within acceptable range — leave it alone
+
+Be decisive with sufficient data. Be cautious with limited data. Never scale without enough conversion data. Always explain your reasoning briefly and specifically.`;
+
+  const adContext = adSets.map(a => ({
+    id: a.ad_set_id,
+    spend_total: `$${a.spend.toFixed(2)}`,
+    leads: a.leads,
+    cpl: a.cpl > 0 ? `$${a.cpl.toFixed(2)}` : "no conversions yet",
+    ctr: `${(a.ctr * 100).toFixed(2)}%`,
+    frequency: a.frequency.toFixed(2),
+    impressions: a.impressions.toLocaleString(),
+    daily_budget: `$${a.current_budget.toFixed(2)}/day`,
+    status: a.status,
+  }));
+
+  try {
+    const msg = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 1024,
+      system,
+      messages: [
+        {
+          role: "user",
+          content: `Analyze these ad sets and return your decisions as a JSON array:\n\n${JSON.stringify(adContext, null, 2)}\n\nReturn ONLY a valid JSON array:\n[\n  {\n    "ad_set_id": "...",\n    "action": "pause|scale|flag_review|creative_brief|none",\n    "reason": "specific reason in one sentence",\n    "params": { "new_budget": 50.00 }  // include only for scale actions — new daily budget in dollars\n  }\n]`,
+        },
+      ],
+    });
+
+    const text = msg.content[0].type === "text" ? msg.content[0].text : "";
+    const match = text.match(/\[[\s\S]*\]/);
+    if (!match) {
+      console.warn("[DecisionEngine] Claude returned no JSON array, using rule fallback");
+      return fallbackDecisions(adSets, vertical);
     }
+    const parsed = JSON.parse(match[0]) as Decision[];
+    const valid = parsed.filter(d => d.action && d.action !== "none");
+    console.log(`[DecisionEngine] Claude decisions: ${valid.length} actions on ${adSets.length} ad sets`);
+    return valid;
+  } catch (err) {
+    console.error("[DecisionEngine] Claude error, using rule fallback:", err);
+    return fallbackDecisions(adSets, vertical);
   }
-
-  return decisions;
 }
 
-// ─── Per-AdSet Evaluation ─────────────────────────────────────────────────────
+// ─── Rule-Based Fallback ──────────────────────────────────────────────────────
+// Used when Claude is unavailable. Keeps the system working under any condition.
 
-function evaluateAdSet(
-  adSet: AdSetSnapshot,
-  rules: Record<string, number>
-): Decision {
-  const {
-    cpl_cap,
-    scale_floor_cpl,
-    frequency_cap,
-    max_weekly_budget_increase,
-    min_leads_before_scale,
-  } = rules;
+function fallbackDecisions(adSets: AdSetSnapshot[], vertical: Vertical): Decision[] {
+  const cplCap = vertical === "leads" ? 30 : 50;
+  const scaleFloor = vertical === "leads" ? 20 : 30;
+  const freqCap = vertical === "leads" ? 3.0 : 4.0;
 
-  // 1. Pause — CPL over cap
-  if (adSet.cpl > cpl_cap && adSet.leads >= 3) {
-    return {
-      ad_set_id: adSet.ad_set_id,
-      action: "pause",
-      reason: `CPL $${adSet.cpl.toFixed(2)} exceeds cap of $${cpl_cap} (vertical rule)`,
-    };
+  const results: Decision[] = [];
+  for (const adSet of adSets) {
+    if (adSet.cpl > cplCap && adSet.leads >= 3) {
+      results.push({ ad_set_id: adSet.ad_set_id, action: "pause", reason: `CPL $${adSet.cpl.toFixed(2)} exceeds $${cplCap} cap (fallback rule)` });
+    } else if (adSet.frequency > freqCap) {
+      results.push({ ad_set_id: adSet.ad_set_id, action: "creative_brief", reason: `Frequency ${adSet.frequency.toFixed(2)} exceeds ${freqCap} (fallback rule)`, params: { trigger: "frequency", value: adSet.frequency } });
+    } else if (adSet.ctr < 0.005 && adSet.impressions > 1000) {
+      results.push({ ad_set_id: adSet.ad_set_id, action: "creative_brief", reason: `CTR ${(adSet.ctr * 100).toFixed(2)}% critically low with ${adSet.impressions} impressions (fallback rule)` });
+    } else if (adSet.cpl < scaleFloor && adSet.leads >= 5 && adSet.status === "ACTIVE") {
+      const newBudget = parseFloat((adSet.current_budget * 1.2).toFixed(2));
+      results.push({ ad_set_id: adSet.ad_set_id, action: "scale", reason: `CPL $${adSet.cpl.toFixed(2)} under floor $${scaleFloor} with ${adSet.leads} leads (fallback rule)`, params: { current_budget: adSet.current_budget, new_budget: newBudget } });
+    } else if (adSet.cpl > cplCap * 0.8 && adSet.cpl <= cplCap) {
+      results.push({ ad_set_id: adSet.ad_set_id, action: "flag_review", reason: `CPL $${adSet.cpl.toFixed(2)} approaching cap $${cplCap} (fallback rule)` });
+    }
   }
-
-  // 2. Creative brief — frequency too high
-  if (adSet.frequency > frequency_cap) {
-    return {
-      ad_set_id: adSet.ad_set_id,
-      action: "creative_brief",
-      reason: `Frequency ${adSet.frequency.toFixed(2)} exceeds cap of ${frequency_cap} (vertical rule)`,
-      params: { trigger: "frequency", value: adSet.frequency },
-    };
-  }
-
-  // 3. Creative brief — CTR dropped significantly
-  // (requires historical CTR stored in action_details — handled by agent loop)
-  if (adSet.ctr < 0.005 && adSet.impressions > 1000) {
-    return {
-      ad_set_id: adSet.ad_set_id,
-      action: "creative_brief",
-      reason: `CTR ${(adSet.ctr * 100).toFixed(2)}% is critically low`,
-      params: { trigger: "ctr", value: adSet.ctr },
-    };
-  }
-
-  // 4. Scale — CPL under floor, enough leads to be confident
-  if (
-    adSet.cpl < scale_floor_cpl &&
-    adSet.leads >= min_leads_before_scale &&
-    adSet.status === "ACTIVE"
-  ) {
-    const increase = Math.min(
-      adSet.current_budget * max_weekly_budget_increase,
-      adSet.current_budget * 0.2 // hard cap at 20% regardless of learned rule
-    );
-    const new_budget = adSet.current_budget + increase;
-
-    return {
-      ad_set_id: adSet.ad_set_id,
-      action: "scale",
-      reason: `CPL $${adSet.cpl.toFixed(2)} under floor $${scale_floor_cpl} with ${adSet.leads} leads`,
-      params: {
-        current_budget: adSet.current_budget,
-        new_budget: parseFloat(new_budget.toFixed(2)),
-        increase_pct: max_weekly_budget_increase,
-      },
-    };
-  }
-
-  // 5. Flag for review — borderline CPL (within 20% of cap)
-  if (adSet.cpl > cpl_cap * 0.8 && adSet.cpl <= cpl_cap) {
-    return {
-      ad_set_id: adSet.ad_set_id,
-      action: "flag_review",
-      reason: `CPL $${adSet.cpl.toFixed(2)} approaching cap of $${cpl_cap}`,
-    };
-  }
-
-  return {
-    ad_set_id: adSet.ad_set_id,
-    action: "none",
-    reason: "Within acceptable range",
-  };
+  return results;
 }

@@ -35,6 +35,11 @@ function SettingsInner() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // Autonomous mode state
+  const [autonomousMode, setAutonomousMode] = useState(false);
+  const [savingMode, setSavingMode] = useState(false);
+  const [modeSaved, setModeSaved] = useState(false);
+
   // Slack state
   const [slackStatus, setSlackStatus] = useState<"" | "connected" | "error">("");
 
@@ -53,6 +58,10 @@ function SettingsInner() {
       .then(d => { if (d.whatsapp_number) setWhatsapp(d.whatsapp_number); })
       .finally(() => setLoading(false));
 
+    fetch("/api/account/autonomous-mode")
+      .then(r => r.json())
+      .then(d => setAutonomousMode(d.autonomous_mode ?? false));
+
     fetch("/api/branding")
       .then(r => r.json())
       .then(d => {
@@ -69,6 +78,23 @@ function SettingsInner() {
     if (slack === "connected") setSlackStatus("connected");
     if (slack === "error") setSlackStatus("error");
   }, [searchParams]);
+
+  async function saveAutonomousMode(value: boolean) {
+    setSavingMode(true);
+    setModeSaved(false);
+    setAutonomousMode(value);
+    try {
+      await fetch("/api/account/autonomous-mode", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ autonomous_mode: value }),
+      });
+      setModeSaved(true);
+      setTimeout(() => setModeSaved(false), 2000);
+    } finally {
+      setSavingMode(false);
+    }
+  }
 
   async function saveBranding() {
     setSavingBranding(true);
@@ -123,6 +149,51 @@ function SettingsInner() {
       <p style={{ fontSize: 13, color: T.muted, margin: "0 0 40px" }}>
         Manage your account preferences and integrations.
       </p>
+
+      {/* AI Behavior */}
+      <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 24, marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+          <span style={{ fontSize: 18 }}>🤖</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: T.text }}>AI Behavior</span>
+          {modeSaved && <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: T.healthy, background: T.healthyBg, padding: "3px 10px", borderRadius: 20 }}>✓ Saved</span>}
+        </div>
+        <p style={{ fontSize: 13, color: T.muted, margin: "0 0 20px", lineHeight: 1.6 }}>
+          Control how the AI handles campaign decisions. With guardrails on, the AI recommends actions and you approve before anything executes. With autonomous mode on, the AI acts immediately — 24/7 with no human needed.
+        </p>
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", background: autonomousMode ? "rgba(245,166,35,0.06)" : "rgba(255,255,255,0.02)", border: `1px solid ${autonomousMode ? "rgba(245,166,35,0.25)" : T.border}`, borderRadius: 10, marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 3 }}>
+              {autonomousMode ? "🟢 Autonomous Mode" : "🔵 Recommendations Mode"}
+            </div>
+            <div style={{ fontSize: 12, color: T.muted, lineHeight: 1.5 }}>
+              {autonomousMode
+                ? "AI executes actions immediately — pauses, scales, and optimizes 24/7 without approval."
+                : "AI surfaces recommendations in the Review tab. You approve before anything executes."}
+            </div>
+          </div>
+          <button
+            onClick={() => saveAutonomousMode(!autonomousMode)}
+            disabled={savingMode}
+            style={{
+              marginLeft: 20, flexShrink: 0,
+              width: 52, height: 28, borderRadius: 14, border: "none", cursor: savingMode ? "not-allowed" : "pointer",
+              background: autonomousMode ? T.accent : "rgba(255,255,255,0.1)",
+              position: "relative", transition: "background 0.2s",
+            }}
+          >
+            <span style={{
+              position: "absolute", top: 3, left: autonomousMode ? 27 : 3,
+              width: 22, height: 22, borderRadius: "50%", background: "#fff",
+              transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+            }} />
+          </button>
+        </div>
+
+        <p style={{ fontSize: 11, color: T.faint, margin: 0, lineHeight: 1.6 }}>
+          New accounts start in Recommendations Mode. Switch to Autonomous Mode once you&apos;ve reviewed a few AI decisions and trust its judgment.
+        </p>
+      </div>
 
       {/* WhatsApp */}
       <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 24, marginBottom: 20 }}>

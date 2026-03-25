@@ -389,6 +389,13 @@ CREATE TABLE IF NOT EXISTS feedback_submissions (
 
 CREATE INDEX IF NOT EXISTS idx_feedback_status ON feedback_submissions(status);
 CREATE INDEX IF NOT EXISTS idx_feedback_created ON feedback_submissions(created_at);
+
+-- Autonomous mode toggle — when true, AI executes immediately; when false (default), AI stores pending recommendations
+ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS autonomous_mode BOOLEAN NOT NULL DEFAULT false;
+
+-- Status tracking on agent_actions — pending (awaiting approval) | executed | approved | rejected
+ALTER TABLE agent_actions ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'executed';
+CREATE INDEX IF NOT EXISTS idx_agent_actions_status ON agent_actions(status);
 `;
 
 // TypeScript types matching the tables
@@ -441,5 +448,6 @@ export interface AgentAction {
   action_type: string;
   details: Record<string, unknown>;
   triggered_by: string;
+  status: string;
   created_at: Date;
 }

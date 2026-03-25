@@ -167,18 +167,35 @@ export async function GET(req: Request) {
         continue;
       }
 
-      // 2b. Run the decision engine
+      // 2b. Run the AI decision engine (Claude-powered)
       const decisions = await makeDecisions(adSetSnapshots, brief.client_id ?? '');
 
-      // 2c. Execute each action + log to DB
+      // 2c. Check autonomous mode for this brief's owner
+      let autonomousMode = false;
+      if (brief.client_id) {
+        const modeRows = await sql`
+          SELECT us.autonomous_mode FROM user_subscriptions us
+          JOIN clients c ON c.owner_id = us.clerk_user_id
+          WHERE c.id = ${brief.client_id}
+          LIMIT 1
+        `.catch(() => []);
+        autonomousMode = (modeRows[0] as { autonomous_mode?: boolean } | undefined)?.autonomous_mode ?? false;
+      }
+
+      // 2d. Execute or queue each action
       for (const decision of decisions) {
         if (decision.action === 'none') continue;
 
-        const metaResult = await executeAction(decision, brief);
+        let metaResult = 'pending';
+        const actionStatus = autonomousMode ? 'executed' : 'pending';
 
-        // Log to agent_actions table regardless of meta result
+        if (autonomousMode) {
+          metaResult = await executeAction(decision, brief);
+        }
+
+        // Log to agent_actions table
         await sql`
-          INSERT INTO agent_actions (campaign_brief_id, action_type, details, triggered_by)
+          INSERT INTO agent_actions (campaign_brief_id, action_type, details, triggered_by, status)
           VALUES (
             ${brief.id},
             ${decision.action},
@@ -188,7 +205,8 @@ export async function GET(req: Request) {
               new_budget: decision.params?.new_budget ?? null,
               meta_result: metaResult,
             })},
-            'agent'
+            'agent',
+            ${actionStatus}
           )
         `;
 
@@ -196,10 +214,10 @@ export async function GET(req: Request) {
           adset_id: decision.ad_set_id,
           action: decision.action,
           reason: decision.reason,
-          meta_result: metaResult,
+          meta_result: autonomousMode ? metaResult : 'pending approval',
         });
 
-        // Notify client owner via WhatsApp if they have a number set
+        // Notify client owner via WhatsApp
         if (brief.client_id) {
           sql`
             SELECT us.whatsapp_number, c.name AS client_name
@@ -212,7 +230,9 @@ export async function GET(req: Request) {
             if (rows.length > 0) {
               const { whatsapp_number, client_name } = rows[0];
               const emoji = decision.action === 'pause' ? '⏸️' : decision.action === 'scale' ? '📈' : '🔍';
-              const msg = `${emoji} *Agent Action — ${client_name}*\n\n*${decision.action.toUpperCase()}* on ad set ${decision.ad_set_id}\n*Reason:* ${decision.reason}\n*Result:* ${metaResult}\n\n_Reply to ask questions or give instructions._`;
+              const msg = autonomousMode
+                ? `${emoji} *Agent Action — ${client_name}*\n\n*${decision.action.toUpperCase()}* on ad set ${decision.ad_set_id}\n*Reason:* ${decision.reason}\n*Result:* ${metaResult}\n\n_Reply to ask questions or give instructions._`
+                : `💡 *AI Recommendation — ${client_name}*\n\n*Suggested: ${decision.action.toUpperCase()}* on ad set ${decision.ad_set_id}\n*Reason:* ${decision.reason}\n\n_Review & approve in your dashboard → Review tab._`;
               sendWhatsAppMessage(whatsapp_number, msg).catch(err =>
                 console.error('[agent-loop] WhatsApp notify error:', err)
               );
@@ -240,6 +260,10 @@ export async function GET(req: Request) {
     for (const conn of googleConnections) {
       try {
         const accessToken = await refreshGoogleAdsToken(conn.refresh_token as string);
+
+        // Check autonomous mode for this user
+        const googleModeRows = await sql`SELECT autonomous_mode FROM user_subscriptions WHERE clerk_user_id = ${conn.clerk_user_id} LIMIT 1`.catch(() => []);
+        const googleAutonomous = (googleModeRows[0] as { autonomous_mode?: boolean } | undefined)?.autonomous_mode ?? false;
 
         // Get last 7 days of metrics aggregated by campaign
         const metrics = await sql`
@@ -278,20 +302,23 @@ export async function GET(req: Request) {
 
           if (cpaCap && cpa && conversions >= 3) {
             if (cpa > cpaCap * 1.3) {
-              // Pause — CPA 30% over cap with enough data
-              await pauseCampaign(accessToken, conn.customer_id as string, campaignResourceName, conn.manager_id as string | null);
+              if (googleAutonomous) {
+                await pauseCampaign(accessToken, conn.customer_id as string, campaignResourceName, conn.manager_id as string | null);
+              }
               if (brief) {
-                await sql`INSERT INTO agent_actions (campaign_brief_id, action_type, details, triggered_by)
-                  VALUES (${brief.id}, 'pause', ${JSON.stringify({ campaign_id: metric.campaign_id, reason: `Google Ads CPA $${cpa?.toFixed(2)} exceeds cap $${cpaCap} by 30%`, platform: 'google' })}, 'agent')`;
+                await sql`INSERT INTO agent_actions (campaign_brief_id, action_type, details, triggered_by, status)
+                  VALUES (${brief.id}, 'pause', ${JSON.stringify({ campaign_id: metric.campaign_id, reason: `Google Ads CPA $${cpa?.toFixed(2)} exceeds cap $${cpaCap} by 30%`, platform: 'google' })}, 'agent', ${googleAutonomous ? 'executed' : 'pending'})`;
               }
               google_actions_taken++;
             } else if (cpa < cpaCap * 0.7 && conversions >= 5 && dailyBudget && budgetResourceName) {
-              // Scale — CPA 30% under cap with 5+ conversions
-              const newBudget = dailyBudget * 1.2;
-              await updateCampaignBudget(accessToken, conn.customer_id as string, budgetResourceName, newBudget, conn.manager_id as string | null);
+              if (googleAutonomous) {
+                const newBudget = dailyBudget * 1.2;
+                await updateCampaignBudget(accessToken, conn.customer_id as string, budgetResourceName, newBudget, conn.manager_id as string | null);
+              }
               if (brief) {
-                await sql`INSERT INTO agent_actions (campaign_brief_id, action_type, details, triggered_by)
-                  VALUES (${brief.id}, 'scale', ${JSON.stringify({ campaign_id: metric.campaign_id, reason: `Google Ads CPA $${cpa?.toFixed(2)} well under cap $${cpaCap}`, new_budget: newBudget, platform: 'google' })}, 'agent')`;
+                const newBudget = dailyBudget * 1.2;
+                await sql`INSERT INTO agent_actions (campaign_brief_id, action_type, details, triggered_by, status)
+                  VALUES (${brief.id}, 'scale', ${JSON.stringify({ campaign_id: metric.campaign_id, reason: `Google Ads CPA $${cpa?.toFixed(2)} well under cap $${cpaCap}`, new_budget: newBudget, platform: 'google' })}, 'agent', ${googleAutonomous ? 'executed' : 'pending'})`;
               }
               google_actions_taken++;
             }
