@@ -377,7 +377,7 @@ export default function LandingHero() {
             >
               {PLATFORMS[platformIdx]}
             </span>{" "}
-            campaigns — around the clock, while you focus on your business.
+            campaigns like a senior media buyer would, around the clock, while you focus on your business.
           </p>
 
           {/* Platform pills */}

@@ -39,10 +39,10 @@ const STEPS = [
     icon: "⚡",
     title: "We optimize around the clock — every hour",
     bullets: [
-      "The AI scans every campaign every hour — not just when you remember to check",
-      "Winning ads get more budget automatically; underperformers get paused immediately",
-      "At 2am on a Sunday, if CPL spikes the AI catches it and acts before you wake up",
-      "Choose guardrails mode (you approve) or full autonomous mode (AI executes instantly)",
+      "The AI thinks like a senior media buyer. It scans every campaign every hour and knows what to do.",
+      "Winning ads get more budget. Underperformers get paused. No login required.",
+      "At 2am on a Sunday, if CPL spikes the AI catches it and acts before you wake up.",
+      "Choose guardrails mode where you approve first, or full autonomous mode where the AI just handles it.",
     ],
   },
   {
