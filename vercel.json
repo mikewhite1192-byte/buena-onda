@@ -10,7 +10,6 @@
     "app/api/whatsapp/webhook/route.ts": { "maxDuration": 60 }
   },
   "crons": [
-    { "path": "/api/cron/agent-loop", "schedule": "0 * * * *" },
     { "path": "/api/cron/refresh-meta-tokens", "schedule": "0 6 * * *" },
     { "path": "/api/cron/demo-reset", "schedule": "0 5 * * *" },
     { "path": "/api/cron/affiliate-billing", "schedule": "0 9 1 * *" },
