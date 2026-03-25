@@ -327,6 +327,22 @@ CREATE TABLE IF NOT EXISTS team_members (
 
 CREATE INDEX IF NOT EXISTS idx_team_members_owner ON team_members(owner_clerk_user_id);
 CREATE INDEX IF NOT EXISTS idx_team_members_member ON team_members(member_clerk_user_id);
+
+-- Client portal — contact email on client record
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS contact_email TEXT;
+
+-- Client login tokens — magic link auth for client portal
+CREATE TABLE IF NOT EXISTS client_login_tokens (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id  UUID        NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  token      TEXT        NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used       BOOLEAN     NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_client_login_tokens_token ON client_login_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_client_login_tokens_client ON client_login_tokens(client_id);
 `;
 
 // TypeScript types matching the tables

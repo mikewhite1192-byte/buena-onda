@@ -22,6 +22,7 @@ interface Client {
   google_customer_id: string | null;
   tiktok_advertiser_id: string | null;
   shopify_domain: string | null;
+  contact_email: string | null;
 }
 
 interface AdAccount {
@@ -84,6 +85,13 @@ export default function ClientsPage() {
   // Shopify domain input (needed before OAuth redirect)
   const [shopifyConnectClientId, setShopifyConnectClientId] = useState<string | null>(null);
   const [shopifyDomainInput, setShopifyDomainInput] = useState("");
+
+  // Client portal — send login link
+  const [portalClientId, setPortalClientId] = useState<string | null>(null);
+  const [portalClientName, setPortalClientName] = useState("");
+  const [portalEmail, setPortalEmail] = useState("");
+  const [sendingPortal, setSendingPortal] = useState(false);
+  const [portalMsg, setPortalMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
   // Client rules / memory panel
   const [rulesClientId, setRulesClientId] = useState<string | null>(null);
@@ -367,6 +375,37 @@ export default function ClientsPage() {
     setRules(r => r.filter(x => x.id !== ruleId));
   }
 
+  function openPortal(c: Client) {
+    setPortalClientId(c.id);
+    setPortalClientName(c.name);
+    setPortalEmail(c.contact_email ?? "");
+    setPortalMsg(null);
+  }
+
+  async function sendPortalLink() {
+    if (!portalClientId || !portalEmail.trim()) return;
+    setSendingPortal(true);
+    setPortalMsg(null);
+    try {
+      const res = await fetch("/api/client-portal/login/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: portalClientId, email: portalEmail.trim() }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setPortalMsg({ type: "ok", text: `Login link sent to ${portalEmail.trim()}` });
+        await loadClients();
+      } else {
+        setPortalMsg({ type: "err", text: data.error ?? "Failed to send link" });
+      }
+    } catch {
+      setPortalMsg({ type: "err", text: "Network error" });
+    } finally {
+      setSendingPortal(false);
+    }
+  }
+
   return (
     <div style={{ padding: "32px 40px", maxWidth: 900, margin: "0 auto" }}>
       {/* Header */}
@@ -595,6 +634,12 @@ export default function ClientsPage() {
                   Memory
                 </button>
                 <button
+                  onClick={() => openPortal(c)}
+                  style={{ background: "transparent", border: "1px solid rgba(139,111,232,0.3)", borderRadius: 6, padding: "5px 10px", fontSize: 11, color: "#8B6FE8", cursor: "pointer", fontFamily: "'DM Mono', 'Fira Mono', monospace" }}
+                >
+                  Portal
+                </button>
+                <button
                   onClick={() => handleDelete(c.id)}
                   style={{
                     background: "transparent",
@@ -733,6 +778,47 @@ export default function ClientsPage() {
               <button onClick={() => setShopifyConnectClientId(null)}
                 style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 16px", fontSize: 13, color: "#8b8fa8", cursor: "pointer", fontFamily: "inherit" }}>
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Client Portal — Send Login Link Modal */}
+      {portalClientId && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={(e) => { if (e.target === e.currentTarget) { setPortalClientId(null); setPortalMsg(null); } }}>
+          <div style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "28px 32px", width: 440, maxWidth: "90vw" }}>
+            <h2 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 700, color: "#e8eaf0", fontFamily: "'DM Mono','Fira Mono',monospace" }}>
+              Client Portal — {portalClientName}
+            </h2>
+            <p style={{ margin: "0 0 20px", fontSize: 12, color: "#8b8fa8", fontFamily: "'DM Mono','Fira Mono',monospace" }}>
+              Send your client a magic link to their read-only dashboard. It expires in 24 hours.
+            </p>
+            <label style={{ fontSize: 11, color: "#8b8fa8", display: "block", marginBottom: 6 }}>Client email address</label>
+            <input
+              type="email"
+              placeholder="client@theirbusiness.com"
+              value={portalEmail}
+              onChange={e => setPortalEmail(e.target.value)}
+              style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#e8eaf0", fontFamily: "'DM Mono','Fira Mono',monospace", outline: "none", boxSizing: "border-box" as const }}
+            />
+            {portalMsg && (
+              <div style={{ marginTop: 10, fontSize: 12, color: portalMsg.type === "ok" ? "#4ade80" : "#f87171", padding: "8px 12px", background: portalMsg.type === "ok" ? "rgba(74,222,128,0.08)" : "rgba(248,113,113,0.08)", borderRadius: 6 }}>
+                {portalMsg.text}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button
+                onClick={sendPortalLink}
+                disabled={sendingPortal || !portalEmail.trim()}
+                style={{ flex: 1, background: sendingPortal || !portalEmail.trim() ? "rgba(139,111,232,0.2)" : "#8B6FE8", border: "none", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 700, color: sendingPortal || !portalEmail.trim() ? "#8B6FE8" : "#fff", cursor: sendingPortal || !portalEmail.trim() ? "not-allowed" : "pointer", fontFamily: "inherit" }}
+              >
+                {sendingPortal ? "Sending…" : "Send Login Link"}
+              </button>
+              <button onClick={() => { setPortalClientId(null); setPortalMsg(null); }}
+                style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 16px", fontSize: 13, color: "#8b8fa8", cursor: "pointer", fontFamily: "inherit" }}>
+                Close
               </button>
             </div>
           </div>

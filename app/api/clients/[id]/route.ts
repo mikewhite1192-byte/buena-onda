@@ -14,7 +14,7 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await req.json();
-  const { name, meta_ad_account_id, meta_page_id, vertical, whatsapp_number, notes, status, cpl_target, roas_target, monthly_budget, website_url, google_customer_id, tiktok_advertiser_id, shopify_domain } = body;
+  const { name, meta_ad_account_id, meta_page_id, vertical, whatsapp_number, notes, status, cpl_target, roas_target, monthly_budget, website_url, google_customer_id, tiktok_advertiser_id, shopify_domain, contact_email } = body;
 
   const rows = await sql`
     UPDATE clients SET
@@ -26,6 +26,7 @@ export async function PATCH(
       notes               = COALESCE(${notes ?? null}, notes),
       status              = COALESCE(${status ?? null}, status),
       website_url         = COALESCE(${website_url ?? null}, website_url),
+      contact_email        = CASE WHEN ${contact_email ?? null} IS NOT NULL THEN ${contact_email ?? null} ELSE contact_email END,
       google_customer_id   = CASE WHEN ${google_customer_id ?? null} IS NOT NULL THEN ${google_customer_id ?? null} ELSE google_customer_id END,
       tiktok_advertiser_id = CASE WHEN ${tiktok_advertiser_id ?? null} IS NOT NULL THEN ${tiktok_advertiser_id ?? null} ELSE tiktok_advertiser_id END,
       shopify_domain       = CASE WHEN ${shopify_domain ?? null} IS NOT NULL THEN ${shopify_domain ?? null} ELSE shopify_domain END,
@@ -33,7 +34,7 @@ export async function PATCH(
       roas_target          = CASE WHEN ${roas_target ?? null}::decimal IS NOT NULL THEN ${roas_target ?? null}::decimal ELSE roas_target END,
       monthly_budget       = CASE WHEN ${monthly_budget ?? null}::decimal IS NOT NULL THEN ${monthly_budget ?? null}::decimal ELSE monthly_budget END
     WHERE id = ${id} AND owner_id = ${userId}
-    RETURNING id, name, meta_ad_account_id, meta_page_id, vertical, status, whatsapp_number, notes, created_at, cpl_target, roas_target, monthly_budget, website_url, google_customer_id, tiktok_advertiser_id, shopify_domain
+    RETURNING id, name, meta_ad_account_id, meta_page_id, vertical, status, whatsapp_number, notes, created_at, cpl_target, roas_target, monthly_budget, website_url, contact_email, google_customer_id, tiktok_advertiser_id, shopify_domain
   `;
 
   if (rows.length === 0) {
