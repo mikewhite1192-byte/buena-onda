@@ -35,8 +35,16 @@ function SettingsInner() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // Slack state (placeholder — wired up when Slack is built)
+  // Slack state
   const [slackStatus, setSlackStatus] = useState<"" | "connected" | "error">("");
+
+  // Branding state
+  const [agencyName, setAgencyName] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [primaryColor, setPrimaryColor] = useState("#f5a623");
+  const [customDomain, setCustomDomain] = useState("");
+  const [savingBranding, setSavingBranding] = useState(false);
+  const [brandingSaved, setBrandingSaved] = useState(false);
 
   useEffect(() => {
     fetch("/api/account/whatsapp")
@@ -44,10 +52,42 @@ function SettingsInner() {
       .then(d => { if (d.whatsapp_number) setWhatsapp(d.whatsapp_number); })
       .finally(() => setLoading(false));
 
+    fetch("/api/branding")
+      .then(r => r.json())
+      .then(d => {
+        if (d.branding) {
+          setAgencyName(d.branding.agency_name ?? "");
+          setLogoUrl(d.branding.logo_url ?? "");
+          setPrimaryColor(d.branding.primary_color ?? "#f5a623");
+          setCustomDomain(d.branding.custom_domain ?? "");
+        }
+      });
+
     const slack = searchParams.get("slack");
     if (slack === "connected") setSlackStatus("connected");
     if (slack === "error") setSlackStatus("error");
   }, [searchParams]);
+
+  async function saveBranding() {
+    setSavingBranding(true);
+    setBrandingSaved(false);
+    try {
+      await fetch("/api/branding", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agency_name: agencyName.trim() || null,
+          logo_url: logoUrl.trim() || null,
+          primary_color: primaryColor,
+          custom_domain: customDomain.trim().toLowerCase() || null,
+        }),
+      });
+      setBrandingSaved(true);
+      setTimeout(() => setBrandingSaved(false), 3000);
+    } finally {
+      setSavingBranding(false);
+    }
+  }
 
   async function saveWhatsapp() {
     setSaving(true);
@@ -139,6 +179,101 @@ function SettingsInner() {
         <p style={{ fontSize: 11, color: T.faint, margin: "10px 0 0", lineHeight: 1.6 }}>
           Enter your full number with country code, no + or spaces (e.g. 15862378743 for US). Your number must be registered on WhatsApp.
         </p>
+      </div>
+
+      {/* White-label Branding */}
+      <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 24, marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+          <span style={{ fontSize: 18 }}>🎨</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: T.text }}>White-label Branding</span>
+        </div>
+        <p style={{ fontSize: 13, color: T.muted, margin: "0 0 24px", lineHeight: 1.6 }}>
+          Brand the client portal with your agency&apos;s name, logo, and colors. Clients will see your brand instead of Buena Onda.
+        </p>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Agency name */}
+          <div>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>Agency Name</label>
+            <input
+              type="text"
+              value={agencyName}
+              onChange={e => setAgencyName(e.target.value)}
+              placeholder="Your Agency"
+              style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 13, color: T.text, fontFamily: "inherit", outline: "none", boxSizing: "border-box" as const }}
+            />
+          </div>
+
+          {/* Logo URL */}
+          <div>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>Logo URL</label>
+            <input
+              type="url"
+              value={logoUrl}
+              onChange={e => setLogoUrl(e.target.value)}
+              placeholder="https://youragency.com/logo.png"
+              style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 13, color: T.text, fontFamily: "inherit", outline: "none", boxSizing: "border-box" as const }}
+            />
+            <p style={{ fontSize: 11, color: T.faint, margin: "6px 0 0" }}>Direct URL to your logo image (PNG or SVG recommended). Shown in the client portal header.</p>
+          </div>
+
+          {/* Primary color */}
+          <div>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>Primary Color</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <input
+                type="color"
+                value={primaryColor}
+                onChange={e => setPrimaryColor(e.target.value)}
+                style={{ width: 44, height: 36, border: `1px solid ${T.border}`, borderRadius: 7, cursor: "pointer", background: "transparent", padding: 2 }}
+              />
+              <input
+                type="text"
+                value={primaryColor}
+                onChange={e => setPrimaryColor(e.target.value)}
+                placeholder="#f5a623"
+                style={{ width: 110, background: "rgba(255,255,255,0.04)", border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 13, color: T.text, fontFamily: "inherit", outline: "none" }}
+              />
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: primaryColor, border: `1px solid ${T.border}` }} />
+            </div>
+          </div>
+
+          {/* Custom domain */}
+          <div>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>Custom Portal Domain</label>
+            <input
+              type="text"
+              value={customDomain}
+              onChange={e => setCustomDomain(e.target.value)}
+              placeholder="portal.youragency.com"
+              style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 13, color: T.text, fontFamily: "inherit", outline: "none", boxSizing: "border-box" as const }}
+            />
+            <p style={{ fontSize: 11, color: T.faint, margin: "6px 0 0" }}>
+              Add a CNAME record pointing <strong style={{ color: T.muted }}>portal.youragency.com</strong> → <strong style={{ color: T.muted }}>buenaonda.ai</strong>, then add the domain in Vercel. Clients will see your domain in the browser.
+            </p>
+          </div>
+
+          <button
+            onClick={saveBranding}
+            disabled={savingBranding}
+            style={{
+              alignSelf: "flex-start",
+              padding: "10px 24px",
+              borderRadius: 8,
+              border: "none",
+              background: brandingSaved ? T.healthyBg : T.accentBg,
+              color: brandingSaved ? T.healthy : T.accent,
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: savingBranding ? "not-allowed" : "pointer",
+              fontFamily: "inherit",
+              opacity: savingBranding ? 0.7 : 1,
+              transition: "all 0.2s",
+            }}
+          >
+            {savingBranding ? "Saving…" : brandingSaved ? "✓ Saved" : "Save Branding"}
+          </button>
+        </div>
       </div>
 
       {/* Slack */}

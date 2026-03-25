@@ -25,12 +25,36 @@ const isPublicRoute = createRouteMatcher([
   "/api/affiliates(.*)",
   "/api/webhooks/(.*)",
   "/api/stripe/checkout",
+  // Client portal — cookie-based auth, no Clerk required
+  "/portal(.*)",
+  "/api/client-portal(.*)",
+  // Team invite acceptance
+  "/team/accept(.*)",
 ]);
 
 const isDashboardRoute = createRouteMatcher(["/dashboard(.*)"]);
 
+const KNOWN_HOSTS = ["buenaonda.ai", "www.buenaonda.ai"];
+
 export default clerkMiddleware(async (auth, req) => {
   const ref = req.nextUrl.searchParams.get("ref");
+  const host = req.headers.get("host") ?? "";
+
+  // Custom domain rewrite — if the host isn't ours or Vercel's, treat as a white-label portal domain
+  const isVercel = host.endsWith(".vercel.app") || host.startsWith("localhost");
+  const isOwnHost = KNOWN_HOSTS.includes(host);
+  if (!isVercel && !isOwnHost) {
+    const url = req.nextUrl.clone();
+    // Rewrite / → /portal/dashboard, /login → /portal/login, else pass through
+    if (url.pathname === "/" || url.pathname === "") {
+      url.pathname = "/portal/dashboard";
+    } else if (url.pathname === "/login") {
+      url.pathname = "/portal/login";
+    }
+    // Pass domain as query param so the portal can fetch the right branding
+    url.searchParams.set("__domain", host);
+    return NextResponse.rewrite(url);
+  }
 
   // Public pages — bypass auth entirely before any Clerk check
   const path = req.nextUrl.pathname;

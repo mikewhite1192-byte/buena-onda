@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
 const T = {
   bg: "#0d0f14",
@@ -50,6 +51,12 @@ interface Summary {
   leads: number;
 }
 
+interface Branding {
+  agency_name: string;
+  logo_url: string | null;
+  primary_color: string;
+}
+
 const PLATFORM_COLORS: Record<string, string> = {
   meta: "#1877f2",
   google: "#4fc3f7",
@@ -65,12 +72,15 @@ function fmtNum(n: number) {
   return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
 }
 
-export default function PortalDashboard() {
+function PortalDashboardInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const customDomain = searchParams.get("__domain");
   const [client, setClient] = useState<Client | null>(null);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [branding, setBranding] = useState<Branding>({ agency_name: 'Buena Onda', logo_url: null, primary_color: '#f5a623' });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -83,9 +93,19 @@ export default function PortalDashboard() {
         return;
       }
 
-      // Load data
-      const dataRes = await fetch("/api/client-portal/data");
+      // Load data + branding in parallel
+      // On custom domains, fetch branding by domain; otherwise by session cookie
+      const brandingUrl = customDomain
+        ? `/api/client-portal/branding?domain=${encodeURIComponent(customDomain)}`
+        : "/api/client-portal/branding";
+
+      const [dataRes, brandRes] = await Promise.all([
+        fetch("/api/client-portal/data"),
+        fetch(brandingUrl),
+      ]);
       const data = await dataRes.json();
+      const brandData = await brandRes.json();
+
       if (data.error) {
         router.push("/portal/login");
         return;
@@ -95,6 +115,7 @@ export default function PortalDashboard() {
       setCampaigns(data.campaigns ?? []);
       setMetrics(data.metrics ?? []);
       setSummary(data.summary ?? null);
+      if (brandData.branding) setBranding(brandData.branding);
       setLoading(false);
     }
     load();
@@ -116,6 +137,8 @@ export default function PortalDashboard() {
   const vertColor = client?.vertical === "leads" ? T.leads : T.ecomm;
   const cpl = summary && summary.leads > 0 ? summary.spend / summary.leads : null;
   const ctr = summary && summary.impressions > 0 ? (summary.clicks / summary.impressions) * 100 : null;
+  const accent = branding.primary_color || T.accent;
+  const logoLetter = (branding.agency_name ?? 'B')[0].toUpperCase();
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, fontFamily: "'DM Mono','Fira Mono',monospace" }}>
@@ -133,8 +156,12 @@ export default function PortalDashboard() {
         zIndex: 100,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
-          <div style={{ width: 26, height: 26, borderRadius: 7, background: "linear-gradient(135deg,#f5a623,#f76b1c)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 12, color: "#fff" }}>B</div>
-          <span style={{ fontWeight: 800, fontSize: 13, color: T.text }}>Buena Onda</span>
+          {branding.logo_url ? (
+            <img src={branding.logo_url} alt={branding.agency_name} style={{ width: 26, height: 26, borderRadius: 7, objectFit: "cover" }} />
+          ) : (
+            <div style={{ width: 26, height: 26, borderRadius: 7, background: `linear-gradient(135deg, ${accent}, ${accent}cc)`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 12, color: "#fff" }}>{logoLetter}</div>
+          )}
+          <span style={{ fontWeight: 800, fontSize: 13, color: T.text }}>{branding.agency_name ?? 'Buena Onda'}</span>
           {client && (
             <>
               <span style={{ color: T.faint, fontSize: 12, margin: "0 4px" }}>/</span>
@@ -175,7 +202,7 @@ export default function PortalDashboard() {
         {summary && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 28 }}>
             {[
-              { label: "Total Spend", value: fmt$(summary.spend), color: T.accent },
+              { label: "Total Spend", value: fmt$(summary.spend), color: accent },
               { label: "Impressions", value: fmtNum(summary.impressions), color: T.text },
               { label: "Clicks", value: fmtNum(summary.clicks), color: T.text },
               ...(client?.vertical === "leads"
@@ -219,7 +246,7 @@ export default function PortalDashboard() {
                         <td style={{ padding: "9px 14px", color: T.muted, whiteSpace: "nowrap" }}>
                           {new Date(m.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                         </td>
-                        <td style={{ padding: "9px 14px", color: T.accent, fontWeight: 600 }}>${parseFloat(m.spend).toFixed(2)}</td>
+                        <td style={{ padding: "9px 14px", color: accent, fontWeight: 600 }}>${parseFloat(m.spend).toFixed(2)}</td>
                         <td style={{ padding: "9px 14px", color: T.text }}>{fmtNum(m.impressions)}</td>
                         <td style={{ padding: "9px 14px", color: T.text }}>{fmtNum(m.clicks)}</td>
                         <td style={{ padding: "9px 14px", color: T.text }}>{rowCtr}</td>
@@ -289,5 +316,17 @@ export default function PortalDashboard() {
 
       </div>
     </div>
+  );
+}
+
+export default function PortalDashboard() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: "100vh", background: "#0d0f14", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "monospace" }}>
+        <div style={{ color: "#8b8fa8", fontSize: 14 }}>Loading…</div>
+      </div>
+    }>
+      <PortalDashboardInner />
+    </Suspense>
   );
 }

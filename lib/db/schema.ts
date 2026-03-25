@@ -328,6 +328,21 @@ CREATE TABLE IF NOT EXISTS team_members (
 CREATE INDEX IF NOT EXISTS idx_team_members_owner ON team_members(owner_clerk_user_id);
 CREATE INDEX IF NOT EXISTS idx_team_members_member ON team_members(member_clerk_user_id);
 
+-- Workspace branding — per-agency white-label config
+CREATE TABLE IF NOT EXISTS workspace_branding (
+  id                   UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_clerk_user_id  TEXT        UNIQUE NOT NULL,
+  agency_name          TEXT,
+  logo_url             TEXT,
+  primary_color        TEXT        NOT NULL DEFAULT '#f5a623',
+  custom_domain        TEXT,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_workspace_branding_owner ON workspace_branding(owner_clerk_user_id);
+CREATE INDEX IF NOT EXISTS idx_workspace_branding_domain ON workspace_branding(custom_domain);
+
 -- Client portal — contact email on client record
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS contact_email TEXT;
 
