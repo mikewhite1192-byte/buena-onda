@@ -465,7 +465,7 @@ export default function LandingHero() {
             className="fu6"
             style={{ fontSize: 12, color: T.faint, marginBottom: 80 }}
           >
-            No credit card required · Cancel anytime
+            14-day free trial · Card required · Cancel anytime
           </p>
         </div>
 

@@ -21,7 +21,6 @@ const T = {
 
 const MILESTONES: { target: number; reward: string; emoji: string }[] = [
   { target: 1,  reward: "Personal welcome video from the founders", emoji: "🎯" },
-  { target: 3,  reward: "Your account is free — as long as you maintain 3 active clients", emoji: "🎁" },
   { target: 10, reward: "Personal strategy call + featured partner", emoji: "⭐" },
 ];
 

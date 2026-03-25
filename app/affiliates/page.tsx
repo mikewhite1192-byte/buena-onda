@@ -22,7 +22,6 @@ const BASE_URL = "https://buenaonda.ai";
 
 const MILESTONES = [
   { count: 1,  icon: "🎯", label: "First referral",    reward: "Personal welcome video from the founders" },
-  { count: 5,  icon: "🏆", label: "5 active clients",  reward: "Bonus 10% commission bump for the month" },
   { count: 10, icon: "⭐", label: "10 active clients", reward: "Personal strategy call + featured partner" },
 ];
 
@@ -101,9 +100,31 @@ export default function AffiliatesPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, fontFamily: "'DM Mono', 'Fira Mono', monospace", color: T.text }}>
+      <style>{`
+        .aff-two-col {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 24px;
+          margin-bottom: 64px;
+          align-items: start;
+        }
+        .aff-steps-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 16px;
+        }
+        @media (max-width: 680px) {
+          .aff-two-col {
+            grid-template-columns: 1fr;
+          }
+          .aff-steps-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
 
       {/* Nav */}
-      <nav style={{ borderBottom: `1px solid ${T.border}`, padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <nav style={{ borderBottom: `1px solid ${T.border}`, padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
         <a href="/" style={{ textDecoration: "none" }}>
           <span style={{ fontWeight: 800, fontSize: 17, background: "linear-gradient(135deg,#f5a623,#f76b1c)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
             Buena Onda
@@ -144,14 +165,13 @@ export default function AffiliatesPage() {
           </p>
         </div>
 
-        {/* Commission + milestone stat strip */}
+        {/* 4-box stat strip */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 64 }}>
           {[
             { label: "Month 1 commission", value: "50%", sub: "on first payment" },
             { label: "Recurring commission", value: "40%", sub: "every month after" },
-            { label: "Bonus commission at", value: "5 refs", sub: "active paying clients" },
-            { label: "Cookie window", value: "90 days", sub: "from first click" },
-            { label: "Payout cycle", value: "Monthly", sub: "direct to your bank" },
+            { label: "Cookie window",        value: "90 days", sub: "from first click" },
+            { label: "Payout cycle",         value: "Monthly", sub: "direct to your bank" },
           ].map(s => (
             <div key={s.label} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "20px", textAlign: "center" }}>
               <div style={{ fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>{s.label}</div>
@@ -161,8 +181,8 @@ export default function AffiliatesPage() {
           ))}
         </div>
 
-        {/* Two-column: earnings calc + sign up */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 64, alignItems: "start" }}>
+        {/* Earnings calc + sign up — stacked on mobile */}
+        <div className="aff-two-col">
 
           {/* Earnings calculator */}
           <div style={{ background: T.surface, border: `1px solid ${T.accentBorder}`, borderRadius: 14, padding: "28px 30px" }}>
@@ -182,7 +202,7 @@ export default function AffiliatesPage() {
 
             <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "16px", background: T.surfaceAlt, borderRadius: 10 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 12, color: T.muted }}>Month 1 bonus (50%)</span>
+                <span style={{ fontSize: 12, color: T.muted }}>Month 1 (50%)</span>
                 <span style={{ fontSize: 14, fontWeight: 700, color: T.accent }}>${month1.toLocaleString()}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -247,7 +267,7 @@ export default function AffiliatesPage() {
                 </button>
 
                 <p style={{ fontSize: 11, color: T.faint, textAlign: "center", margin: 0 }}>
-                  By joining you agree to our affiliate terms. You'll connect your bank account via Stripe from your dashboard.
+                  By joining you agree to our affiliate terms. You&apos;ll connect your bank account via Stripe from your dashboard.
                 </p>
               </form>
             </div>
@@ -273,7 +293,7 @@ export default function AffiliatesPage() {
                 </button>
               </div>
 
-              <div style={{ display: "flex", gap: 10, justifyContent: "center", marginBottom: 20 }}>
+              <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginBottom: 20 }}>
                 <a
                   href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}&quote=${encodeURIComponent(`I use Buena Onda AI to manage Meta ads with AI. Try it free:`)}`}
                   target="_blank" rel="noopener noreferrer"
@@ -304,7 +324,7 @@ export default function AffiliatesPage() {
         {/* How it works */}
         <div style={{ marginBottom: 64 }}>
           <div style={{ fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 28, textAlign: "center" }}>How it works</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
+          <div className="aff-steps-grid">
             {STEPS.map(s => (
               <div key={s.n} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "24px 22px" }}>
                 <div style={{ fontSize: 28, fontWeight: 900, color: T.accentBg, letterSpacing: "-1px", marginBottom: 12, lineHeight: 1 }}>{s.n}</div>
@@ -328,12 +348,12 @@ export default function AffiliatesPage() {
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
-            {MILESTONES.map((m, i) => (
+            {MILESTONES.map((m) => (
               <div
                 key={m.count}
                 style={{
-                  background: i === 1 ? "rgba(46,204,113,0.06)" : T.surface,
-                  border: `1px solid ${i === 1 ? "rgba(46,204,113,0.2)" : T.border}`,
+                  background: T.surface,
+                  border: `1px solid ${T.border}`,
                   borderRadius: 12,
                   padding: "18px 20px",
                   display: "flex",
@@ -344,7 +364,7 @@ export default function AffiliatesPage() {
                 <span style={{ fontSize: 24, flexShrink: 0 }}>{m.icon}</span>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 3 }}>{m.label}</div>
-                  <div style={{ fontSize: 12, color: i === 1 ? T.healthy : T.muted }}>{m.reward}</div>
+                  <div style={{ fontSize: 12, color: T.muted }}>{m.reward}</div>
                 </div>
               </div>
             ))}
