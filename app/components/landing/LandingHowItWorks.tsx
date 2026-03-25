@@ -50,21 +50,21 @@ const STEPS = [
     icon: "📊",
     title: "We report what matters",
     bullets: [
-      "Plain-English morning briefings via WhatsApp — spend, leads, and CPL at a glance",
+      "Weekly performance reports delivered to WhatsApp or your team's Slack — no login required",
+      "Agencies: reports auto-post to a dedicated Slack channel so your whole team is always in the loop",
       "Full dashboard with 30-day trends, campaign breakdowns, and ROAS tracking",
-      "Client-ready reports generated automatically — no manual exports",
-      "Every AI action is logged with a reason so you're never in the dark",
+      "Client-ready reports generated automatically — no manual exports, no copy-pasting",
     ],
   },
   {
     word: "Oversee.",
     icon: "🔭",
-    title: "You stay in control",
+    title: "You stay in control — from anywhere",
     bullets: [
-      "Approve or reject any AI recommendation before it executes",
+      "Reply in WhatsApp or Slack to control the AI: \"pause that campaign\", \"scale the winner\", \"what's my CPL?\"",
+      "The AI executes instantly — no dashboard login needed, works from your phone",
+      "Approve or reject any recommendation before it executes",
       "Set CPL caps, ROAS targets, and frequency limits per client or campaign",
-      "Get alerted instantly when something needs your attention",
-      "Connect your own ad accounts — your data, your accounts, always",
     ],
   },
 ];

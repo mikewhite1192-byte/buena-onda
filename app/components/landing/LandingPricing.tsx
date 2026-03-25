@@ -27,7 +27,7 @@ const PLANS = [
       "AI campaign creation & launch",
       "Daily automated optimization",
       "Lead gen & e-commerce support",
-      "WhatsApp performance reports",
+      "WhatsApp &amp; Slack performance reports",
       "Up to 5 active campaigns",
       "Client dashboard access",
       "14-day free trial",

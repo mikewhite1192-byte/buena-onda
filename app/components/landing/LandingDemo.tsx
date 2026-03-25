@@ -27,7 +27,7 @@ const DEMO_FLOWS: Record<string, { messages: Message[]; summary: string }> = {
       { role: "user", text: "About $3,000/month. I'm in Phoenix and Scottsdale." },
       { role: "ai", text: "Got it. I'll target homeowners 35–65 in Phoenix Metro. Storm season is active — I'll lead with an 'emergency roof repair' angle. What's your typical lead cost goal?" },
       { role: "user", text: "Under $40 per lead ideally." },
-      { role: "ai", text: "That's very achievable. I'm setting up 3 ad sets: storm damage urgency, free inspection offer, and a testimonial carousel. I'll launch tomorrow morning and optimize daily. Want me to send you a WhatsApp update each morning with results?" },
+      { role: "ai", text: "That's very achievable. I'm setting up 3 ad sets: storm damage urgency, free inspection offer, and a testimonial carousel. I'll launch tomorrow morning and optimize daily. Want me to send you a WhatsApp update each morning with results — or post to your Slack channel?" },
       { role: "user", text: "Yes please!" },
       { role: "ai", text: "✅ Campaign ready to launch. I'll target 180k homeowners, run 9 creatives, and aim for $28 CPL. You'll get a morning briefing every day at 8am. Approve to go live →" },
     ],
