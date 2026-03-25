@@ -37,12 +37,12 @@ const STEPS = [
   {
     word: "Optimize.",
     icon: "⚡",
-    title: "We optimize around the clock",
+    title: "We optimize around the clock — every hour",
     bullets: [
-      "The agent monitors performance every day — not just when you remember to check",
-      "Winning ads get more budget automatically; underperformers get paused",
-      "Creative fatigue is caught early before your CPL spikes",
-      "A/B tests run continuously — the AI learns what works and doubles down",
+      "The AI scans every campaign every hour — not just when you remember to check",
+      "Winning ads get more budget automatically; underperformers get paused immediately",
+      "At 2am on a Sunday, if CPL spikes the AI catches it and acts before you wake up",
+      "Choose guardrails mode (you approve) or full autonomous mode (AI executes instantly)",
     ],
   },
   {

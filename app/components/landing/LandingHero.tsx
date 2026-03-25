@@ -22,6 +22,7 @@ const PLATFORM_COLORS = ["#4a90d9", "#34a853", "#ff2d6b", "#96bf48"];
 const TICKER = [
   { icon: "⚡", text: "Budget scaled +20% — Summit Roofing CPL dropped to $22", color: T.green },
   { icon: "⏸", text: "Underperforming ad set paused — $340 saved today", color: T.accent },
+  { icon: "🕐", text: "2:14am — CPL spike caught and paused automatically. No one was awake.", color: T.muted },
   { icon: "🔁", text: "Creative fatigue detected — replacement brief auto-generated", color: T.muted },
   { icon: "📈", text: "ROAS hit 4.2x on Peak Supplements — budget increased", color: T.green },
   { icon: "🎯", text: "New TikTok campaign launched — 3 ad sets live", color: T.accent },
@@ -29,6 +30,7 @@ const TICKER = [
   { icon: "💬", text: "WhatsApp reply received: \"pause the roofing campaign\" — done", color: T.accent },
   { icon: "⚡", text: "Budget reallocated from 2 losers to top performer", color: T.green },
   { icon: "🛑", text: "CPL cap hit — ad set paused before overspend", color: T.red },
+  { icon: "🕐", text: "Sunday 4am — winner scaled while everyone slept. +$800 in leads by 9am.", color: T.green },
   { icon: "📈", text: "Google Search ROAS: 5.1x — scaling now", color: T.green },
   { icon: "🎯", text: "Audience overlap fixed — 3 ad sets consolidated", color: T.accent },
   { icon: "✅", text: "New lead campaign live — targeting 180k homeowners in Phoenix", color: T.green },
