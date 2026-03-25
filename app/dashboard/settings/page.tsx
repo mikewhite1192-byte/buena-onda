@@ -45,6 +45,7 @@ function SettingsInner() {
   const [customDomain, setCustomDomain] = useState("");
   const [savingBranding, setSavingBranding] = useState(false);
   const [brandingSaved, setBrandingSaved] = useState(false);
+  const [brandingAccess, setBrandingAccess] = useState<boolean | null>(null);
 
   useEffect(() => {
     fetch("/api/account/whatsapp")
@@ -55,6 +56,7 @@ function SettingsInner() {
     fetch("/api/branding")
       .then(r => r.json())
       .then(d => {
+        setBrandingAccess(d.hasAccess ?? false);
         if (d.branding) {
           setAgencyName(d.branding.agency_name ?? "");
           setLogoUrl(d.branding.logo_url ?? "");
@@ -182,7 +184,27 @@ function SettingsInner() {
       </div>
 
       {/* White-label Branding */}
-      <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 24, marginBottom: 20 }}>
+      <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 24, marginBottom: 20, position: "relative" }}>
+        {/* Locked overlay for non-subscribers */}
+        {brandingAccess === false && (
+          <div style={{
+            position: "absolute", inset: 0, zIndex: 10,
+            background: "rgba(13,15,20,0.85)",
+            borderRadius: 12,
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            gap: 12, backdropFilter: "blur(2px)",
+          }}>
+            <span style={{ fontSize: 28 }}>🔒</span>
+            <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>$197/mo Plan Required</div>
+            <div style={{ fontSize: 13, color: T.muted, textAlign: "center", maxWidth: 280, lineHeight: 1.6 }}>
+              White-label branding is available on the Growth plan. Upgrade to brand the client portal with your agency.
+            </div>
+            <a href="/pricing" style={{ marginTop: 4, padding: "9px 22px", borderRadius: 8, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 13, fontWeight: 800, textDecoration: "none" }}>
+              Upgrade →
+            </a>
+          </div>
+        )}
+
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
           <span style={{ fontSize: 18 }}>🎨</span>
           <span style={{ fontSize: 15, fontWeight: 700, color: T.text }}>White-label Branding</span>
@@ -244,13 +266,31 @@ function SettingsInner() {
             <input
               type="text"
               value={customDomain}
-              onChange={e => setCustomDomain(e.target.value)}
+              onChange={e => setCustomDomain(e.target.value.toLowerCase().trim())}
               placeholder="portal.youragency.com"
               style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 13, color: T.text, fontFamily: "inherit", outline: "none", boxSizing: "border-box" as const }}
             />
-            <p style={{ fontSize: 11, color: T.faint, margin: "6px 0 0" }}>
-              Add a CNAME record pointing <strong style={{ color: T.muted }}>portal.youragency.com</strong> → <strong style={{ color: T.muted }}>buenaonda.ai</strong>, then add the domain in Vercel. Clients will see your domain in the browser.
-            </p>
+
+            {/* DNS instructions — shown when domain is entered */}
+            {customDomain.trim() && (
+              <div style={{ marginTop: 12, padding: "14px 16px", background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.2)", borderRadius: 8 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: T.accent, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>DNS Setup Instructions</div>
+                <p style={{ fontSize: 12, color: T.muted, margin: "0 0 10px", lineHeight: 1.6 }}>
+                  Add this CNAME record in your domain registrar (GoDaddy, Cloudflare, Namecheap, etc.):
+                </p>
+                <div style={{ background: "rgba(0,0,0,0.3)", borderRadius: 6, padding: "10px 14px", fontFamily: "monospace", fontSize: 12 }}>
+                  <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+                    <span><span style={{ color: T.faint }}>Type:</span> <span style={{ color: T.text }}>CNAME</span></span>
+                    <span><span style={{ color: T.faint }}>Name:</span> <span style={{ color: T.accent }}>{customDomain.split(".")[0]}</span></span>
+                    <span><span style={{ color: T.faint }}>Value:</span> <span style={{ color: T.accent }}>buenaonda.ai</span></span>
+                    <span><span style={{ color: T.faint }}>TTL:</span> <span style={{ color: T.text }}>Auto</span></span>
+                  </div>
+                </div>
+                <p style={{ fontSize: 11, color: T.faint, margin: "10px 0 0", lineHeight: 1.6 }}>
+                  After saving, click <strong style={{ color: T.muted }}>Save Branding</strong> below. We&apos;ll activate your domain within 24 hours and send you a confirmation.
+                </p>
+              </div>
+            )}
           </div>
 
           <button
@@ -273,6 +313,12 @@ function SettingsInner() {
           >
             {savingBranding ? "Saving…" : brandingSaved ? "✓ Saved" : "Save Branding"}
           </button>
+
+          {brandingSaved && customDomain.trim() && (
+            <div style={{ padding: "10px 14px", background: "rgba(46,204,113,0.08)", border: "1px solid rgba(46,204,113,0.2)", borderRadius: 8, fontSize: 12, color: T.healthy, lineHeight: 1.6 }}>
+              ✓ Branding saved. Your custom domain request has been received — we&apos;ll activate <strong>{customDomain}</strong> within 24 hours.
+            </div>
+          )}
         </div>
       </div>
 
