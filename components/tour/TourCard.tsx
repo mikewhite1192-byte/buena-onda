@@ -189,6 +189,10 @@ export default function TourCard() {
 
   function handleNext() {
     if (step === TOTAL_STEPS) { endTour(); return; }
+    // Step 9 opens the chat — close it before moving to step 10
+    if (step === 9) {
+      document.dispatchEvent(new CustomEvent("buenaonda:close-chat"));
+    }
     applyStepEffects(step + 1);
     nextStep();
   }
@@ -257,7 +261,7 @@ export default function TourCard() {
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {isSignedIn ? (
               <button
-                onClick={() => { endTour(); router.push("/dashboard/clients"); }}
+                onClick={() => { document.dispatchEvent(new CustomEvent("buenaonda:close-chat")); endTour(); router.push("/dashboard/clients"); }}
                 style={{
                   display: "block", width: "100%", textAlign: "center",
                   padding: "11px 0", borderRadius: 8,

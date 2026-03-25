@@ -132,6 +132,13 @@ export default function ChatBubble() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Close chat when tour moves away from the AI step
+  useEffect(() => {
+    function handler() { setOpen(false); }
+    document.addEventListener("buenaonda:close-chat", handler);
+    return () => document.removeEventListener("buenaonda:close-chat", handler);
+  }, []);
+
 
   useEffect(() => {
     if (open && messages.length === 0) {
