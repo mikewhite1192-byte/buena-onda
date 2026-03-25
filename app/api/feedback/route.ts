@@ -25,19 +25,9 @@ export async function POST(req: NextRequest) {
 
   // Store in DB
   await sql`
-    CREATE TABLE IF NOT EXISTS feedback (
-      id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      clerk_user_id TEXT NOT NULL,
-      user_email  TEXT,
-      user_name   TEXT,
-      message     TEXT NOT NULL,
-      created_at  TIMESTAMPTZ DEFAULT NOW()
-    )
-  `;
-  await sql`
-    INSERT INTO feedback (clerk_user_id, user_email, user_name, message)
+    INSERT INTO feedback_submissions (clerk_user_id, user_email, user_name, message)
     VALUES (${userId}, ${userEmail}, ${userName}, ${message.trim()})
-  `;
+  `.catch(() => {})
 
   // Email Mike
   await resend.emails.send({

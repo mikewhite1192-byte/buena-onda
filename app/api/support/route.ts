@@ -2,8 +2,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { Resend } from "resend";
+import { neon } from "@neondatabase/serverless";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+const sql = neon(process.env.DATABASE_URL!);
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
@@ -21,6 +23,12 @@ export async function POST(req: NextRequest) {
   const submittedAt = new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles", dateStyle: "full", timeStyle: "short" });
 
   try {
+    // Persist to DB
+    await sql`
+      INSERT INTO support_tickets (clerk_user_id, user_email, user_name, subject, description, category)
+      VALUES (${userId}, ${userEmail}, ${userName}, ${subject}, ${description}, ${category ?? 'general'})
+    `.catch(() => {})
+
     await resend.emails.send({
       from: "Buena Onda Support <support@buenaonda.ai>",
       to: "hello@buenaonda.ai",

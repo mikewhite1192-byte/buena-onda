@@ -35,6 +35,7 @@ const isPublicRoute = createRouteMatcher([
 const isDashboardRoute = createRouteMatcher(["/dashboard(.*)"]);
 
 const KNOWN_HOSTS = ["buenaonda.ai", "www.buenaonda.ai"];
+const OWNER_USER_ID = process.env.OWNER_CLERK_USER_ID ?? "";
 
 export default clerkMiddleware(async (auth, req) => {
   const ref = req.nextUrl.searchParams.get("ref");
@@ -71,6 +72,14 @@ export default clerkMiddleware(async (auth, req) => {
 
   if (!isPublicRoute(req)) {
     await auth.protect();
+  }
+
+  // Owner-only routes — return 404 for anyone who isn't Mike
+  if (path.startsWith("/owner") || path.startsWith("/api/owner")) {
+    const { userId } = await auth();
+    if (!userId || userId !== OWNER_USER_ID) {
+      return new NextResponse(null, { status: 404 });
+    }
   }
 
   // Subscription gate — only applies to /dashboard routes

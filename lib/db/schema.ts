@@ -358,6 +358,37 @@ CREATE TABLE IF NOT EXISTS client_login_tokens (
 
 CREATE INDEX IF NOT EXISTS idx_client_login_tokens_token ON client_login_tokens(token);
 CREATE INDEX IF NOT EXISTS idx_client_login_tokens_client ON client_login_tokens(client_id);
+
+-- Support tickets — persisted so owner dashboard can show/manage them
+CREATE TABLE IF NOT EXISTS support_tickets (
+  id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  clerk_user_id  TEXT        NOT NULL,
+  user_email     TEXT,
+  user_name      TEXT,
+  subject        TEXT        NOT NULL,
+  description    TEXT        NOT NULL,
+  category       TEXT        NOT NULL DEFAULT 'general',
+  status         TEXT        NOT NULL DEFAULT 'open',
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  resolved_at    TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_support_tickets_status ON support_tickets(status);
+CREATE INDEX IF NOT EXISTS idx_support_tickets_created ON support_tickets(created_at);
+
+-- Feedback submissions — persisted so owner dashboard can show/manage them
+CREATE TABLE IF NOT EXISTS feedback_submissions (
+  id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  clerk_user_id  TEXT        NOT NULL,
+  user_email     TEXT,
+  user_name      TEXT,
+  message        TEXT        NOT NULL,
+  status         TEXT        NOT NULL DEFAULT 'open',
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_feedback_status ON feedback_submissions(status);
+CREATE INDEX IF NOT EXISTS idx_feedback_created ON feedback_submissions(created_at);
 `;
 
 // TypeScript types matching the tables

@@ -15,6 +15,7 @@
     { "path": "/api/cron/whatsapp-report", "schedule": "0 13 * * 1" },
     { "path": "/api/cron/google-ads-sync", "schedule": "0 7 * * *" },
     { "path": "/api/cron/tiktok-ads-sync", "schedule": "0 7 * * *" },
-    { "path": "/api/cron/shopify-sync", "schedule": "30 7 * * *" }
+    { "path": "/api/cron/shopify-sync", "schedule": "30 7 * * *" },
+    { "path": "/api/cron/owner-alerts", "schedule": "0 8 * * *" }
   ]
 }
