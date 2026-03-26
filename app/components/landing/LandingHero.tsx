@@ -465,10 +465,30 @@ export default function LandingHero() {
 
           <p
             className="fu6"
-            style={{ fontSize: 12, color: T.faint, marginBottom: 80 }}
+            style={{ fontSize: 12, color: T.faint, marginBottom: 48 }}
           >
             14-day free trial · Card required · Cancel anytime
           </p>
+
+          {/* Dashboard screenshot */}
+          <div
+            className="fu6"
+            style={{
+              position: "relative",
+              maxWidth: 840,
+              margin: "0 auto 0",
+              borderRadius: 12,
+              overflow: "hidden",
+              border: `1px solid ${T.border}`,
+              boxShadow: "0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
+            }}
+          >
+            <img
+              src="/brand/dashboard-screenshot.png"
+              alt="Buena Onda dashboard showing live campaign metrics, platform breakdown, alerts, and AI recommendations"
+              style={{ width: "100%", display: "block" }}
+            />
+          </div>
         </div>
 
         {/* Live ticker */}

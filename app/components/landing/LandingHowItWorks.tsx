@@ -140,32 +140,56 @@ export default function LandingHowItWorks() {
         {/* Steps */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {STEPS.map((step, i) => (
-            <div key={step.word} className="how-step">
-              {/* Left: word + icon */}
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: T.faint, letterSpacing: "0.06em", marginBottom: 8 }}>
-                  0{i + 1}
+            <div key={step.word}>
+              <div className="how-step">
+                {/* Left: word + icon */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: T.faint, letterSpacing: "0.06em", marginBottom: 8 }}>
+                    0{i + 1}
+                  </div>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: T.accent, letterSpacing: "-1px", lineHeight: 1, marginBottom: 10 }}>
+                    {step.word}
+                  </div>
+                  <div style={{ fontSize: 22 }}>{step.icon}</div>
                 </div>
-                <div style={{ fontSize: 28, fontWeight: 800, color: T.accent, letterSpacing: "-1px", lineHeight: 1, marginBottom: 10 }}>
-                  {step.word}
+
+                {/* Right: title + bullets */}
+                <div>
+                  <h3 style={{ fontSize: 17, fontWeight: 700, color: T.text, margin: "0 0 16px", letterSpacing: "-0.3px" }}>
+                    {step.title}
+                  </h3>
+                  <div className="how-bullets">
+                    {step.bullets.map(b => (
+                      <div key={b} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                        <span style={{ color: T.accent, fontSize: 12, flexShrink: 0, marginTop: 2 }}>→</span>
+                        <span style={{ fontSize: 13, color: T.muted, lineHeight: 1.6 }}>{b}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div style={{ fontSize: 22 }}>{step.icon}</div>
               </div>
 
-              {/* Right: title + bullets */}
-              <div>
-                <h3 style={{ fontSize: 17, fontWeight: 700, color: T.text, margin: "0 0 16px", letterSpacing: "-0.3px" }}>
-                  {step.title}
-                </h3>
-                <div className="how-bullets">
-                  {step.bullets.map(b => (
-                    <div key={b} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                      <span style={{ color: T.accent, fontSize: 12, flexShrink: 0, marginTop: 2 }}>→</span>
-                      <span style={{ fontSize: 13, color: T.muted, lineHeight: 1.6 }}>{b}</span>
-                    </div>
-                  ))}
+              {/* Screenshot after Manage step */}
+              {i === 1 && (
+                <div style={{ marginTop: 20, borderRadius: 12, overflow: "hidden", border: `1px solid ${T.border}`, boxShadow: "0 16px 60px rgba(0,0,0,0.4)" }}>
+                  <img
+                    src="/brand/campaigns-screenshot.png"
+                    alt="Buena Onda campaigns view showing live performance metrics across ad sets"
+                    style={{ width: "100%", display: "block" }}
+                  />
                 </div>
-              </div>
+              )}
+
+              {/* Screenshot after Report step */}
+              {i === 3 && (
+                <div style={{ marginTop: 20, borderRadius: 12, overflow: "hidden", border: `1px solid ${T.border}`, boxShadow: "0 16px 60px rgba(0,0,0,0.4)" }}>
+                  <img
+                    src="/brand/reports-screenshot.png"
+                    alt="Buena Onda AI-generated performance report with spend, revenue, ROAS, and recommendations"
+                    style={{ width: "100%", display: "block" }}
+                  />
+                </div>
+              )}
             </div>
           ))}
         </div>
