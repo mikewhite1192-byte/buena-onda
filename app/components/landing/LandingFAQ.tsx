@@ -20,7 +20,7 @@ const FAQS = [
   },
   {
     q: "What does the 14-day free trial include?",
-    a: "Full access to everything on your chosen plan — AI campaign creation, optimization, WhatsApp &amp; Slack reports, and the full dashboard. No feature restrictions. Your card is charged after 14 days. Cancel any time before then and you're never billed.",
+    a: "Full access to everything on your chosen plan — AI campaign creation, optimization, WhatsApp and Slack reports, and the full dashboard. No feature restrictions. Your card is charged after 14 days. Cancel any time before then and you're never billed.",
   },
   {
     q: "What ad spend limits apply to each plan?",
