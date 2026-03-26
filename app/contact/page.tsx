@@ -70,6 +70,20 @@ export default function ContactPage() {
               <span style={{ color: T.faint, fontSize: 18 }}>→</span>
             </a>
           ))}
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "20px 24px",
+            background: T.surface,
+            border: `1px solid ${T.border}`,
+            borderRadius: 12,
+          }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: T.faint, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4 }}>Location</div>
+              <div style={{ fontSize: 15, color: T.accent, fontWeight: 600 }}>Warren, MI · United States</div>
+            </div>
+          </div>
         </div>
       </main>
 
