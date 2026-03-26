@@ -102,7 +102,7 @@ export default function AboutPage() {
               { label: "Business Name", value: "Buena Onda" },
               { label: "State of Registration", value: "Michigan, USA" },
               { label: "Location", value: "Warren, MI" },
-              { label: "Founded", value: "2024" },
+              { label: "Founded", value: "2026" },
             ].map(({ label, value }) => (
               <div key={label} style={{ padding: "16px 20px", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: T.faint, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>{label}</div>
