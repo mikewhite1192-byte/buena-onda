@@ -14,7 +14,7 @@ const T = {
 
 export const metadata = {
   title: "About — Buena Onda",
-  description: "Buena Onda is an autonomous AI-powered ad management platform built to help small businesses and agencies run smarter Meta and Google Ads campaigns.",
+  description: "Buena Onda is an autonomous AI-powered ad management platform built to help small businesses and agencies run smarter Meta, Google, and TikTok Ads campaigns with Shopify, Slack, and WhatsApp integrations.",
 };
 
 export default function AboutPage() {
@@ -45,7 +45,7 @@ export default function AboutPage() {
             About Buena Onda
           </h1>
           <p style={{ fontSize: 17, color: T.muted, lineHeight: 1.8, maxWidth: 620, margin: 0 }}>
-            Buena Onda is an autonomous AI ad management platform that launches, optimizes, and reports on Meta and Google Ads campaigns — so business owners can focus on their work, not their ad accounts.
+            Buena Onda is an autonomous AI ad management platform that launches, optimizes, and reports on Meta, Google, and TikTok Ads campaigns — with Shopify, Slack, and WhatsApp integrations built in — so business owners can focus on their work, not their ad accounts.
           </p>
         </div>
 
@@ -86,31 +86,95 @@ export default function AboutPage() {
         {/* Mission */}
         <section style={{ marginBottom: 48 }}>
           <h2 style={{ fontSize: 13, fontWeight: 700, color: T.accent, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 16 }}>
-            What We Build
+            What We&apos;ve Built
           </h2>
           <p style={{ fontSize: 15, color: T.muted, lineHeight: 1.9, marginBottom: 16 }}>
             Most small businesses and agencies waste thousands of dollars on ad spend because they don&apos;t have the time or expertise to manage campaigns properly. Buena Onda solves that with an AI agent that acts like a senior media buyer — monitoring performance 24/7, pausing underperformers, scaling winners, and delivering clear reports.
           </p>
           <p style={{ fontSize: 15, color: T.muted, lineHeight: 1.9 }}>
-            We integrate directly with the Meta Ads API and Google Ads API to create campaigns, manage budgets, retrieve performance metrics, and automatically optimize ad sets on behalf of our subscribers. Every action the AI takes is logged and visible in the client dashboard.
+            We integrate directly with Meta Ads, Google Ads, and TikTok Ads to create campaigns, manage budgets, retrieve performance metrics, and automatically optimize ad sets on behalf of our subscribers. We also connect to Shopify to correlate ad spend with revenue, and deliver real-time alerts and reports through Slack and WhatsApp. Every action the AI takes is logged and visible in the client dashboard.
           </p>
         </section>
 
         {/* Divider */}
         <div style={{ borderTop: `1px solid ${T.border}`, marginBottom: 48 }} />
 
-        {/* API Use */}
+        {/* Platform Integrations */}
         <section style={{ marginBottom: 48 }}>
-          <h2 style={{ fontSize: 13, fontWeight: 700, color: T.accent, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 16 }}>
-            How We Use the Google Ads API
+          <h2 style={{ fontSize: 13, fontWeight: 700, color: T.accent, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 24 }}>
+            Our Integrations
           </h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+          {/* Meta Ads */}
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: T.text, marginBottom: 12 }}>Meta Ads</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
+            {[
+              "Create and manage Facebook and Instagram ad campaigns on behalf of subscribers",
+              "Monitor campaign performance metrics including CPL, ROAS, CTR, and frequency",
+              "Automatically pause underperforming ad sets and scale winners based on real-time data",
+              "Detect creative fatigue and flag ads for replacement",
+            ].map((item, i) => (
+              <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: T.accent, marginTop: 7, flexShrink: 0 }} />
+                <p style={{ fontSize: 14, color: T.muted, lineHeight: 1.7, margin: 0 }}>{item}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Google Ads */}
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: T.text, marginBottom: 12 }}>Google Ads</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
             {[
               "Create and manage Google Search and Performance Max campaigns on behalf of subscribers",
               "Retrieve campaign performance data (impressions, clicks, conversions, cost-per-lead)",
               "Automatically pause underperforming ad groups and scale top performers based on ROAS thresholds",
               "Generate weekly performance reports surfaced in the subscriber dashboard",
               "Adjust budgets and bids programmatically based on real-time performance signals",
+            ].map((item, i) => (
+              <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: T.accent, marginTop: 7, flexShrink: 0 }} />
+                <p style={{ fontSize: 14, color: T.muted, lineHeight: 1.7, margin: 0 }}>{item}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* TikTok Ads */}
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: T.text, marginBottom: 12 }}>TikTok Ads</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
+            {[
+              "Monitor TikTok ad campaign performance and sync metrics daily",
+              "Surface TikTok performance alongside Meta and Google in a unified dashboard",
+              "Provide AI-powered optimization recommendations based on cross-platform data",
+            ].map((item, i) => (
+              <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: T.accent, marginTop: 7, flexShrink: 0 }} />
+                <p style={{ fontSize: 14, color: T.muted, lineHeight: 1.7, margin: 0 }}>{item}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Shopify */}
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: T.text, marginBottom: 12 }}>Shopify</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
+            {[
+              "Connect Shopify stores to correlate ad spend with actual revenue and purchases",
+              "Track ROAS across ad platforms using real order data instead of pixel estimates",
+              "Sync order and revenue metrics daily to power AI optimization decisions",
+            ].map((item, i) => (
+              <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: T.accent, marginTop: 7, flexShrink: 0 }} />
+                <p style={{ fontSize: 14, color: T.muted, lineHeight: 1.7, margin: 0 }}>{item}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Slack & WhatsApp */}
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: T.text, marginBottom: 12 }}>Slack and WhatsApp</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {[
+              "Deliver campaign alerts, performance summaries, and AI recommendations to Slack channels",
+              "Conversational AI assistant via WhatsApp — ask about performance, give instructions, or submit rules",
+              "Control campaigns from your phone: pause, scale, or audit without logging into a dashboard",
             ].map((item, i) => (
               <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
                 <div style={{ width: 6, height: 6, borderRadius: "50%", background: T.accent, marginTop: 7, flexShrink: 0 }} />
