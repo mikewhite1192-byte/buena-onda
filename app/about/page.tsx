@@ -60,7 +60,7 @@ export default function AboutPage() {
           <div style={{ display: "flex", gap: 28, alignItems: "flex-start", flexWrap: "wrap" }}>
             <img
               src="/brand/mike-white.jpg"
-              alt="Mike White, Founder of Buena Onda"
+              alt="Michael White, Founder of Buena Onda"
               style={{
                 width: 120,
                 height: 120,
@@ -71,7 +71,7 @@ export default function AboutPage() {
               }}
             />
             <div style={{ flex: 1, minWidth: 240 }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 4 }}>Mike White</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 4 }}>Michael White</div>
               <div style={{ fontSize: 13, color: T.accent, marginBottom: 14 }}>Founder &amp; CEO</div>
               <p style={{ fontSize: 14, color: T.muted, lineHeight: 1.8, margin: 0 }}>
                 Former sales professional who got tired of manually chasing leads and managing ad campaigns. Built Buena Onda to give agencies the same autonomous AI ad management that used to require a full media buying team.
