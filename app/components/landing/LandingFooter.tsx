@@ -55,9 +55,13 @@ export default function LandingFooter() {
             <p style={{ fontSize: 13, color: T.muted, lineHeight: 1.7, maxWidth: 260, margin: "0 0 16px" }}>
               The autonomous AI agent that launches, manages, optimizes, and reports on your Meta, Google, and TikTok ad campaigns.
             </p>
-            <a href="mailto:hello@buenaonda.ai" style={{ fontSize: 12, color: T.faint, textDecoration: "none" }}>
+            <a href="mailto:hello@buenaonda.ai" style={{ display: "block", fontSize: 12, color: T.faint, textDecoration: "none", marginBottom: 4 }}>
               hello@buenaonda.ai
             </a>
+            <a href="tel:+16198886686" style={{ display: "block", fontSize: 12, color: T.faint, textDecoration: "none", marginBottom: 4 }}>
+              (619) 888-6686
+            </a>
+            <span style={{ fontSize: 12, color: T.faint }}>Warren, MI · United States</span>
           </div>
 
           {/* Product */}
@@ -79,6 +83,7 @@ export default function LandingFooter() {
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 16 }}>Company</div>
             {[
+              { label: "About", href: "/about" },
               { label: "Affiliate Program", href: "/affiliates" },
               { label: "Contact", href: "mailto:hello@buenaonda.ai" },
             ].map(l => (
