@@ -10,14 +10,14 @@ export const metadata = {
     description: "The autonomous AI agent that manages your Meta, Google, and TikTok Ads — with Shopify, Slack, and WhatsApp integrations — like a senior media buyer, around the clock.",
     url: "https://buenaonda.ai",
     siteName: "Buena Onda",
-    images: [{ url: "/brand/bo-logo_wrds.png", width: 1200, height: 630 }],
+    images: [{ url: "/api/og", width: 1200, height: 630 }],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "Buena Onda — AI-Powered Ad Management Platform",
     description: "The autonomous AI agent that manages your Meta, Google, and TikTok Ads — with Shopify, Slack, and WhatsApp integrations — like a senior media buyer, around the clock.",
-    images: ["/brand/bo-logo_wrds.png"],
+    images: ["/api/og"],
   },
 };
 
