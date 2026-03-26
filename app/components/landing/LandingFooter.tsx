@@ -85,7 +85,7 @@ export default function LandingFooter() {
             {[
               { label: "About", href: "/about" },
               { label: "Affiliate Program", href: "/affiliates" },
-              { label: "Contact", href: "mailto:hello@buenaonda.ai" },
+              { label: "Contact", href: "/contact" },
             ].map(l => (
               <a key={l.label} href={l.href} style={{ display: "block", fontSize: 13, color: T.faint, textDecoration: "none", marginBottom: 10 }}>
                 {l.label}
