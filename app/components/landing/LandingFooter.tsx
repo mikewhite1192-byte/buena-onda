@@ -112,9 +112,6 @@ export default function LandingFooter() {
           <p style={{ fontSize: 12, color: T.faint, margin: 0 }}>
             © {new Date().getFullYear()} Buena Onda. All rights reserved.
           </p>
-          <p style={{ fontSize: 12, color: T.faint, margin: 0 }}>
-            Not affiliated with Meta Platforms, Inc.
-          </p>
         </div>
       </div>
     </footer>
