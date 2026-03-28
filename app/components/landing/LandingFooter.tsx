@@ -49,9 +49,6 @@ export default function LandingFooter() {
         <div className="footer-grid">
           {/* Brand */}
           <div>
-            <div style={{ fontWeight: 800, fontSize: 18, background: "linear-gradient(135deg,#f5a623,#f76b1c)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: 12 }}>
-              Buena Onda
-            </div>
             <p style={{ fontSize: 13, color: T.muted, lineHeight: 1.7, maxWidth: 260, margin: "0 0 16px" }}>
               The autonomous AI agent that launches, manages, optimizes, and reports on your Meta, Google, and TikTok ad campaigns.
             </p>
@@ -107,11 +104,15 @@ export default function LandingFooter() {
           </div>
         </div>
 
-        {/* Bottom bar */}
-        <div className="footer-bottom" style={{ borderTop: `1px solid ${T.border}`, paddingTop: 24 }}>
-          <p style={{ fontSize: 12, color: T.faint, margin: 0 }}>
-            © {new Date().getFullYear()} Buena Onda. All rights reserved.
-          </p>
+        {/* Giant brand text */}
+        <div style={{ fontFamily: "system-ui, sans-serif", fontWeight: 900, fontSize: "clamp(36px, 12vw, 180px)", letterSpacing: "clamp(2px, 0.5vw, 6px)", textAlign: "center", lineHeight: 0.9, marginTop: 40, color: "rgba(255,255,255,0.35)", userSelect: "none" }}>
+          <span style={{ color: "rgba(245,166,35,0.45)" }}>BUENA</span> ONDA
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "center", gap: 24, alignItems: "center", marginTop: 20 }}>
+          <a href="/privacy-policy" style={{ fontSize: 12, color: T.faint, textDecoration: "none" }}>Privacy Policy</a>
+          <a href="/terms-of-service" style={{ fontSize: 12, color: T.faint, textDecoration: "none" }}>Terms of Service</a>
+          <span style={{ fontSize: 12, color: T.faint }}>© {new Date().getFullYear()} Buena Onda.</span>
         </div>
       </div>
     </footer>
