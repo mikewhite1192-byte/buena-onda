@@ -540,6 +540,21 @@ function DashboardContent() {
       .catch(() => {});
   }, []);
 
+  // Shopify platform breakdown
+  const [shopifyBreakdown, setShopifyBreakdown] = useState<{ totalRevenue: number; totalOrders: number } | null>(null);
+  useEffect(() => {
+    fetch("/api/shopify/metrics")
+      .then(r => r.json())
+      .then(data => {
+        if (!data.connected) return;
+        const metrics = (data.metrics ?? []) as Array<Record<string, unknown>>;
+        const totalRevenue = metrics.reduce((s: number, c) => s + Number(c.revenue || 0), 0);
+        const totalOrders = metrics.reduce((s: number, c) => s + Number(c.orders || 0), 0);
+        setShopifyBreakdown({ totalRevenue, totalOrders });
+      })
+      .catch(() => {});
+  }, []);
+
   // ── Date range ─────────────────────────────────────────────────────────────
   function daysAgo(n: number) {
     return new Date(Date.now() - n * 86400000).toISOString().split("T")[0];
@@ -907,29 +922,16 @@ function DashboardContent() {
                 {googleBreakdown ? "Connected" : "Not connected"}
               </span>
             </div>
-            {googleBreakdown ? (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <div>
-                  <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Spend</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: T.accent }}>${googleBreakdown.totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Conversions</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: "#4fc3f7" }}>{googleBreakdown.totalConversions.toLocaleString()}</div>
-                </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div>
+                <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Spend</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: T.accent }}>${(googleBreakdown?.totalSpend ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               </div>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <div>
-                  <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Spend</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: T.accent }}>$1,840</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Conversions</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: "#4fc3f7" }}>67</div>
-                </div>
+              <div>
+                <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Conversions</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#4fc3f7" }}>{(googleBreakdown?.totalConversions ?? 0).toLocaleString()}</div>
               </div>
-            )}
+            </div>
           </div>
 
           {/* TikTok */}
@@ -937,33 +939,18 @@ function DashboardContent() {
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <span style={{ fontSize: 16 }}>🎵</span>
               <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>TikTok</span>
-              <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: tiktokBreakdown ? T.healthyBg : T.healthyBg, color: tiktokBreakdown ? T.healthy : T.healthy, fontWeight: 600 }}>
-                {tiktokBreakdown ? "Connected" : "Connected"}
-              </span>
+              <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: T.healthyBg, color: T.healthy, fontWeight: 600 }}>Connected</span>
             </div>
-            {tiktokBreakdown ? (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <div>
-                  <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Spend</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: T.accent }}>${tiktokBreakdown.totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Conversions</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: "#c084fc" }}>{tiktokBreakdown.totalConversions.toLocaleString()}</div>
-                </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div>
+                <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Spend</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: T.accent }}>${(tiktokBreakdown?.totalSpend ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               </div>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <div>
-                  <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Spend</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: T.accent }}>$920</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Conversions</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: "#c084fc" }}>34</div>
-                </div>
+              <div>
+                <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Conversions</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#c084fc" }}>{(tiktokBreakdown?.totalConversions ?? 0).toLocaleString()}</div>
               </div>
-            )}
+            </div>
           </div>
 
           {/* Shopify */}
@@ -976,11 +963,11 @@ function DashboardContent() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               <div>
                 <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Revenue</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: T.accent }}>$8,420</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: T.accent }}>${(shopifyBreakdown?.totalRevenue ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               </div>
               <div>
                 <div style={{ fontSize: 10, color: T.faint, marginBottom: 2 }}>Orders</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#96bf48" }}>142</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#96bf48" }}>{(shopifyBreakdown?.totalOrders ?? 0).toLocaleString()}</div>
               </div>
             </div>
           </div>
