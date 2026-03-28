@@ -844,11 +844,11 @@ function DashboardContent() {
             border: attentionCount > 0 ? T.warning + "40" : T.healthy + "30",
           },
           {
-            label: "FB Connected",
-            value: `${connectedCount} / ${clients.length}`,
-            sub: connectedCount < clients.length ? `${clients.length - connectedCount} need connection` : "all connected",
-            color: connectedCount < clients.length ? T.warning : T.healthy,
-            border: connectedCount < clients.length ? T.warning + "40" : T.healthy + "30",
+            label: "Accounts Managed",
+            value: String(clients.length),
+            sub: "across all platforms",
+            color: T.accent,
+            border: T.accent + "30",
           },
         ].map((s, i) => (
           <div key={i} style={{ background: T.surface, border: `1px solid ${s.border}`, borderRadius: 10, padding: "18px 20px" }}>
@@ -1140,7 +1140,7 @@ function DashboardContent() {
             <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 14 }}>Agent Status</div>
             {[
               { label: "Accounts monitored", value: `${clients.length} / ${clients.length}` },
-              { label: "FB connected", value: `${connectedCount} / ${clients.length}`, warn: connectedCount < clients.length },
+              { label: "Accounts managed", value: String(clients.length), warn: false },
               { label: "Accounts healthy", value: `${Object.values(allMetrics).filter(m => m.status === "healthy").length} / ${clients.length}` },
               { label: "Needing attention", value: String(attentionCount), warn: attentionCount > 0 },
             ].map((row, i) => (
