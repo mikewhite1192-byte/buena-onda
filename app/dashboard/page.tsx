@@ -294,9 +294,9 @@ function ClientCard({
     fetch(`/api/google-ads/metrics?customer_id=${client.google_customer_id}`)
       .then(r => r.json())
       .then(data => {
-        const rows = (data.metrics ?? []) as { spend: number; conversions: number }[];
-        const spend = rows.reduce((s, r) => s + (r.spend ?? 0), 0);
-        const conversions = rows.reduce((s, r) => s + (r.conversions ?? 0), 0);
+        const rows = (data.metrics ?? []) as Array<Record<string, unknown>>;
+        const spend = rows.reduce((s, r) => s + Number(r.spend || 0), 0);
+        const conversions = rows.reduce((s, r) => s + Number(r.conversions || 0), 0);
         const cpa = conversions > 0 ? spend / conversions : null;
         setGoogleMetrics({ spend, conversions, cpa });
       })
@@ -517,9 +517,9 @@ function DashboardContent() {
       .then(r => r.json())
       .then(data => {
         if (!data.connected) return;
-        const metrics = (data.metrics ?? []) as { spend: number; conversions: number }[];
-        const totalSpend = metrics.reduce((s: number, c: { spend: number }) => s + (c.spend ?? 0), 0);
-        const totalConversions = metrics.reduce((s: number, c: { conversions: number }) => s + (c.conversions ?? 0), 0);
+        const metrics = (data.metrics ?? []) as Array<Record<string, unknown>>;
+        const totalSpend = metrics.reduce((s: number, c) => s + Number(c.spend || 0), 0);
+        const totalConversions = metrics.reduce((s: number, c) => s + Number(c.conversions || 0), 0);
         setGoogleBreakdown({ totalSpend, totalConversions });
       })
       .catch(() => {});
@@ -532,9 +532,9 @@ function DashboardContent() {
       .then(r => r.json())
       .then(data => {
         if (!data.connected) return;
-        const metrics = (data.metrics ?? []) as { spend: number; conversions: number }[];
-        const totalSpend = metrics.reduce((s: number, c: { spend: number }) => s + (c.spend ?? 0), 0);
-        const totalConversions = metrics.reduce((s: number, c: { conversions: number }) => s + (c.conversions ?? 0), 0);
+        const metrics = (data.metrics ?? []) as Array<Record<string, unknown>>;
+        const totalSpend = metrics.reduce((s: number, c) => s + Number(c.spend || 0), 0);
+        const totalConversions = metrics.reduce((s: number, c) => s + Number(c.conversions || 0), 0);
         setTiktokBreakdown({ totalSpend, totalConversions });
       })
       .catch(() => {});
