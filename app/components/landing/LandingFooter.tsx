@@ -105,8 +105,8 @@ export default function LandingFooter() {
         </div>
 
         {/* Giant brand text */}
-        <div style={{ fontFamily: "system-ui, sans-serif", fontWeight: 900, fontSize: "clamp(36px, 12vw, 180px)", letterSpacing: "clamp(2px, 0.5vw, 6px)", textAlign: "center", lineHeight: 0.9, marginTop: 40, color: "rgba(255,255,255,0.35)", userSelect: "none" }}>
-          <span style={{ color: "rgba(245,166,35,0.45)" }}>BUENA</span> ONDA
+        <div style={{ fontWeight: 900, fontSize: "clamp(48px, 18vw, 220px)", textAlign: "center", lineHeight: 0.85, marginTop: 40, background: "linear-gradient(135deg, rgba(245,166,35,0.2), rgba(247,107,28,0.12))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", userSelect: "none", fontFamily: "system-ui, -apple-system, sans-serif" }}>
+          BUENA ONDA
         </div>
 
         <div style={{ display: "flex", justifyContent: "center", gap: 24, alignItems: "center", marginTop: 20 }}>
