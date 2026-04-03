@@ -57,8 +57,13 @@ export async function GET(req: NextRequest) {
     ]);
     const [acctData, pagesData] = await Promise.all([acctRes.json(), pagesRes.json()]);
 
-    const activeAccounts = (acctData.data ?? []).filter((a: { account_status: number }) => a.account_status === 1);
+    const allAccounts = acctData.data ?? [];
+    const activeAccounts = allAccounts.filter((a: { account_status: number }) => a.account_status === 1);
     const pages = pagesData.data ?? [];
+
+    console.log("[facebook/callback] ad accounts:", JSON.stringify(allAccounts));
+    console.log("[facebook/callback] active ad accounts:", JSON.stringify(activeAccounts));
+    console.log("[facebook/callback] pages:", JSON.stringify(pages.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name }))));
 
     // Auto-fill page ID if only one page
     const autoPageId = pages.length === 1 ? pages[0].id : null;
