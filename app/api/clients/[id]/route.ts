@@ -19,7 +19,7 @@ export async function PATCH(
   const rows = await sql`
     UPDATE clients SET
       name                = COALESCE(${name ?? null}, name),
-      meta_ad_account_id  = CASE WHEN ${meta_ad_account_id ?? null} IS NOT NULL THEN ${meta_ad_account_id ?? null} ELSE meta_ad_account_id END,
+      meta_ad_account_id  = COALESCE(${meta_ad_account_id ?? null}, meta_ad_account_id),
       meta_page_id        = COALESCE(${meta_page_id ?? null}, meta_page_id),
       vertical            = COALESCE(${vertical ?? null}, vertical),
       whatsapp_number     = COALESCE(${whatsapp_number ?? null}, whatsapp_number),
