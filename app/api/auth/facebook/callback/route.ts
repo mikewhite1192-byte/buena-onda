@@ -63,25 +63,17 @@ export async function GET(req: NextRequest) {
     // Auto-fill page ID if only one page
     const autoPageId = pages.length === 1 ? pages[0].id : null;
 
-    // Save token + auto-fill where possible
-    if (activeAccounts.length === 1) {
-      await sql`
-        UPDATE clients SET
-          meta_access_token = ${longToken},
-          meta_token_expires_at = ${expiresAt.toISOString()},
-          meta_ad_account_id = COALESCE(NULLIF(meta_ad_account_id, ''), ${activeAccounts[0].id}),
-          meta_page_id = COALESCE(NULLIF(meta_page_id, ''), ${autoPageId})
-        WHERE id = ${clientId}
-      `;
-    } else {
-      await sql`
-        UPDATE clients SET
-          meta_access_token = ${longToken},
-          meta_token_expires_at = ${expiresAt.toISOString()},
-          meta_page_id = COALESCE(NULLIF(meta_page_id, ''), ${autoPageId})
-        WHERE id = ${clientId}
-      `;
-    }
+    // Save token + auto-fill first active ad account as default
+    const autoAdAccountId = activeAccounts.length > 0 ? activeAccounts[0].id : null;
+
+    await sql`
+      UPDATE clients SET
+        meta_access_token = ${longToken},
+        meta_token_expires_at = ${expiresAt.toISOString()},
+        meta_ad_account_id = COALESCE(NULLIF(meta_ad_account_id, ''), ${autoAdAccountId}),
+        meta_page_id = COALESCE(NULLIF(meta_page_id, ''), ${autoPageId})
+      WHERE id = ${clientId}
+    `;
 
     // If multiple ad accounts, send them back so user can pick
     if (activeAccounts.length > 1) {

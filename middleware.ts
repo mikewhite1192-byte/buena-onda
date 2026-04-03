@@ -37,7 +37,7 @@ const isPublicRoute = createRouteMatcher([
 const isDashboardRoute = createRouteMatcher(["/dashboard(.*)"]);
 
 const KNOWN_HOSTS = ["buenaonda.ai", "www.buenaonda.ai"];
-const OWNER_USER_ID = process.env.OWNER_CLERK_USER_ID ?? "";
+const OWNER_USER_IDS = (process.env.OWNER_CLERK_USER_ID ?? "").split(",").map(s => s.trim()).filter(Boolean);
 
 export default clerkMiddleware(async (auth, req) => {
   const ref = req.nextUrl.searchParams.get("ref");
@@ -79,7 +79,7 @@ export default clerkMiddleware(async (auth, req) => {
   // Owner-only routes — return 404 for anyone who isn't Mike
   if (path.startsWith("/owner") || path.startsWith("/api/owner")) {
     const { userId } = await auth();
-    if (!userId || userId !== OWNER_USER_ID) {
+    if (!userId || !OWNER_USER_IDS.includes(userId)) {
       return new NextResponse(null, { status: 404 });
     }
   }
@@ -101,7 +101,7 @@ export default clerkMiddleware(async (auth, req) => {
       const status = (sessionClaims?.metadata as Record<string, string> | undefined)?.subscription_status;
 
       // Hard gate: only active/trialing subscribers (or the owner) can access dashboard
-      const isOwner = userId === OWNER_USER_ID;
+      const isOwner = !!userId && OWNER_USER_IDS.includes(userId);
       const hasAccess = status === "active" || status === "trialing";
 
       if (!isOwner && !hasAccess && !isCheckoutReturn && !hasGraceCookie) {
