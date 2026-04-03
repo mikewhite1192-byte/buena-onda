@@ -1100,6 +1100,19 @@ function AdCreatorOverlay({ client, onClose }: {
 // ─── Manual Ad Creation Form ──────────────────────────────────────────────────
 
 interface LeadForm { id: string; name: string; status: string; }
+interface Interest { id: string; name: string; audience_size: number | null; }
+
+const PLACEMENT_OPTIONS = [
+  { platform: "facebook", position: "feed", label: "Facebook Feed" },
+  { platform: "facebook", position: "right_hand_column", label: "Right Column" },
+  { platform: "facebook", position: "marketplace", label: "Marketplace" },
+  { platform: "facebook", position: "story", label: "Facebook Stories" },
+  { platform: "facebook", position: "reels", label: "Facebook Reels" },
+  { platform: "instagram", position: "stream", label: "Instagram Feed" },
+  { platform: "instagram", position: "story", label: "Instagram Stories" },
+  { platform: "instagram", position: "reels", label: "Instagram Reels" },
+  { platform: "instagram", position: "explore", label: "Instagram Explore" },
+];
 
 const CTA_OPTIONS = [
   { value: "LEARN_MORE", label: "Learn More" },
@@ -1136,6 +1149,15 @@ function ManualAdForm({ client, onClose }: {
   // Step 2 — Targeting
   const [ageMin, setAgeMin] = useState("25");
   const [ageMax, setAgeMax] = useState("65");
+  const [locations, setLocations] = useState("United States");
+  const [interests, setInterests] = useState<Interest[]>([]);
+  const [interestSearch, setInterestSearch] = useState("");
+  const [interestResults, setInterestResults] = useState<Interest[]>([]);
+  const [searchingInterests, setSearchingInterests] = useState(false);
+  const [advantagePlus, setAdvantagePlus] = useState(true);
+  const [placementMode, setPlacementMode] = useState<"advantage" | "manual">("advantage");
+  const [selectedPlacements, setSelectedPlacements] = useState<string[]>(PLACEMENT_OPTIONS.map(p => `${p.platform}:${p.position}`));
+  const interestTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Step 3 — Creative
   const [primaryText, setPrimaryText] = useState("");
@@ -1167,6 +1189,22 @@ function ManualAdForm({ client, onClose }: {
       .catch(() => setLeadForms([]))
       .finally(() => setLoadingForms(false));
   }, [objective, client.id]);
+
+  // Debounced interest search
+  useEffect(() => {
+    if (interestSearch.length < 2) { setInterestResults([]); return; }
+    if (interestTimer.current) clearTimeout(interestTimer.current);
+    interestTimer.current = setTimeout(async () => {
+      setSearchingInterests(true);
+      try {
+        const res = await fetch(`/api/agent/ads/interests?q=${encodeURIComponent(interestSearch)}&client_id=${client.id}`);
+        const data = await res.json();
+        setInterestResults((data.interests ?? []).filter((i: Interest) => !interests.some(sel => sel.id === i.id)));
+      } catch { setInterestResults([]); }
+      finally { setSearchingInterests(false); }
+    }, 400);
+    return () => { if (interestTimer.current) clearTimeout(interestTimer.current); };
+  }, [interestSearch, client.id, interests]);
 
   async function handleImageUpload(file: File) {
     setUploading(true);
@@ -1216,6 +1254,7 @@ function ManualAdForm({ client, onClose }: {
           campaign_name: campaignName,
           objective,
           daily_budget: parseFloat(dailyBudget),
+          countries: locations.split(",").map(s => s.trim()).filter(Boolean),
           age_min: parseInt(ageMin),
           age_max: parseInt(ageMax),
           primary_text: primaryText,
@@ -1226,6 +1265,11 @@ function ManualAdForm({ client, onClose }: {
           lead_form_id: leadFormId || undefined,
           image_hash: imageHash || undefined,
           special_ad_categories: specialAdCategory ? ["HOUSING", "EMPLOYMENT", "CREDIT", "ISSUES_ELECTIONS_POLITICS"] : [],
+          interests: interests.map(i => ({ id: i.id, name: i.name })),
+          advantage_plus_audience: advantagePlus,
+          publisher_platforms: placementMode === "advantage" ? undefined : [...new Set(selectedPlacements.map(p => p.split(":")[0]))],
+          facebook_positions: placementMode === "advantage" ? undefined : selectedPlacements.filter(p => p.startsWith("facebook:")).map(p => p.split(":")[1]),
+          instagram_positions: placementMode === "advantage" ? undefined : selectedPlacements.filter(p => p.startsWith("instagram:")).map(p => p.split(":")[1]),
         }),
       });
       const data = await res.json();
@@ -1336,9 +1380,15 @@ function ManualAdForm({ client, onClose }: {
           {/* Step 2: Targeting */}
           {!success && step === 2 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              <div style={{ fontSize: 13, color: T.muted, marginBottom: 4 }}>
-                Targeting is set to United States by default. Age targeting is {specialAdCategory ? "disabled (special ad category)" : "configurable below"}.
+
+              {/* Location */}
+              <div>
+                <label style={labelStyle}>Location</label>
+                <input value={locations} onChange={e => setLocations(e.target.value)} placeholder="e.g. United States, California, New York" style={inputStyle} />
+                <div style={{ fontSize: 10, color: T.faint, marginTop: 4 }}>Comma-separated. Use 2-letter codes (US, CA) or state/city names.</div>
               </div>
+
+              {/* Age */}
               {!specialAdCategory && (
                 <div style={{ display: "flex", gap: 16 }}>
                   <div style={{ flex: 1 }}>
@@ -1353,9 +1403,87 @@ function ManualAdForm({ client, onClose }: {
               )}
               {specialAdCategory && (
                 <div style={{ background: "rgba(245,166,35,0.06)", border: `1px solid ${T.accentBorder}`, borderRadius: 8, padding: 14, fontSize: 12, color: T.muted }}>
-                  Age and gender targeting are disabled for special ad categories per Meta policy.
+                  Age, gender, and interest targeting are restricted for special ad categories per Meta policy.
                 </div>
               )}
+
+              {/* Interests */}
+              {!specialAdCategory && (
+                <div>
+                  <label style={labelStyle}>Interests (optional)</label>
+                  <input value={interestSearch} onChange={e => setInterestSearch(e.target.value)} placeholder="Search interests — e.g. roofing, fitness, real estate" style={inputStyle} />
+                  {searchingInterests && <div style={{ fontSize: 11, color: T.faint, marginTop: 4 }}>Searching…</div>}
+                  {interestResults.length > 0 && (
+                    <div style={{ marginTop: 6, border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, background: "#0d0f14", maxHeight: 180, overflow: "auto" }}>
+                      {interestResults.map(i => (
+                        <button key={i.id} onClick={() => { setInterests(prev => [...prev, i]); setInterestSearch(""); setInterestResults([]); }}
+                          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", padding: "8px 12px", background: "transparent", border: "none", borderBottom: "1px solid rgba(255,255,255,0.04)", color: T.text, fontSize: 12, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
+                          <span>{i.name}</span>
+                          {i.audience_size && <span style={{ fontSize: 10, color: T.faint }}>{(i.audience_size / 1000000).toFixed(1)}M</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {interests.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                      {interests.map(i => (
+                        <span key={i.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", background: T.accentBg, border: `1px solid ${T.accentBorder}`, borderRadius: 6, fontSize: 11, color: T.accent }}>
+                          {i.name}
+                          <button onClick={() => setInterests(prev => prev.filter(x => x.id !== i.id))} style={{ background: "transparent", border: "none", color: T.accent, cursor: "pointer", fontSize: 13, padding: 0, lineHeight: 1 }}>×</button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Advantage+ Audience */}
+              <div>
+                <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                  <input type="checkbox" checked={advantagePlus} onChange={e => setAdvantagePlus(e.target.checked)} style={{ accentColor: T.accent }} />
+                  Advantage+ Audience
+                </label>
+                <div style={{ fontSize: 11, color: T.faint, marginTop: 4 }}>
+                  Let Meta&apos;s AI expand your targeting to reach people most likely to convert. Your targeting selections become suggestions that Meta uses as a starting point.
+                </div>
+              </div>
+
+              {/* Placements */}
+              <div>
+                <label style={labelStyle}>Placements</label>
+                <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                  {([{ value: "advantage", label: "Advantage+ Placements" }, { value: "manual", label: "Manual Placements" }] as const).map(p => (
+                    <button key={p.value} onClick={() => { setPlacementMode(p.value); if (p.value === "advantage") setSelectedPlacements(PLACEMENT_OPTIONS.map(x => `${x.platform}:${x.position}`)); }}
+                      style={{
+                        padding: "7px 14px", borderRadius: 6, fontSize: 12, fontFamily: "inherit", cursor: "pointer",
+                        background: placementMode === p.value ? T.accentBg : "transparent",
+                        border: placementMode === p.value ? `1px solid ${T.accentBorder}` : "1px solid rgba(255,255,255,0.08)",
+                        color: placementMode === p.value ? T.accent : T.muted,
+                      }}>
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                {placementMode === "advantage" && (
+                  <div style={{ fontSize: 11, color: T.faint }}>Meta will automatically show your ad across all available placements to maximize results.</div>
+                )}
+                {placementMode === "manual" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {PLACEMENT_OPTIONS.map(p => {
+                      const key = `${p.platform}:${p.position}`;
+                      const checked = selectedPlacements.includes(key);
+                      return (
+                        <label key={key} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 6, background: checked ? "rgba(255,255,255,0.03)" : "transparent", cursor: "pointer", fontSize: 12, color: checked ? T.text : T.muted }}>
+                          <input type="checkbox" checked={checked}
+                            onChange={() => setSelectedPlacements(prev => checked ? prev.filter(x => x !== key) : [...prev, key])}
+                            style={{ accentColor: T.accent }} />
+                          {p.label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -1455,7 +1583,11 @@ function ManualAdForm({ client, onClose }: {
                   { label: "Campaign", value: campaignName },
                   { label: "Objective", value: OBJECTIVE_OPTIONS.find(o => o.value === objective)?.label ?? objective },
                   { label: "Daily Budget", value: `$${dailyBudget}/day` },
+                  { label: "Location", value: locations || "United States" },
                   ...(!specialAdCategory ? [{ label: "Age Range", value: `${ageMin} – ${ageMax}` }] : []),
+                  ...(interests.length > 0 ? [{ label: "Interests", value: interests.map(i => i.name).join(", ") }] : []),
+                  { label: "Advantage+", value: advantagePlus ? "Enabled — Meta AI will expand targeting" : "Disabled" },
+                  { label: "Placements", value: placementMode === "advantage" ? "Advantage+ (all placements)" : `${selectedPlacements.length} selected` },
                   { label: "Headline", value: headline },
                   { label: "Primary Text", value: primaryText.length > 80 ? primaryText.slice(0, 80) + "…" : primaryText },
                   { label: "CTA", value: CTA_OPTIONS.find(c => c.value === ctaType)?.label ?? ctaType },

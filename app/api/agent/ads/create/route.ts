@@ -31,6 +31,11 @@ export async function POST(req: NextRequest) {
     image_url,
     video_url,
     special_ad_categories,
+    interests,
+    publisher_platforms,
+    facebook_positions,
+    instagram_positions,
+    advantage_plus_audience,
   } = body;
 
   if (!ad_account_id) return NextResponse.json({ error: "ad_account_id is required" }, { status: 400 });
@@ -80,6 +85,11 @@ export async function POST(req: NextRequest) {
     destinationUrl: destination_url,
     leadFormId: lead_form_id,
     specialAdCategories: special_ad_categories ?? [],
+    interests: interests ?? [],
+    publisherPlatforms: publisher_platforms,
+    facebookPositions: facebook_positions,
+    instagramPositions: instagram_positions,
+    advantagePlusAudience: advantage_plus_audience ?? false,
     token,
   });
 

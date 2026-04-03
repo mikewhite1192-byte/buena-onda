@@ -340,6 +340,11 @@ export interface CampaignCreationParams {
   regionKeys?: GeoKey[];
   ageMin?: number;
   ageMax?: number;
+  interests?: { id: string; name: string }[];
+  publisherPlatforms?: string[];   // e.g. ["facebook", "instagram", "audience_network"]
+  facebookPositions?: string[];    // e.g. ["feed", "story", "reels", "marketplace"]
+  instagramPositions?: string[];   // e.g. ["stream", "story", "reels", "explore"]
+  advantagePlusAudience?: boolean;  // Meta Advantage+ audience targeting
   imageHash?: string;
   imageUrl?: string;
   videoId?: string;           // pre-uploaded video ID
@@ -410,12 +415,20 @@ export async function createMetaCampaign(
       : { countries: params.countries ?? ["US"] };
     const targeting: Record<string, unknown> = {
       geo_locations: geoLocations,
-      publisher_platforms: ["facebook"],
-      facebook_positions: ["feed", "right_hand_column", "marketplace"],
+      publisher_platforms: params.publisherPlatforms ?? ["facebook"],
     };
+    // Placements
+    if (params.facebookPositions?.length) targeting.facebook_positions = params.facebookPositions;
+    else if (!params.publisherPlatforms) targeting.facebook_positions = ["feed", "right_hand_column", "marketplace"];
+    if (params.instagramPositions?.length) targeting.instagram_positions = params.instagramPositions;
+    // Age
     if (!hasSpecialCategory) {
       targeting.age_min = params.ageMin ?? 25;
       targeting.age_max = params.ageMax ?? 65;
+    }
+    // Interests / detailed targeting
+    if (params.interests?.length && !hasSpecialCategory) {
+      targeting.flexible_spec = [{ interests: params.interests }];
     }
 
     // 3. Create ad set
@@ -429,6 +442,10 @@ export async function createMetaCampaign(
       targeting,
       status: "PAUSED",
     };
+    // Advantage+ audience (Meta's AI-powered targeting expansion)
+    if (params.advantagePlusAudience) {
+      adSetBody.targeting_optimization_types = ["TARGETING_OPTIMIZATION_ADVANTAGE_AUDIENCE"];
+    }
     // promoted_object varies by optimization goal
     if (params.optimizationGoal === "LEAD_GENERATION") {
       // Instant form leads — page_id only
