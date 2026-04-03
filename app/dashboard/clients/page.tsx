@@ -267,16 +267,23 @@ export default function ClientsPage() {
     if (!accountPickerClientId) return;
     setPickingAccount(true);
     try {
-      await fetch(`/api/clients/${accountPickerClientId}`, {
+      const res = await fetch(`/api/clients/${accountPickerClientId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ meta_ad_account_id: accountId }),
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        console.error("[selectAdAccount] PATCH failed:", res.status, errData);
+        setError(`Failed to save ad account: ${res.status} ${errData.error ?? ""}`);
+        return;
+      }
       setAccountPickerClientId(null);
       setDiscoveredAccounts([]);
       setSuccessMsg("Ad account saved successfully.");
       await loadClients();
-    } catch {
+    } catch (err) {
+      console.error("[selectAdAccount] error:", err);
       setError("Failed to save ad account");
     } finally {
       setPickingAccount(false);
