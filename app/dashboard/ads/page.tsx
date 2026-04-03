@@ -175,6 +175,7 @@ export default function AdsPage() {
   const [tab, setTab] = useState<"pending" | "live">("pending");
   const [acting, setActing] = useState<Record<string, boolean>>({});
   const [showCreator, setShowCreator] = useState(false);
+  const [showManualForm, setShowManualForm] = useState(false);
 
   useEffect(() => {
     if (activeClient?.id) fetchAds();
@@ -276,13 +277,21 @@ export default function AdsPage() {
                 : <span>{live.length} live campaign{live.length !== 1 ? "s" : ""}</span>}
             </div>
           </div>
-          <button
-            id="tour-ads-create"
-            onClick={openChatCreate}
-            style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 20px", background: T.accent, border: "none", borderRadius: 8, color: "#0d0f14", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}
-          >
-            ✦ Create with Buena Onda
-          </button>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <button
+              onClick={() => setShowManualForm(true)}
+              style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 20px", background: "transparent", border: `1px solid ${T.accentBorder}`, borderRadius: 8, color: T.accent, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+            >
+              + Create Ad
+            </button>
+            <button
+              id="tour-ads-create"
+              onClick={openChatCreate}
+              style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 20px", background: T.accent, border: "none", borderRadius: 8, color: "#0d0f14", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+            >
+              ✦ Create with Buena Onda
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -377,6 +386,14 @@ export default function AdsPage() {
       <AdCreatorOverlay
         client={activeClient}
         onClose={() => { setShowCreator(false); fetchAds(); }}
+      />
+    )}
+
+    {/* Manual Ad Creation Form */}
+    {showManualForm && activeClient && (
+      <ManualAdForm
+        client={activeClient}
+        onClose={() => { setShowManualForm(false); fetchAds(); }}
       />
     )}
     </>
@@ -1079,6 +1096,424 @@ function AdCreatorOverlay({ client, onClose }: {
     </div>
   );
 }
+
+// ─── Manual Ad Creation Form ──────────────────────────────────────────────────
+
+interface LeadForm { id: string; name: string; status: string; }
+
+const CTA_OPTIONS = [
+  { value: "LEARN_MORE", label: "Learn More" },
+  { value: "SIGN_UP", label: "Sign Up" },
+  { value: "SHOP_NOW", label: "Shop Now" },
+  { value: "BOOK_TRAVEL", label: "Book Now" },
+  { value: "CONTACT_US", label: "Contact Us" },
+  { value: "GET_QUOTE", label: "Get Quote" },
+  { value: "APPLY_NOW", label: "Apply Now" },
+  { value: "DOWNLOAD", label: "Download" },
+  { value: "SUBSCRIBE", label: "Subscribe" },
+  { value: "GET_OFFER", label: "Get Offer" },
+];
+
+const OBJECTIVE_OPTIONS = [
+  { value: "leads", label: "Leads", desc: "Get form submissions via instant forms" },
+  { value: "traffic", label: "Traffic", desc: "Drive clicks to your website" },
+  { value: "sales", label: "Sales", desc: "Optimize for purchases/conversions" },
+];
+
+function ManualAdForm({ client, onClose }: {
+  client: { id: string; name: string; meta_ad_account_id: string; vertical: string };
+  onClose: () => void;
+}) {
+  const [step, setStep] = useState(1);
+  const totalSteps = 4;
+
+  // Step 1 — Campaign
+  const [campaignName, setCampaignName] = useState(`${client.name} — `);
+  const [objective, setObjective] = useState(client.vertical === "ecomm" ? "sales" : "leads");
+  const [dailyBudget, setDailyBudget] = useState("");
+  const [specialAdCategory, setSpecialAdCategory] = useState(false);
+
+  // Step 2 — Targeting
+  const [ageMin, setAgeMin] = useState("25");
+  const [ageMax, setAgeMax] = useState("65");
+
+  // Step 3 — Creative
+  const [primaryText, setPrimaryText] = useState("");
+  const [headline, setHeadline] = useState("");
+  const [description, setDescription] = useState("");
+  const [ctaType, setCtaType] = useState(objective === "leads" ? "SIGN_UP" : "LEARN_MORE");
+  const [destinationUrl, setDestinationUrl] = useState("");
+  const [leadFormId, setLeadFormId] = useState("");
+  const [leadForms, setLeadForms] = useState<LeadForm[]>([]);
+  const [loadingForms, setLoadingForms] = useState(false);
+  const [imageHash, setImageHash] = useState("");
+  const [imagePreview, setImagePreview] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Step 4 — Review & Submit
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  // Fetch lead forms when objective is leads
+  useEffect(() => {
+    if (objective !== "leads") return;
+    setLoadingForms(true);
+    fetch(`/api/agent/ads/lead-forms?client_id=${client.id}`)
+      .then(r => r.json())
+      .then(data => setLeadForms(data.forms ?? []))
+      .catch(() => setLeadForms([]))
+      .finally(() => setLoadingForms(false));
+  }, [objective, client.id]);
+
+  async function handleImageUpload(file: File) {
+    setUploading(true);
+    setUploadError("");
+    try {
+      // Compress
+      const canvas = document.createElement("canvas");
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = () => rej(); img.src = url; });
+      const ratio = Math.min(1, 1200 / img.width);
+      canvas.width = Math.round(img.width * ratio);
+      canvas.height = Math.round(img.height * ratio);
+      canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+
+      const blob = await new Promise<Blob>((res, rej) => canvas.toBlob(b => b ? res(b) : rej(), "image/jpeg", 0.85));
+      const preview = await new Promise<string>((res) => { const r = new FileReader(); r.onload = e => res(e.target?.result as string); r.readAsDataURL(blob); });
+      setImagePreview(preview);
+
+      const formData = new FormData();
+      formData.append("file", new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }));
+      formData.append("ad_account_id", client.meta_ad_account_id);
+      formData.append("client_id", client.id);
+      const res = await fetch("/api/agent/creative/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      if (!data.image_hash) throw new Error("No image hash returned");
+      setImageHash(data.image_hash);
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleSubmit() {
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      const res = await fetch("/api/agent/ads/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_id: client.id,
+          ad_account_id: client.meta_ad_account_id,
+          campaign_name: campaignName,
+          objective,
+          daily_budget: parseFloat(dailyBudget),
+          age_min: parseInt(ageMin),
+          age_max: parseInt(ageMax),
+          primary_text: primaryText,
+          headline,
+          description,
+          cta_type: ctaType,
+          destination_url: destinationUrl || undefined,
+          lead_form_id: leadFormId || undefined,
+          image_hash: imageHash || undefined,
+          special_ad_categories: specialAdCategory ? ["HOUSING", "EMPLOYMENT", "CREDIT", "ISSUES_ELECTIONS_POLITICS"] : [],
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error ?? "Failed to create campaign");
+      setSuccess(true);
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "Failed to create campaign");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: 8, padding: "10px 14px", fontSize: 13, color: T.text,
+    fontFamily: "'DM Mono', monospace", outline: "none", boxSizing: "border-box",
+  };
+  const labelStyle: React.CSSProperties = {
+    display: "block", fontSize: 11, color: T.faint, textTransform: "uppercase",
+    letterSpacing: "0.08em", marginBottom: 6,
+  };
+
+  function canNext() {
+    if (step === 1) return campaignName.trim().length > 3 && parseFloat(dailyBudget) > 0;
+    if (step === 2) return true;
+    if (step === 3) return primaryText.trim().length > 10 && headline.trim().length > 2 && imageHash;
+    return true;
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.88)", backdropFilter: "blur(4px)" }}
+      onClick={e => { if (e.target === e.currentTarget && !submitting) onClose(); }}
+    >
+      <div style={{ width: "94vw", maxWidth: 640, maxHeight: "90vh", background: "#13151d", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 18, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }}>
+
+        {/* Header */}
+        <div style={{ padding: "18px 24px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>Create Ad</div>
+            <div style={{ fontSize: 11, color: T.faint, marginTop: 2 }}>{client.name} — Step {step} of {totalSteps}</div>
+          </div>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", color: T.muted, fontSize: 22, cursor: "pointer" }}>×</button>
+        </div>
+
+        {/* Progress bar */}
+        <div style={{ height: 3, background: "rgba(255,255,255,0.04)" }}>
+          <div style={{ height: "100%", width: `${(step / totalSteps) * 100}%`, background: T.accent, transition: "width 0.3s ease" }} />
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflow: "auto", padding: "24px 28px" }}>
+
+          {/* Success */}
+          {success && (
+            <div style={{ textAlign: "center", padding: "40px 0" }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 8 }}>Campaign Created</div>
+              <div style={{ fontSize: 13, color: T.muted, marginBottom: 24 }}>Your campaign was created in PAUSED status. Review it and approve to go live.</div>
+              <button onClick={onClose} style={{ padding: "10px 28px", background: T.accent, border: "none", borderRadius: 8, color: "#0d0f14", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                Done
+              </button>
+            </div>
+          )}
+
+          {/* Step 1: Campaign Basics */}
+          {!success && step === 1 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <div>
+                <label style={labelStyle}>Campaign Name</label>
+                <input value={campaignName} onChange={e => setCampaignName(e.target.value)} placeholder="e.g. Summit Roofing — Storm Season Leads" style={inputStyle} autoFocus />
+              </div>
+              <div>
+                <label style={labelStyle}>Objective</label>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {OBJECTIVE_OPTIONS.map(o => (
+                    <button key={o.value} onClick={() => { setObjective(o.value); setCtaType(o.value === "leads" ? "SIGN_UP" : o.value === "sales" ? "SHOP_NOW" : "LEARN_MORE"); }}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 8,
+                        border: objective === o.value ? `1px solid ${T.accentBorder}` : "1px solid rgba(255,255,255,0.08)",
+                        background: objective === o.value ? T.accentBg : "transparent",
+                        cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+                      }}>
+                      <div style={{ width: 16, height: 16, borderRadius: "50%", border: `2px solid ${objective === o.value ? T.accent : T.faint}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {objective === o.value && <div style={{ width: 8, height: 8, borderRadius: "50%", background: T.accent }} />}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: objective === o.value ? T.text : T.muted }}>{o.label}</div>
+                        <div style={{ fontSize: 11, color: T.faint }}>{o.desc}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label style={labelStyle}>Daily Budget ($)</label>
+                <input type="number" value={dailyBudget} onChange={e => setDailyBudget(e.target.value)} placeholder="e.g. 50" style={inputStyle} min="1" step="1" />
+              </div>
+              <div>
+                <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                  <input type="checkbox" checked={specialAdCategory} onChange={e => setSpecialAdCategory(e.target.checked)} style={{ accentColor: T.accent }} />
+                  Special Ad Category (Housing, Employment, Credit, Politics)
+                </label>
+                <div style={{ fontSize: 11, color: T.faint, marginTop: 4 }}>Enable if your ad is about housing, employment, credit, or social issues. This restricts targeting options.</div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Targeting */}
+          {!success && step === 2 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <div style={{ fontSize: 13, color: T.muted, marginBottom: 4 }}>
+                Targeting is set to United States by default. Age targeting is {specialAdCategory ? "disabled (special ad category)" : "configurable below"}.
+              </div>
+              {!specialAdCategory && (
+                <div style={{ display: "flex", gap: 16 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={labelStyle}>Age Min</label>
+                    <input type="number" value={ageMin} onChange={e => setAgeMin(e.target.value)} min="18" max="65" style={inputStyle} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={labelStyle}>Age Max</label>
+                    <input type="number" value={ageMax} onChange={e => setAgeMax(e.target.value)} min="18" max="65" style={inputStyle} />
+                  </div>
+                </div>
+              )}
+              {specialAdCategory && (
+                <div style={{ background: "rgba(245,166,35,0.06)", border: `1px solid ${T.accentBorder}`, borderRadius: 8, padding: 14, fontSize: 12, color: T.muted }}>
+                  Age and gender targeting are disabled for special ad categories per Meta policy.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 3: Creative & Copy */}
+          {!success && step === 3 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              {/* Image upload */}
+              <div>
+                <label style={labelStyle}>Creative Image</label>
+                <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); }} />
+                {imagePreview ? (
+                  <div style={{ position: "relative", borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <img src={imagePreview} alt="preview" style={{ width: "100%", maxHeight: 200, objectFit: "cover" }} />
+                    <button onClick={() => { setImageHash(""); setImagePreview(""); }} style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.7)", border: "none", color: "#fff", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", fontSize: 14 }}>×</button>
+                  </div>
+                ) : (
+                  <button onClick={() => fileRef.current?.click()} disabled={uploading}
+                    style={{ width: "100%", padding: "28px 16px", background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.12)", borderRadius: 8, color: T.muted, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+                    {uploading ? "Uploading…" : "Click to upload image"}
+                  </button>
+                )}
+                {uploadError && <div style={{ fontSize: 11, color: T.red, marginTop: 6 }}>{uploadError}</div>}
+              </div>
+
+              {/* Primary text */}
+              <div>
+                <label style={labelStyle}>Primary Text</label>
+                <textarea value={primaryText} onChange={e => setPrimaryText(e.target.value)} placeholder="The main body of your ad — what people see first" rows={4}
+                  style={{ ...inputStyle, resize: "vertical" }} />
+                <div style={{ fontSize: 10, color: primaryText.length > 125 ? T.accent : T.faint, marginTop: 4 }}>{primaryText.length} chars — aim for 80–125</div>
+              </div>
+
+              {/* Headline */}
+              <div>
+                <label style={labelStyle}>Headline</label>
+                <input value={headline} onChange={e => setHeadline(e.target.value)} placeholder="e.g. Free Roof Inspection — Book Today" style={inputStyle} />
+                <div style={{ fontSize: 10, color: headline.length > 40 ? T.red : T.faint, marginTop: 4 }}>{headline.length}/40 chars</div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label style={labelStyle}>Description (optional)</label>
+                <input value={description} onChange={e => setDescription(e.target.value)} placeholder="Short description below the headline" style={inputStyle} />
+              </div>
+
+              {/* CTA */}
+              <div>
+                <label style={labelStyle}>Call to Action</label>
+                <select value={ctaType} onChange={e => setCtaType(e.target.value)}
+                  style={{ ...inputStyle, appearance: "auto" as React.CSSProperties["appearance"] }}>
+                  {CTA_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </div>
+
+              {/* Destination URL */}
+              <div>
+                <label style={labelStyle}>Destination URL</label>
+                <input value={destinationUrl} onChange={e => setDestinationUrl(e.target.value)} placeholder="https://example.com/landing-page" style={inputStyle} />
+                <div style={{ fontSize: 10, color: T.faint, marginTop: 4 }}>Required — Meta needs a URL even for lead gen ads</div>
+              </div>
+
+              {/* Lead form picker (only for leads objective) */}
+              {objective === "leads" && (
+                <div>
+                  <label style={labelStyle}>Lead Form (optional)</label>
+                  {loadingForms ? (
+                    <div style={{ fontSize: 12, color: T.faint }}>Loading forms…</div>
+                  ) : leadForms.length > 0 ? (
+                    <select value={leadFormId} onChange={e => setLeadFormId(e.target.value)}
+                      style={{ ...inputStyle, appearance: "auto" as React.CSSProperties["appearance"] }}>
+                      <option value="">No form (URL-based leads)</option>
+                      {leadForms.map(f => <option key={f.id} value={f.id}>{f.name} ({f.status})</option>)}
+                    </select>
+                  ) : (
+                    <div style={{ fontSize: 12, color: T.faint }}>No instant forms found on this page. Create one in Meta Ads Manager.</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 4: Review */}
+          {!success && step === 4 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 4 }}>Review Your Ad</div>
+              <div style={{ fontSize: 12, color: T.muted, marginBottom: 8 }}>This campaign will be created in PAUSED status. Approve it from the Ads page to go live.</div>
+
+              {submitError && (
+                <div style={{ background: "rgba(255,77,77,0.08)", border: "1px solid rgba(255,77,77,0.2)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: T.red, marginBottom: 4 }}>
+                  {submitError}
+                </div>
+              )}
+
+              <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden" }}>
+                {[
+                  { label: "Campaign", value: campaignName },
+                  { label: "Objective", value: OBJECTIVE_OPTIONS.find(o => o.value === objective)?.label ?? objective },
+                  { label: "Daily Budget", value: `$${dailyBudget}/day` },
+                  ...(!specialAdCategory ? [{ label: "Age Range", value: `${ageMin} – ${ageMax}` }] : []),
+                  { label: "Headline", value: headline },
+                  { label: "Primary Text", value: primaryText.length > 80 ? primaryText.slice(0, 80) + "…" : primaryText },
+                  { label: "CTA", value: CTA_OPTIONS.find(c => c.value === ctaType)?.label ?? ctaType },
+                  { label: "Destination", value: destinationUrl || "—" },
+                  ...(leadFormId ? [{ label: "Lead Form", value: leadForms.find(f => f.id === leadFormId)?.name ?? leadFormId }] : []),
+                  { label: "Creative", value: imageHash ? "Image uploaded" : "—" },
+                ].map((row, i) => (
+                  <div key={i} style={{ display: "flex", padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                    <div style={{ width: 120, fontSize: 11, color: T.faint, flexShrink: 0 }}>{row.label}</div>
+                    <div style={{ fontSize: 12, color: T.text, flex: 1 }}>{row.value}</div>
+                  </div>
+                ))}
+              </div>
+
+              {imagePreview && (
+                <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)", maxWidth: 280 }}>
+                  <img src={imagePreview} alt="preview" style={{ width: "100%", display: "block" }} />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer navigation */}
+        {!success && (
+          <div style={{ padding: "14px 24px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between", flexShrink: 0 }}>
+            <button
+              onClick={() => step > 1 ? setStep(step - 1) : onClose()}
+              disabled={submitting}
+              style={{ padding: "9px 20px", background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, color: T.muted, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+            >
+              {step === 1 ? "Cancel" : "Back"}
+            </button>
+            {step < totalSteps ? (
+              <button
+                onClick={() => setStep(step + 1)}
+                disabled={!canNext()}
+                style={{ padding: "9px 24px", background: canNext() ? T.accent : "rgba(245,166,35,0.3)", border: "none", borderRadius: 8, color: canNext() ? "#0d0f14" : T.faint, fontSize: 13, fontWeight: 700, cursor: canNext() ? "pointer" : "not-allowed", fontFamily: "inherit" }}
+              >
+                Next
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={submitting}
+                style={{ padding: "9px 24px", background: submitting ? "rgba(245,166,35,0.3)" : T.accent, border: "none", borderRadius: 8, color: submitting ? T.faint : "#0d0f14", fontSize: 13, fontWeight: 700, cursor: submitting ? "not-allowed" : "pointer", fontFamily: "inherit" }}
+              >
+                {submitting ? "Creating…" : "Create Campaign (Paused)"}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Spec Row / Ad Mockup helpers ─────────────────────────────────────────────
 
 function SpecRow({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
