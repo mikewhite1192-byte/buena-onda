@@ -38,6 +38,7 @@ const isDashboardRoute = createRouteMatcher(["/dashboard(.*)"]);
 
 const KNOWN_HOSTS = ["buenaonda.ai", "www.buenaonda.ai"];
 const OWNER_USER_IDS = (process.env.OWNER_CLERK_USER_ID ?? "").split(",").map(s => s.trim()).filter(Boolean);
+const DEMO_USER_IDS = (process.env.DEMO_CLERK_USER_IDS ?? "").split(",").map(s => s.trim()).filter(Boolean);
 
 export default clerkMiddleware(async (auth, req) => {
   const ref = req.nextUrl.searchParams.get("ref");
@@ -102,9 +103,10 @@ export default clerkMiddleware(async (auth, req) => {
 
       // Hard gate: only active/trialing subscribers (or the owner) can access dashboard
       const isOwner = !!userId && OWNER_USER_IDS.includes(userId);
+      const isDemoUser = !!userId && DEMO_USER_IDS.includes(userId);
       const hasAccess = status === "active" || status === "trialing";
 
-      if (!isOwner && !hasAccess && !isCheckoutReturn && !hasGraceCookie) {
+      if (!isOwner && !isDemoUser && !hasAccess && !isCheckoutReturn && !hasGraceCookie) {
         return NextResponse.redirect(new URL("/#pricing", req.url));
       }
 

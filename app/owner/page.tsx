@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import ContentHub from "./content-hub";
 
 const T = {
   bg: "#0d0f14",
@@ -67,7 +68,7 @@ type User = {
 
 export default function OwnerDashboard() {
   const router = useRouter();
-  const [tab, setTab] = useState<"overview" | "users" | "alerts" | "tickets" | "feedback">("overview");
+  const [tab, setTab] = useState<"overview" | "users" | "alerts" | "tickets" | "feedback" | "content">("overview");
   const [range, setRange] = useState("30d");
   const [platform, setPlatform] = useState("all");
   const [vertical, setVertical] = useState("all");
@@ -135,6 +136,7 @@ export default function OwnerDashboard() {
     { id: "alerts", label: `At-Risk${stats ? ` (${users.filter(u => u.is_at_risk).length})` : ""}` },
     { id: "tickets", label: `Tickets${stats ? ` (${stats.support.open_tickets})` : ""}` },
     { id: "feedback", label: `Feedback${stats ? ` (${stats.support.open_feedback})` : ""}` },
+    { id: "content", label: "Content" },
   ] as const;
 
   return (
@@ -332,6 +334,8 @@ export default function OwnerDashboard() {
             ))}
           </div>
         )}
+        {/* Content Tab */}
+        {tab === "content" && <ContentHub />}
       </div>
 
       {/* Outreach Modal */}
