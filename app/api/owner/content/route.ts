@@ -29,7 +29,7 @@ const VIDEO_FORMATS: Record<string, string> = {
 
 export async function POST(req: Request) {
   try {
-    const { action, topic, scriptFormat, videoFormat, viralFormat, platform } = await req.json();
+    const { action, topic, scriptFormat, videoFormat, viralFormat, platform, theme, dayDesc, trend, hook, day } = await req.json();
 
     if (!process.env.ANTHROPIC_API_KEY) {
       return NextResponse.json({ error: "ANTHROPIC_API_KEY not set" }, { status: 500 });
@@ -110,6 +110,88 @@ Structure the brief as:
 [Any recent Instagram algorithm, Meta ads, or Google changes worth knowing]`;
 
       userPrompt = `Generate today's morning content intelligence brief. Today is ${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}. Focus on the latest in AI tools, digital marketing, and business automation.`;
+    } else if (action === "trending") {
+      systemPrompt += `\n\nYou are a trend intelligence engine for content creators in the AI and digital marketing space. Analyze what's trending RIGHT NOW.
+
+Structure your output as a list of 8-10 trending topics. For each trend:
+
+**[NUMBER]. [TREND TITLE]**
+**Why it's trending:** [1 sentence — what happened or why people are talking about it]
+**Content angle:** [1 sentence — how Mike could make a reel about this]
+**Suggested hook:** [The opening line for a reel on this topic]
+**Heat:** [HOT / WARM / RISING]
+
+---
+
+Focus areas:
+- AI tools and announcements (new models, features, product launches)
+- Social media algorithm changes (Instagram, TikTok, YouTube)
+- Digital marketing shifts (Meta ads, Google ads, attribution changes)
+- Business automation and SaaS trends
+- Creator economy news
+- Anything entrepreneurs are buzzing about right now
+
+Prioritize topics that are timely (happening this week) and have clear content potential.`;
+
+      userPrompt = `What's trending right now in AI, digital marketing, and business automation? Today is ${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}. Give me the hottest topics that an entrepreneur content creator should be talking about today.`;
+    } else if (action === "wizard-topics") {
+      systemPrompt += `\n\nGenerate exactly 7 content topic ideas for a reel. The theme for today is "${theme}" — ${dayDesc}.
+
+Each topic should be specific, filmable, and relevant to entrepreneurs in the AI/digital marketing space.
+
+Output ONLY a numbered list, one topic per line. No explanations, no headers, just the topics.
+Example format:
+1. Why 90% of businesses overpay for their CRM
+2. The AI tool that replaced my $200/mo scheduling app`;
+
+      userPrompt = `Generate 7 reel topic ideas for the theme: "${theme}" — ${dayDesc}. Today is ${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}.`;
+    } else if (action === "wizard-trends") {
+      systemPrompt += `\n\nGenerate exactly 7 trending angles related to this specific topic. Each angle should tie the topic to something currently happening in AI, digital marketing, or business automation.
+
+Output ONLY a numbered list, one angle per line. Each should be a specific, filmable angle — not generic.
+Example format:
+1. OpenAI just dropped GPT-5 — here's what it means for small business owners using AI CRMs
+2. Instagram just changed how Reels get distributed — this is how to adapt your content strategy`;
+
+      userPrompt = `Give me 7 trending angles for the topic: "${topic}". What's happening RIGHT NOW that connects to this topic? Today is ${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}.`;
+    } else if (action === "wizard-hooks") {
+      systemPrompt += `\n\nGenerate exactly 5 opening hooks for a reel about this topic with this trending angle. Each hook should be a single sentence — the first thing Mike says on camera.
+
+The 5 hooks should each use a different angle:
+1. Curiosity — teases the answer without giving it
+2. Controversy — challenges a common belief
+3. Result — leads with the outcome
+4. Story — opens mid-story
+5. Question — asks something the audience is already thinking
+
+Output ONLY a numbered list. One hook per line. No labels, no explanations — just the hook text.`;
+
+      userPrompt = `Generate 5 hooks for a reel about: "${topic}" with trending angle: "${trend}"`;
+    } else if (action === "wizard-script") {
+      const format = SCRIPT_FORMATS[scriptFormat] || SCRIPT_FORMATS["30-60s"];
+      const video = VIDEO_FORMATS[videoFormat] || "";
+      const viral = viralFormat ? `Use this viral format structure: "${viralFormat}"` : "";
+
+      systemPrompt += `\n\nYou are writing a complete reel script. The user has already chosen their day, topic, trending angle, and hook through a guided workflow. Use ALL of this context to write the most relevant, timely script possible.
+
+Day: ${day} (theme: ${theme})
+Topic: ${topic}
+Trending angle: ${trend}
+Opening hook: ${hook}
+Format: ${format}
+${video ? `Video style: ${video}` : ""}
+${viral}
+
+IMPORTANT: Start the script with the exact hook the user chose. Build the rest of the script around that opening.
+
+Structure your output as:
+**HOOK:** ${hook}
+**SCRIPT:** [the full script with stage directions — starts with the hook, flows naturally]
+**CTA:** [the call to action]
+**CAPTION:** [Instagram caption, 2-3 sentences max, ties to the trending angle]
+**HASHTAGS:** [5-7 relevant hashtags]`;
+
+      userPrompt = `Write a ${day} reel script. Topic: "${topic}". Trending angle: "${trend}". Hook: "${hook}". Make it sound like Mike talking to a friend.`;
     } else {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }

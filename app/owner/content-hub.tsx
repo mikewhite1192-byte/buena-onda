@@ -17,13 +17,13 @@ const T = {
 };
 
 const WEEK_THEMES = [
-  { day: "Monday", theme: "Authority / Education", desc: "Teach something about AI or automation", icon: "M" },
-  { day: "Tuesday", theme: "Trending", desc: "React to what's hot in your niche right now", icon: "T" },
-  { day: "Wednesday", theme: "Proof / Results", desc: "Client win, stat, before/after", icon: "W" },
-  { day: "Thursday", theme: "Contrarian", desc: "Challenge what your audience believes", icon: "T" },
-  { day: "Friday", theme: "Behind the Scenes", desc: "Show the build, the tools, the process", icon: "F" },
-  { day: "Saturday", theme: "Personal / Story", desc: "The grind, the origin, a lesson", icon: "S" },
-  { day: "Sunday", theme: "Pitch Day", desc: "One clean offer, direct CTA", icon: "S" },
+  { day: "Monday", theme: "Authority / Education", desc: "Teach something about AI or automation" },
+  { day: "Tuesday", theme: "Trending", desc: "React to what's hot in your niche right now" },
+  { day: "Wednesday", theme: "Proof / Results", desc: "Client win, stat, before/after" },
+  { day: "Thursday", theme: "Contrarian", desc: "Challenge what your audience believes" },
+  { day: "Friday", theme: "Behind the Scenes", desc: "Show the build, the tools, the process" },
+  { day: "Saturday", theme: "Personal / Story", desc: "The grind, the origin, a lesson" },
+  { day: "Sunday", theme: "Pitch Day", desc: "One clean offer, direct CTA" },
 ];
 
 const STORY_STACK = [
@@ -66,47 +66,34 @@ const VIDEO_FORMATS = [
   { id: "b-roll", label: "B-Roll Voiceover" },
 ];
 
-type SubTab = "calendar" | "scripts" | "hooks" | "ads" | "brief";
+type MainTab = "wizard" | "brief" | "trending" | "hooks" | "ads";
 
+// ─── Shared helpers ───
+function OutputBox({ output, field, copiedField, onCopy }: { output: string; field: string; copiedField: string; onCopy: (text: string, field: string) => void }) {
+  return (
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: "20px 24px", position: "relative" }}>
+      <button onClick={() => onCopy(output, field)}
+        style={{ position: "absolute", top: 12, right: 12, background: T.accentBg, border: `1px solid rgba(245,166,35,0.3)`, borderRadius: 6, padding: "4px 10px", fontSize: 10, color: T.accent, cursor: "pointer", fontFamily: "inherit" }}>
+        {copiedField === field ? "Copied!" : "Copy"}
+      </button>
+      <div style={{ fontSize: 13, color: T.text, lineHeight: 1.7, whiteSpace: "pre-wrap", fontFamily: "inherit" }}>{output}</div>
+    </div>
+  );
+}
+
+function GoldButton({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick} disabled={disabled}
+      style={{ background: disabled ? "rgba(255,255,255,0.05)" : "linear-gradient(135deg,#f5a623,#f76b1c)", border: "none", borderRadius: 8, padding: "10px 20px", fontSize: 12, fontWeight: 700, color: disabled ? T.faint : "#0d0f14", cursor: disabled ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+      {children}
+    </button>
+  );
+}
+
+// ─── Main Component ───
 export default function ContentHub() {
-  const [subTab, setSubTab] = useState<SubTab>("brief");
-  const [topic, setTopic] = useState("");
-  const [scriptFormat, setScriptFormat] = useState("30-60s");
-  const [videoFormat, setVideoFormat] = useState("talking-head");
-  const [viralFormat, setViralFormat] = useState("");
-  const [adPlatform, setAdPlatform] = useState("meta");
-  const [output, setOutput] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [mainTab, setMainTab] = useState<MainTab>("wizard");
   const [copiedField, setCopiedField] = useState("");
-
-  const today = new Date().getDay();
-  const todayIndex = today === 0 ? 6 : today - 1; // Monday = 0
-
-  async function generate(action: string) {
-    if (!topic.trim() && action !== "brief") return;
-    setLoading(true);
-    setOutput("");
-    try {
-      const res = await fetch("/api/owner/content", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action,
-          topic: topic.trim(),
-          scriptFormat,
-          videoFormat,
-          viralFormat,
-          platform: adPlatform,
-        }),
-      });
-      const data = await res.json();
-      setOutput(data.output || data.error || "Error generating content");
-    } catch {
-      setOutput("Failed to connect to AI");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   function copyToClipboard(text: string, field: string) {
     navigator.clipboard.writeText(text);
@@ -114,724 +101,483 @@ export default function ContentHub() {
     setTimeout(() => setCopiedField(""), 2000);
   }
 
-  const SUB_TABS: { id: SubTab; label: string }[] = [
+  const TABS: { id: MainTab; label: string }[] = [
+    { id: "wizard", label: "Script Wizard" },
     { id: "brief", label: "Morning Brief" },
-    { id: "calendar", label: "Calendar" },
-    { id: "scripts", label: "Script Generator" },
+    { id: "trending", label: "Trending" },
     { id: "hooks", label: "Hook Bank" },
     { id: "ads", label: "Ad Copy" },
   ];
 
   return (
     <div>
-      {/* Sub-navigation */}
       <div style={{ display: "flex", gap: 6, marginBottom: 24, flexWrap: "wrap" }}>
-        {SUB_TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setSubTab(t.id)}
-            style={{
-              padding: "8px 16px",
-              borderRadius: 8,
-              border: `1px solid ${subTab === t.id ? T.accent : T.border}`,
-              background: subTab === t.id ? T.accentBg : "transparent",
-              color: subTab === t.id ? T.accent : T.muted,
-              fontSize: 12,
-              fontWeight: subTab === t.id ? 700 : 400,
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
-          >
+        {TABS.map((t) => (
+          <button key={t.id} onClick={() => setMainTab(t.id)}
+            style={{ padding: "8px 16px", borderRadius: 8, border: `1px solid ${mainTab === t.id ? T.accent : T.border}`, background: mainTab === t.id ? T.accentBg : "transparent", color: mainTab === t.id ? T.accent : T.muted, fontSize: 12, fontWeight: mainTab === t.id ? 700 : 400, cursor: "pointer", fontFamily: "inherit" }}>
             {t.label}
           </button>
         ))}
       </div>
 
-      {/* ── Morning Brief ── */}
-      {subTab === "brief" && (
+      {mainTab === "wizard" && <ScriptWizard copiedField={copiedField} onCopy={copyToClipboard} />}
+      {mainTab === "brief" && <MorningBrief copiedField={copiedField} onCopy={copyToClipboard} />}
+      {mainTab === "trending" && <TrendingStandalone copiedField={copiedField} onCopy={copyToClipboard} />}
+      {mainTab === "hooks" && <HookBank copiedField={copiedField} onCopy={copyToClipboard} />}
+      {mainTab === "ads" && <AdCopy copiedField={copiedField} onCopy={copyToClipboard} />}
+    </div>
+  );
+}
+
+// ─── SCRIPT WIZARD (guided flow) ───
+function ScriptWizard({ copiedField, onCopy }: { copiedField: string; onCopy: (t: string, f: string) => void }) {
+  const [step, setStep] = useState(1);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [topics, setTopics] = useState<string[]>([]);
+  const [selectedTopic, setSelectedTopic] = useState("");
+  const [trends, setTrends] = useState<string[]>([]);
+  const [selectedTrend, setSelectedTrend] = useState("");
+  const [hooks, setHooks] = useState<string[]>([]);
+  const [selectedHook, setSelectedHook] = useState("");
+  const [scriptFormat, setScriptFormat] = useState("30-60s");
+  const [videoFormat, setVideoFormat] = useState("talking-head");
+  const [viralFormat, setViralFormat] = useState("");
+  const [finalScript, setFinalScript] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const today = new Date().getDay();
+  const todayIndex = today === 0 ? 6 : today - 1;
+
+  async function callAPI(action: string, extra: Record<string, string> = {}) {
+    const res = await fetch("/api/owner/content", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, ...extra }),
+    });
+    const data = await res.json();
+    return data.output || data.error || "Error";
+  }
+
+  async function generateTopics() {
+    if (selectedDay === null) return;
+    setLoading(true);
+    try {
+      const output = await callAPI("wizard-topics", { theme: WEEK_THEMES[selectedDay].theme, dayDesc: WEEK_THEMES[selectedDay].desc });
+      const lines = output.split("\n").map((l: string) => l.replace(/^\d+[\.\)]\s*/, "").replace(/^\*\*|\*\*$/g, "").trim()).filter((l: string) => l.length > 5 && l.length < 200);
+      setTopics(lines.slice(0, 7));
+      setStep(2);
+    } finally { setLoading(false); }
+  }
+
+  async function generateTrends() {
+    if (!selectedTopic) return;
+    setLoading(true);
+    try {
+      const output = await callAPI("wizard-trends", { topic: selectedTopic });
+      const lines = output.split("\n").map((l: string) => l.replace(/^\d+[\.\)]\s*/, "").replace(/^\*\*|\*\*$/g, "").trim()).filter((l: string) => l.length > 5 && l.length < 200);
+      setTrends(lines.slice(0, 7));
+      setStep(3);
+    } finally { setLoading(false); }
+  }
+
+  async function generateHooks() {
+    if (!selectedTrend) return;
+    setLoading(true);
+    try {
+      const output = await callAPI("wizard-hooks", { topic: selectedTopic, trend: selectedTrend });
+      const lines = output.split("\n").map((l: string) => l.replace(/^\d+[\.\)]\s*/, "").replace(/^\*\*[^*]+\*\*:?\s*/, "").trim()).filter((l: string) => l.length > 10 && l.length < 200);
+      setHooks(lines.slice(0, 5));
+      setStep(4);
+    } finally { setLoading(false); }
+  }
+
+  async function generateScript() {
+    if (!selectedHook) return;
+    setLoading(true);
+    try {
+      const output = await callAPI("wizard-script", {
+        day: WEEK_THEMES[selectedDay!].day,
+        theme: WEEK_THEMES[selectedDay!].theme,
+        topic: selectedTopic,
+        trend: selectedTrend,
+        hook: selectedHook,
+        scriptFormat,
+        videoFormat,
+        viralFormat,
+      });
+      setFinalScript(output);
+      setStep(5);
+    } finally { setLoading(false); }
+  }
+
+  function restart() {
+    setStep(1); setSelectedDay(null); setTopics([]); setSelectedTopic("");
+    setTrends([]); setSelectedTrend(""); setHooks([]); setSelectedHook("");
+    setFinalScript(""); setViralFormat("");
+  }
+
+  const STEPS = ["Day", "Topic", "Trend", "Hook", "Script"];
+
+  return (
+    <div>
+      {/* Progress bar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 24 }}>
+        {STEPS.map((s, i) => {
+          const stepNum = i + 1;
+          const active = step === stepNum;
+          const done = step > stepNum;
+          return (
+            <div key={s} style={{ display: "flex", alignItems: "center", gap: 4, flex: 1 }}>
+              <div style={{
+                width: 28, height: 28, borderRadius: "50%",
+                background: done ? T.accent : active ? T.accentBg : "transparent",
+                border: `2px solid ${done || active ? T.accent : T.border}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 11, fontWeight: 700, color: done ? "#0d0f14" : active ? T.accent : T.faint,
+                cursor: done ? "pointer" : "default", flexShrink: 0,
+              }} onClick={() => { if (done) setStep(stepNum); }}>
+                {done ? "\u2713" : stepNum}
+              </div>
+              <span style={{ fontSize: 10, color: active ? T.accent : T.faint, fontWeight: active ? 700 : 400 }}>{s}</span>
+              {i < STEPS.length - 1 && <div style={{ flex: 1, height: 1, background: done ? T.accent : T.border, margin: "0 4px" }} />}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Step 1: Pick a Day */}
+      {step === 1 && (
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-            <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>
-              Morning Intelligence Brief
-            </div>
-            <button
-              onClick={() => generate("brief")}
-              disabled={loading}
-              style={{
-                background: "linear-gradient(135deg,#f5a623,#f76b1c)",
-                border: "none",
-                borderRadius: 8,
-                padding: "8px 18px",
-                fontSize: 12,
-                fontWeight: 700,
-                color: "#0d0f14",
-                cursor: loading ? "not-allowed" : "pointer",
-                fontFamily: "inherit",
-                opacity: loading ? 0.6 : 1,
-              }}
-            >
-              {loading ? "Generating..." : "Generate Today's Brief"}
-            </button>
-          </div>
-
-          <div
-            style={{
-              background: T.card,
-              border: `1px solid ${T.border}`,
-              borderRadius: 12,
-              padding: "20px 24px",
-              marginBottom: 16,
-            }}
-          >
-            <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
-              Today&apos;s Theme
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 8,
-                  background: "linear-gradient(135deg,#f5a623,#f76b1c)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontWeight: 900,
-                  fontSize: 14,
-                  color: "#fff",
-                }}
-              >
-                {WEEK_THEMES[todayIndex].icon}
-              </div>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>
-                  {WEEK_THEMES[todayIndex].day} — {WEEK_THEMES[todayIndex].theme}
-                </div>
-                <div style={{ fontSize: 12, color: T.muted }}>{WEEK_THEMES[todayIndex].desc}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Story Stack */}
-          <div
-            style={{
-              background: T.card,
-              border: `1px solid ${T.border}`,
-              borderRadius: 12,
-              padding: "20px 24px",
-              marginBottom: 16,
-            }}
-          >
-            <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>
-              Today&apos;s Story Stack
-            </div>
-            {STORY_STACK.map((s, i) => (
-              <div
-                key={i}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "8px 0",
-                  borderBottom: i < STORY_STACK.length - 1 ? `1px solid ${T.border}` : "none",
-                }}
-              >
-                <div
-                  style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: 6,
-                    border: `1px solid ${T.border}`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 10,
-                    color: T.faint,
-                    flexShrink: 0,
-                  }}
-                >
-                  {i + 1}
-                </div>
-                <div style={{ fontSize: 12, color: T.text }}>{s}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Brief Output */}
-          {output && (
-            <div
-              style={{
-                background: T.card,
-                border: `1px solid ${T.border}`,
-                borderRadius: 12,
-                padding: "20px 24px",
-                position: "relative",
-              }}
-            >
-              <button
-                onClick={() => copyToClipboard(output, "brief")}
-                style={{
-                  position: "absolute",
-                  top: 12,
-                  right: 12,
-                  background: T.accentBg,
-                  border: `1px solid rgba(245,166,35,0.3)`,
-                  borderRadius: 6,
-                  padding: "4px 10px",
-                  fontSize: 10,
-                  color: T.accent,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                {copiedField === "brief" ? "Copied!" : "Copy"}
-              </button>
-              <div
-                style={{
-                  fontSize: 13,
-                  color: T.text,
-                  lineHeight: 1.7,
-                  whiteSpace: "pre-wrap",
-                  fontFamily: "inherit",
-                }}
-              >
-                {output}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Content Calendar ── */}
-      {subTab === "calendar" && (
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 16 }}>
-            7-Day Content Calendar
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 10 }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 6 }}>Pick your day</div>
+          <div style={{ fontSize: 12, color: T.muted, marginBottom: 16 }}>Each day has a content theme. Pick the one you're creating for.</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 8 }}>
             {WEEK_THEMES.map((day, i) => {
               const isToday = i === todayIndex;
+              const selected = selectedDay === i;
               return (
-                <div
-                  key={day.day}
+                <button key={day.day} onClick={() => setSelectedDay(i)}
                   style={{
-                    background: isToday ? T.surface : T.card,
-                    border: `1px solid ${isToday ? T.accent : T.border}`,
-                    borderRadius: 12,
-                    padding: "16px 18px",
-                    position: "relative",
-                    overflow: "hidden",
-                  }}
-                >
-                  {isToday && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        height: 3,
-                        background: "linear-gradient(90deg,#f5a623,#f76b1c)",
-                      }}
-                    />
-                  )}
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: isToday ? T.accent : T.text }}>
-                      {day.day}
-                    </span>
-                    {isToday && (
-                      <span
-                        style={{
-                          fontSize: 9,
-                          color: "#0d0f14",
-                          background: T.accent,
-                          borderRadius: 4,
-                          padding: "2px 6px",
-                          fontWeight: 700,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.05em",
-                        }}
-                      >
-                        Today
-                      </span>
-                    )}
+                    background: selected ? T.accentBg : T.card, border: `1px solid ${selected ? T.accent : isToday ? "rgba(245,166,35,0.3)" : T.border}`,
+                    borderRadius: 10, padding: "14px 16px", cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+                  }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: selected ? T.accent : T.text }}>{day.day}</span>
+                    {isToday && <span style={{ fontSize: 9, color: "#0d0f14", background: T.accent, borderRadius: 4, padding: "2px 6px", fontWeight: 700 }}>TODAY</span>}
                   </div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: T.text, marginBottom: 4 }}>
-                    {day.theme}
-                  </div>
-                  <div style={{ fontSize: 11, color: T.muted, lineHeight: 1.5 }}>{day.desc}</div>
-                  <button
-                    onClick={() => {
-                      setTopic(`${day.theme}: `);
-                      setSubTab("scripts");
-                    }}
-                    style={{
-                      marginTop: 10,
-                      background: "transparent",
-                      border: `1px solid ${T.border}`,
-                      borderRadius: 6,
-                      padding: "5px 10px",
-                      fontSize: 10,
-                      color: T.muted,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    Generate Script
-                  </button>
-                </div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: selected ? T.accent : T.text, marginTop: 4 }}>{day.theme}</div>
+                  <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>{day.desc}</div>
+                </button>
               );
             })}
           </div>
+          <div style={{ marginTop: 16 }}>
+            <GoldButton onClick={generateTopics} disabled={selectedDay === null || loading}>
+              {loading ? "Generating topics..." : "Next — Get Topics"}
+            </GoldButton>
+          </div>
         </div>
       )}
 
-      {/* ── Script Generator ── */}
-      {subTab === "scripts" && (
+      {/* Step 2: Pick a Topic */}
+      {step === 2 && (
         <div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 16 }}>
-            Script Writing Engine
+          <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 6 }}>
+            {WEEK_THEMES[selectedDay!].day} — {WEEK_THEMES[selectedDay!].theme}
           </div>
-
-          {/* Topic Input */}
-          <div
-            style={{
-              background: T.card,
-              border: `1px solid ${T.border}`,
-              borderRadius: 12,
-              padding: "20px 24px",
-              marginBottom: 14,
-            }}
-          >
-            <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
-              Topic
-            </div>
-            <input
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="e.g., Why most businesses don't need a $500/mo CRM"
-              style={{
-                width: "100%",
-                background: "rgba(255,255,255,0.04)",
-                border: `1px solid ${T.border}`,
-                borderRadius: 8,
-                padding: "10px 14px",
-                fontSize: 13,
-                color: T.text,
-                fontFamily: "inherit",
-                outline: "none",
-                boxSizing: "border-box" as const,
-              }}
-            />
-          </div>
-
-          {/* Format Selection */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
-            <div
-              style={{
-                background: T.card,
-                border: `1px solid ${T.border}`,
-                borderRadius: 12,
-                padding: "16px 20px",
-              }}
-            >
-              <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
-                Script Format
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {SCRIPT_FORMATS.map((f) => (
-                  <button
-                    key={f.id}
-                    onClick={() => setScriptFormat(f.id)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: 7,
-                      border: `1px solid ${scriptFormat === f.id ? T.accent : T.border}`,
-                      background: scriptFormat === f.id ? T.accentBg : "transparent",
-                      color: scriptFormat === f.id ? T.accent : T.muted,
-                      fontSize: 11,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                      textAlign: "left",
-                      display: "flex",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <span style={{ fontWeight: 600 }}>{f.label}</span>
-                    <span style={{ color: T.faint }}>{f.desc}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div
-              style={{
-                background: T.card,
-                border: `1px solid ${T.border}`,
-                borderRadius: 12,
-                padding: "16px 20px",
-              }}
-            >
-              <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
-                Video Format
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {VIDEO_FORMATS.map((f) => (
-                  <button
-                    key={f.id}
-                    onClick={() => setVideoFormat(f.id)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: 7,
-                      border: `1px solid ${videoFormat === f.id ? T.info : T.border}`,
-                      background: videoFormat === f.id ? "rgba(79,195,247,0.1)" : "transparent",
-                      color: videoFormat === f.id ? T.info : T.muted,
-                      fontSize: 11,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                      textAlign: "left",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-
-              <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10, marginTop: 16 }}>
-                Viral Format (optional)
-              </div>
-              <select
-                value={viralFormat}
-                onChange={(e) => setViralFormat(e.target.value)}
+          <div style={{ fontSize: 12, color: T.muted, marginBottom: 16 }}>Pick a topic or type your own.</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+            {topics.map((t, i) => (
+              <button key={i} onClick={() => setSelectedTopic(t)}
                 style={{
-                  width: "100%",
-                  background: "rgba(255,255,255,0.04)",
-                  border: `1px solid ${T.border}`,
-                  borderRadius: 8,
-                  padding: "8px 12px",
-                  fontSize: 11,
-                  color: T.text,
-                  fontFamily: "inherit",
-                  outline: "none",
-                }}
-              >
-                <option value="">None — freeform</option>
-                {VIRAL_FORMATS.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
-                  </option>
-                ))}
+                  background: selectedTopic === t ? T.accentBg : T.card, border: `1px solid ${selectedTopic === t ? T.accent : T.border}`,
+                  borderRadius: 8, padding: "12px 16px", cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+                  fontSize: 12, color: selectedTopic === t ? T.accent : T.text, fontWeight: selectedTopic === t ? 700 : 400,
+                }}>
+                {t}
+              </button>
+            ))}
+          </div>
+          <input value={selectedTopic} onChange={(e) => setSelectedTopic(e.target.value)} placeholder="Or type your own topic..."
+            style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: T.text, fontFamily: "inherit", outline: "none", boxSizing: "border-box", marginBottom: 14 }} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setStep(1)} style={{ background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 16px", fontSize: 12, color: T.muted, cursor: "pointer", fontFamily: "inherit" }}>Back</button>
+            <GoldButton onClick={generateTrends} disabled={!selectedTopic.trim() || loading}>
+              {loading ? "Finding trends..." : "Next — Get Trends"}
+            </GoldButton>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Pick a Trend */}
+      {step === 3 && (
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 6 }}>Trending angles for your topic</div>
+          <div style={{ fontSize: 12, color: T.muted, marginBottom: 16 }}>Pick the angle that feels most natural to film.</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+            {trends.map((t, i) => (
+              <button key={i} onClick={() => setSelectedTrend(t)}
+                style={{
+                  background: selectedTrend === t ? T.accentBg : T.card, border: `1px solid ${selectedTrend === t ? T.accent : T.border}`,
+                  borderRadius: 8, padding: "12px 16px", cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+                  fontSize: 12, color: selectedTrend === t ? T.accent : T.text, fontWeight: selectedTrend === t ? 700 : 400,
+                }}>
+                {t}
+              </button>
+            ))}
+          </div>
+          <input value={selectedTrend} onChange={(e) => setSelectedTrend(e.target.value)} placeholder="Or type your own angle..."
+            style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: T.text, fontFamily: "inherit", outline: "none", boxSizing: "border-box", marginBottom: 14 }} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setStep(2)} style={{ background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 16px", fontSize: 12, color: T.muted, cursor: "pointer", fontFamily: "inherit" }}>Back</button>
+            <GoldButton onClick={generateHooks} disabled={!selectedTrend.trim() || loading}>
+              {loading ? "Generating hooks..." : "Next — Get Hooks"}
+            </GoldButton>
+          </div>
+        </div>
+      )}
+
+      {/* Step 4: Pick a Hook + Format */}
+      {step === 4 && (
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 6 }}>Choose your hook</div>
+          <div style={{ fontSize: 12, color: T.muted, marginBottom: 16 }}>Pick the opening line that feels most you.</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
+            {hooks.map((h, i) => (
+              <button key={i} onClick={() => setSelectedHook(h)}
+                style={{
+                  background: selectedHook === h ? T.accentBg : T.card, border: `1px solid ${selectedHook === h ? T.accent : T.border}`,
+                  borderRadius: 8, padding: "12px 16px", cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+                  fontSize: 13, color: selectedHook === h ? T.accent : T.text, fontWeight: selectedHook === h ? 700 : 400, lineHeight: 1.5,
+                }}>
+                {h}
+              </button>
+            ))}
+          </div>
+
+          {/* Format options */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
+            <div>
+              <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Script Length</div>
+              {SCRIPT_FORMATS.map((f) => (
+                <button key={f.id} onClick={() => setScriptFormat(f.id)}
+                  style={{ display: "block", width: "100%", padding: "7px 10px", marginBottom: 4, borderRadius: 6, border: `1px solid ${scriptFormat === f.id ? T.accent : T.border}`, background: scriptFormat === f.id ? T.accentBg : "transparent", color: scriptFormat === f.id ? T.accent : T.muted, fontSize: 11, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
+                  {f.label} <span style={{ color: T.faint }}>({f.desc})</span>
+                </button>
+              ))}
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Video Style</div>
+              {VIDEO_FORMATS.map((f) => (
+                <button key={f.id} onClick={() => setVideoFormat(f.id)}
+                  style={{ display: "block", width: "100%", padding: "7px 10px", marginBottom: 4, borderRadius: 6, border: `1px solid ${videoFormat === f.id ? T.info : T.border}`, background: videoFormat === f.id ? "rgba(79,195,247,0.1)" : "transparent", color: videoFormat === f.id ? T.info : T.muted, fontSize: 11, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Viral Format</div>
+              <select value={viralFormat} onChange={(e) => setViralFormat(e.target.value)}
+                style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid ${T.border}`, borderRadius: 8, padding: "8px 10px", fontSize: 11, color: T.text, fontFamily: "inherit", outline: "none" }}>
+                <option value="">Freeform</option>
+                {VIRAL_FORMATS.map((f) => (<option key={f} value={f}>{f}</option>))}
               </select>
             </div>
           </div>
 
-          {/* Generate Button */}
-          <button
-            onClick={() => generate("script")}
-            disabled={loading || !topic.trim()}
-            style={{
-              width: "100%",
-              background: topic.trim() ? "linear-gradient(135deg,#f5a623,#f76b1c)" : "rgba(255,255,255,0.05)",
-              border: "none",
-              borderRadius: 10,
-              padding: "14px",
-              fontSize: 14,
-              fontWeight: 800,
-              color: topic.trim() ? "#0d0f14" : T.faint,
-              cursor: topic.trim() && !loading ? "pointer" : "not-allowed",
-              fontFamily: "inherit",
-              marginBottom: 16,
-            }}
-          >
-            {loading ? "Writing script..." : "Generate Script"}
-          </button>
-
-          {/* Output */}
-          {output && (
-            <div
-              style={{
-                background: T.card,
-                border: `1px solid ${T.border}`,
-                borderRadius: 12,
-                padding: "20px 24px",
-                position: "relative",
-              }}
-            >
-              <button
-                onClick={() => copyToClipboard(output, "script")}
-                style={{
-                  position: "absolute",
-                  top: 12,
-                  right: 12,
-                  background: T.accentBg,
-                  border: `1px solid rgba(245,166,35,0.3)`,
-                  borderRadius: 6,
-                  padding: "4px 10px",
-                  fontSize: 10,
-                  color: T.accent,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                {copiedField === "script" ? "Copied!" : "Copy Script"}
-              </button>
-              <div
-                style={{
-                  fontSize: 13,
-                  color: T.text,
-                  lineHeight: 1.7,
-                  whiteSpace: "pre-wrap",
-                  fontFamily: "inherit",
-                }}
-              >
-                {output}
-              </div>
-            </div>
-          )}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setStep(3)} style={{ background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 16px", fontSize: 12, color: T.muted, cursor: "pointer", fontFamily: "inherit" }}>Back</button>
+            <GoldButton onClick={generateScript} disabled={!selectedHook || loading}>
+              {loading ? "Writing your script..." : "Generate Script"}
+            </GoldButton>
+          </div>
         </div>
       )}
 
-      {/* ── Hook Bank ── */}
-      {subTab === "hooks" && (
+      {/* Step 5: Final Script */}
+      {step === 5 && finalScript && (
         <div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 16 }}>
-            Hook Bank
-          </div>
-          <div style={{ fontSize: 12, color: T.muted, marginBottom: 16 }}>
-            Enter a topic and get 5 hook variations — curiosity, controversy, result, story, and question angles.
-          </div>
-
-          <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-            <input
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="e.g., AI appointment setters for local businesses"
-              style={{
-                flex: 1,
-                background: "rgba(255,255,255,0.04)",
-                border: `1px solid ${T.border}`,
-                borderRadius: 8,
-                padding: "10px 14px",
-                fontSize: 13,
-                color: T.text,
-                fontFamily: "inherit",
-                outline: "none",
-              }}
-            />
-            <button
-              onClick={() => generate("hooks")}
-              disabled={loading || !topic.trim()}
-              style={{
-                background: topic.trim() ? "linear-gradient(135deg,#f5a623,#f76b1c)" : "rgba(255,255,255,0.05)",
-                border: "none",
-                borderRadius: 8,
-                padding: "10px 20px",
-                fontSize: 12,
-                fontWeight: 700,
-                color: topic.trim() ? "#0d0f14" : T.faint,
-                cursor: topic.trim() && !loading ? "pointer" : "not-allowed",
-                fontFamily: "inherit",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {loading ? "Generating..." : "Generate 5 Hooks"}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>Your Script</div>
+            <button onClick={restart}
+              style={{ background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, padding: "6px 14px", fontSize: 11, color: T.muted, cursor: "pointer", fontFamily: "inherit" }}>
+              Start Over
             </button>
           </div>
 
-          {output && (
-            <div
-              style={{
-                background: T.card,
-                border: `1px solid ${T.border}`,
-                borderRadius: 12,
-                padding: "20px 24px",
-                position: "relative",
-              }}
-            >
-              <button
-                onClick={() => copyToClipboard(output, "hooks")}
-                style={{
-                  position: "absolute",
-                  top: 12,
-                  right: 12,
-                  background: T.accentBg,
-                  border: `1px solid rgba(245,166,35,0.3)`,
-                  borderRadius: 6,
-                  padding: "4px 10px",
-                  fontSize: 10,
-                  color: T.accent,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                {copiedField === "hooks" ? "Copied!" : "Copy All"}
-              </button>
-              <div
-                style={{
-                  fontSize: 13,
-                  color: T.text,
-                  lineHeight: 1.8,
-                  whiteSpace: "pre-wrap",
-                  fontFamily: "inherit",
-                }}
-              >
-                {output}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Ad Copy Generator ── */}
-      {subTab === "ads" && (
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 16 }}>
-            Ad Copy Generator
-          </div>
-
-          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+          {/* Summary of choices */}
+          <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: "14px 18px", marginBottom: 14, display: "flex", gap: 16, flexWrap: "wrap" }}>
             {[
-              { id: "meta", label: "Meta Ads" },
-              { id: "google", label: "Google Ads" },
-            ].map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setAdPlatform(p.id)}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: 8,
-                  border: `1px solid ${adPlatform === p.id ? T.info : T.border}`,
-                  background: adPlatform === p.id ? "rgba(79,195,247,0.1)" : "transparent",
-                  color: adPlatform === p.id ? T.info : T.muted,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                {p.label}
-              </button>
+              { label: "Day", value: WEEK_THEMES[selectedDay!].day },
+              { label: "Theme", value: WEEK_THEMES[selectedDay!].theme },
+              { label: "Format", value: SCRIPT_FORMATS.find(f => f.id === scriptFormat)?.label },
+              { label: "Style", value: VIDEO_FORMATS.find(f => f.id === videoFormat)?.label },
+            ].map((item) => (
+              <div key={item.label}>
+                <div style={{ fontSize: 10, color: T.faint, textTransform: "uppercase" }}>{item.label}</div>
+                <div style={{ fontSize: 12, color: T.accent, fontWeight: 600 }}>{item.value}</div>
+              </div>
             ))}
           </div>
 
-          <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-            <input
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="e.g., AI-powered CRM that books appointments automatically"
-              style={{
-                flex: 1,
-                background: "rgba(255,255,255,0.04)",
-                border: `1px solid ${T.border}`,
-                borderRadius: 8,
-                padding: "10px 14px",
-                fontSize: 13,
-                color: T.text,
-                fontFamily: "inherit",
-                outline: "none",
-              }}
-            />
-            <button
-              onClick={() => generate("ad-copy")}
-              disabled={loading || !topic.trim()}
-              style={{
-                background: topic.trim() ? "linear-gradient(135deg,#f5a623,#f76b1c)" : "rgba(255,255,255,0.05)",
-                border: "none",
-                borderRadius: 8,
-                padding: "10px 20px",
-                fontSize: 12,
-                fontWeight: 700,
-                color: topic.trim() ? "#0d0f14" : T.faint,
-                cursor: topic.trim() && !loading ? "pointer" : "not-allowed",
-                fontFamily: "inherit",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {loading ? "Writing..." : `Generate ${adPlatform === "meta" ? "Meta" : "Google"} Copy`}
-            </button>
-          </div>
-
-          <div
-            style={{
-              background: T.card,
-              border: `1px solid ${T.border}`,
-              borderRadius: 12,
-              padding: "16px 20px",
-              marginBottom: 16,
-            }}
-          >
-            <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
-              Funnel Stages Generated
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {[
-                { label: "Awareness", desc: "Cold audience", color: T.info },
-                { label: "Consideration", desc: "Warm audience", color: T.accent },
-                { label: "Conversion", desc: "Hot audience", color: T.success },
-              ].map((s) => (
-                <div
-                  key={s.label}
-                  style={{
-                    flex: 1,
-                    minWidth: 120,
-                    padding: "8px 12px",
-                    borderRadius: 8,
-                    border: `1px solid ${T.border}`,
-                    background: "rgba(255,255,255,0.02)",
-                  }}
-                >
-                  <div style={{ fontSize: 11, fontWeight: 700, color: s.color }}>{s.label}</div>
-                  <div style={{ fontSize: 10, color: T.faint }}>{s.desc}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {output && (
-            <div
-              style={{
-                background: T.card,
-                border: `1px solid ${T.border}`,
-                borderRadius: 12,
-                padding: "20px 24px",
-                position: "relative",
-              }}
-            >
-              <button
-                onClick={() => copyToClipboard(output, "ads")}
-                style={{
-                  position: "absolute",
-                  top: 12,
-                  right: 12,
-                  background: T.accentBg,
-                  border: `1px solid rgba(245,166,35,0.3)`,
-                  borderRadius: 6,
-                  padding: "4px 10px",
-                  fontSize: 10,
-                  color: T.accent,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                {copiedField === "ads" ? "Copied!" : "Copy All"}
-              </button>
-              <div
-                style={{
-                  fontSize: 13,
-                  color: T.text,
-                  lineHeight: 1.7,
-                  whiteSpace: "pre-wrap",
-                  fontFamily: "inherit",
-                }}
-              >
-                {output}
-              </div>
-            </div>
-          )}
+          <OutputBox output={finalScript} field="wizard-script" copiedField={copiedField} onCopy={onCopy} />
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── MORNING BRIEF (standalone) ───
+function MorningBrief({ copiedField, onCopy }: { copiedField: string; onCopy: (t: string, f: string) => void }) {
+  const [output, setOutput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const today = new Date().getDay();
+  const todayIndex = today === 0 ? 6 : today - 1;
+
+  async function generate() {
+    setLoading(true); setOutput("");
+    try {
+      const res = await fetch("/api/owner/content", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "brief" }) });
+      const data = await res.json();
+      setOutput(data.output || data.error || "Error");
+    } catch { setOutput("Failed to connect"); } finally { setLoading(false); }
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>Morning Intelligence Brief</div>
+        <GoldButton onClick={generate} disabled={loading}>{loading ? "Generating..." : "Generate Today's Brief"}</GoldButton>
+      </div>
+
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: "20px 24px", marginBottom: 16 }}>
+        <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Today&apos;s Theme</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 8, background: "linear-gradient(135deg,#f5a623,#f76b1c)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 14, color: "#fff" }}>
+            {WEEK_THEMES[todayIndex].day[0]}
+          </div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{WEEK_THEMES[todayIndex].day} — {WEEK_THEMES[todayIndex].theme}</div>
+            <div style={{ fontSize: 12, color: T.muted }}>{WEEK_THEMES[todayIndex].desc}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: "20px 24px", marginBottom: 16 }}>
+        <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Today&apos;s Story Stack</div>
+        {STORY_STACK.map((s, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: i < STORY_STACK.length - 1 ? `1px solid ${T.border}` : "none" }}>
+            <div style={{ width: 22, height: 22, borderRadius: 6, border: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: T.faint, flexShrink: 0 }}>{i + 1}</div>
+            <div style={{ fontSize: 12, color: T.text }}>{s}</div>
+          </div>
+        ))}
+      </div>
+
+      {output && <OutputBox output={output} field="brief" copiedField={copiedField} onCopy={onCopy} />}
+    </div>
+  );
+}
+
+// ─── TRENDING (standalone) ───
+function TrendingStandalone({ copiedField, onCopy }: { copiedField: string; onCopy: (t: string, f: string) => void }) {
+  const [output, setOutput] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function generate() {
+    setLoading(true); setOutput("");
+    try {
+      const res = await fetch("/api/owner/content", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "trending" }) });
+      const data = await res.json();
+      setOutput(data.output || data.error || "Error");
+    } catch { setOutput("Failed to connect"); } finally { setLoading(false); }
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>Trending Now</div>
+        <GoldButton onClick={generate} disabled={loading}>{loading ? "Scanning..." : "Scan What's Trending"}</GoldButton>
+      </div>
+      <div style={{ fontSize: 12, color: T.muted, marginBottom: 16 }}>AI and digital marketing trends happening right now.</div>
+      {output && <OutputBox output={output} field="trending" copiedField={copiedField} onCopy={onCopy} />}
+    </div>
+  );
+}
+
+// ─── HOOK BANK (standalone) ───
+function HookBank({ copiedField, onCopy }: { copiedField: string; onCopy: (t: string, f: string) => void }) {
+  const [topic, setTopic] = useState("");
+  const [output, setOutput] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function generate() {
+    if (!topic.trim()) return;
+    setLoading(true); setOutput("");
+    try {
+      const res = await fetch("/api/owner/content", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "hooks", topic: topic.trim() }) });
+      const data = await res.json();
+      setOutput(data.output || data.error || "Error");
+    } catch { setOutput("Failed to connect"); } finally { setLoading(false); }
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 6 }}>Hook Bank</div>
+      <div style={{ fontSize: 12, color: T.muted, marginBottom: 16 }}>Enter a topic and get 5 hook variations — curiosity, controversy, result, story, and question angles.</div>
+      <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+        <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g., AI appointment setters for local businesses"
+          style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 13, color: T.text, fontFamily: "inherit", outline: "none" }} />
+        <GoldButton onClick={generate} disabled={loading || !topic.trim()}>{loading ? "Generating..." : "Generate 5 Hooks"}</GoldButton>
+      </div>
+      {output && <OutputBox output={output} field="hooks" copiedField={copiedField} onCopy={onCopy} />}
+    </div>
+  );
+}
+
+// ─── AD COPY (standalone) ───
+function AdCopy({ copiedField, onCopy }: { copiedField: string; onCopy: (t: string, f: string) => void }) {
+  const [topic, setTopic] = useState("");
+  const [platform, setPlatform] = useState("meta");
+  const [output, setOutput] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function generate() {
+    if (!topic.trim()) return;
+    setLoading(true); setOutput("");
+    try {
+      const res = await fetch("/api/owner/content", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "ad-copy", topic: topic.trim(), platform }) });
+      const data = await res.json();
+      setOutput(data.output || data.error || "Error");
+    } catch { setOutput("Failed to connect"); } finally { setLoading(false); }
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 16 }}>Ad Copy Generator</div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+        {[{ id: "meta", label: "Meta Ads" }, { id: "google", label: "Google Ads" }].map((p) => (
+          <button key={p.id} onClick={() => setPlatform(p.id)}
+            style={{ padding: "8px 16px", borderRadius: 8, border: `1px solid ${platform === p.id ? T.info : T.border}`, background: platform === p.id ? "rgba(79,195,247,0.1)" : "transparent", color: platform === p.id ? T.info : T.muted, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+            {p.label}
+          </button>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+        <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g., AI-powered CRM that books appointments automatically"
+          style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 13, color: T.text, fontFamily: "inherit", outline: "none" }} />
+        <GoldButton onClick={generate} disabled={loading || !topic.trim()}>{loading ? "Writing..." : `Generate ${platform === "meta" ? "Meta" : "Google"} Copy`}</GoldButton>
+      </div>
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: "16px 20px", marginBottom: 16 }}>
+        <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Funnel Stages Generated</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {[{ label: "Awareness", desc: "Cold audience", color: T.info }, { label: "Consideration", desc: "Warm audience", color: T.accent }, { label: "Conversion", desc: "Hot audience", color: T.success }].map((s) => (
+            <div key={s.label} style={{ flex: 1, minWidth: 120, padding: "8px 12px", borderRadius: 8, border: `1px solid ${T.border}`, background: "rgba(255,255,255,0.02)" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: s.color }}>{s.label}</div>
+              <div style={{ fontSize: 10, color: T.faint }}>{s.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      {output && <OutputBox output={output} field="ads" copiedField={copiedField} onCopy={onCopy} />}
     </div>
   );
 }
