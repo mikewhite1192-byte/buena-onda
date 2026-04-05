@@ -1,5 +1,9 @@
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
+import { Inter, DM_Mono } from "next/font/google";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const dmMono = DM_Mono({ weight: ["400", "500"], subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata = {
   title: "Buena Onda — AI-Powered Ad Management Platform",
@@ -25,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className="bg-white text-slate-900">{children}</body>
+        <body className={`${inter.variable} ${dmMono.variable} font-sans bg-white text-slate-900 antialiased`}>{children}</body>
       </html>
     </ClerkProvider>
   );

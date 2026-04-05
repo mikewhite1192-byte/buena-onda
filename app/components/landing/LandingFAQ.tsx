@@ -1,17 +1,7 @@
 "use client";
 
 import { useState } from "react";
-
-const T = {
-  accent: "#f5a623",
-  accentBg: "rgba(245,166,35,0.12)",
-  text: "#e8eaf0",
-  muted: "#8b8fa8",
-  faint: "#5a5e72",
-  border: "rgba(255,255,255,0.06)",
-  surface: "#161820",
-  bg: "#0d0f14",
-};
+import { ChevronDown } from "lucide-react";
 
 const FAQS = [
   {
@@ -56,45 +46,52 @@ export default function LandingFAQ() {
   const [open, setOpen] = useState<number | null>(null);
 
   return (
-    <section id="faq" style={{ padding: "100px 24px", background: T.bg }}>
-      <div style={{ maxWidth: 720, margin: "0 auto" }}>
+    <section id="faq" className="py-24 px-6 bg-[#0d0f14]">
+      <div className="max-w-3xl mx-auto">
         {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: 56 }}>
-          <div style={{ display: "inline-block", padding: "5px 16px", background: T.accentBg, border: "1px solid rgba(245,166,35,0.3)", borderRadius: 20, fontSize: 11, color: T.accent, fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: 20 }}>
+        <div className="text-center mb-14">
+          <div className="inline-block px-4 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-full text-[11px] text-amber-400 font-semibold uppercase tracking-wide mb-5">
             FAQ
           </div>
-          <h2 style={{ fontSize: "clamp(28px, 4vw, 48px)", fontWeight: 800, color: T.text, margin: "0 0 16px", letterSpacing: "-1.5px" }}>
+          <h2 className="text-[clamp(28px,4vw,48px)] font-extrabold text-[#e8eaf0] mb-4 tracking-tight">
             Common questions
           </h2>
         </div>
 
         {/* Items */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="flex flex-col gap-3">
           {FAQS.map((faq, i) => (
             <div
               key={i}
-              style={{ background: T.surface, border: `1px solid ${open === i ? "rgba(245,166,35,0.25)" : T.border}`, borderRadius: 12, overflow: "hidden", transition: "border-color 0.2s" }}
+              className={`bg-[#161820] rounded-xl overflow-hidden transition-all duration-200 ${
+                open === i ? "border border-amber-500/20" : "border border-white/[0.06] hover:border-white/[0.12]"
+              }`}
             >
               <button
                 onClick={() => setOpen(open === i ? null : i)}
-                style={{ width: "100%", padding: "18px 22px", background: "none", border: "none", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", gap: 16, fontFamily: "inherit" }}
+                aria-expanded={open === i}
+                className="w-full px-6 py-5 bg-transparent border-none flex items-center justify-between cursor-pointer gap-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:ring-inset focus-visible:rounded-xl"
               >
-                <span style={{ fontSize: 14, fontWeight: 600, color: T.text, textAlign: "left", lineHeight: 1.4 }}>{faq.q}</span>
-                <span style={{ fontSize: 18, color: T.accent, flexShrink: 0, transform: open === i ? "rotate(45deg)" : "none", transition: "transform 0.2s" }}>+</span>
+                <span className="text-sm font-semibold text-[#e8eaf0] leading-snug">{faq.q}</span>
+                <ChevronDown
+                  className={`w-5 h-5 text-amber-400 flex-shrink-0 transition-transform duration-200 ${
+                    open === i ? "rotate-180" : ""
+                  }`}
+                />
               </button>
               {open === i && (
-                <div style={{ padding: "0 22px 18px" }}>
-                  <p style={{ fontSize: 14, color: T.muted, lineHeight: 1.7, margin: 0 }}>{faq.a}</p>
+                <div className="px-6 pb-5">
+                  <p className="text-sm text-[#8b8fa8] leading-relaxed m-0">{faq.a}</p>
                 </div>
               )}
             </div>
           ))}
         </div>
 
-        <div style={{ marginTop: 40, textAlign: "center" }}>
-          <p style={{ fontSize: 14, color: T.faint }}>
+        <div className="mt-10 text-center">
+          <p className="text-sm text-[#5a5e72]">
             Still have questions?{" "}
-            <a href="mailto:hello@buenaonda.ai" style={{ color: T.accent, textDecoration: "none", fontWeight: 600 }}>
+            <a href="mailto:hello@buenaonda.ai" className="text-amber-400 hover:text-amber-300 font-semibold no-underline transition-colors">
               hello@buenaonda.ai
             </a>
           </p>

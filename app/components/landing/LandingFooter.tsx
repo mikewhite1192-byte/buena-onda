@@ -1,79 +1,37 @@
 "use client";
 
-const T = {
-  accent: "#f5a623",
-  text: "#e8eaf0",
-  muted: "#8b8fa8",
-  faint: "#5a5e72",
-  border: "rgba(255,255,255,0.06)",
-  surface: "#161820",
-  bg: "#0d0f14",
-};
-
 export default function LandingFooter() {
   return (
-    <footer style={{ background: T.surface, borderTop: `1px solid ${T.border}`, padding: "48px 24px 32px" }}>
-      <style>{`
-        .footer-grid {
-          display: grid;
-          grid-template-columns: 2fr 1fr 1fr 1fr;
-          gap: 40px;
-          margin-bottom: 48px;
-        }
-        .footer-bottom {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          flex-wrap: wrap;
-          gap: 12px;
-        }
-        @media (max-width: 768px) {
-          .footer-grid {
-            grid-template-columns: 1fr 1fr;
-            gap: 32px;
-          }
-        }
-        @media (max-width: 480px) {
-          .footer-grid {
-            grid-template-columns: 1fr;
-            gap: 28px;
-          }
-          .footer-bottom {
-            flex-direction: column;
-            text-align: center;
-          }
-        }
-      `}</style>
-
-      <div style={{ maxWidth: 1020, margin: "0 auto" }}>
-        <div className="footer-grid">
+    <footer className="bg-[#0a0c10] border-t border-white/[0.06] py-16 px-6">
+      <div className="max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
           {/* Brand */}
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 18, background: "linear-gradient(135deg,#f5a623,#f76b1c)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: 12 }}>
+          <div className="md:col-span-1">
+            <div className="font-extrabold text-lg bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent mb-3">
               Buena Onda
             </div>
-            <p style={{ fontSize: 13, color: T.muted, lineHeight: 1.7, maxWidth: 260, margin: "0 0 16px" }}>
+            <p className="text-sm text-[#8b8fa8] leading-relaxed max-w-[260px] mb-4">
               The autonomous AI agent that launches, manages, optimizes, and reports on your Meta, Google, and TikTok ad campaigns.
             </p>
-            <a href="mailto:hello@buenaonda.ai" style={{ display: "block", fontSize: 12, color: T.faint, textDecoration: "none", marginBottom: 4 }}>
+            <a href="mailto:hello@buenaonda.ai" className="block text-xs text-[#5a5e72] no-underline hover:text-amber-400 transition-colors mb-1">
               hello@buenaonda.ai
             </a>
-            <a href="tel:+16198886686" style={{ display: "block", fontSize: 12, color: T.faint, textDecoration: "none", marginBottom: 4 }}>
+            <a href="tel:+16198886686" className="block text-xs text-[#5a5e72] no-underline hover:text-amber-400 transition-colors mb-1">
               (619) 888-6686
             </a>
-            <span style={{ fontSize: 12, color: T.faint }}>Warren, MI · United States</span>
+            <span className="text-xs text-[#5a5e72]">Warren, MI · United States</span>
           </div>
 
           {/* Product */}
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 16 }}>Product</div>
+            <div className="text-xs uppercase tracking-wider font-semibold text-[#8b8fa8] mb-4">Product</div>
             {[
               { label: "How it works", href: "/#how-it-works" },
               { label: "Demo", href: "/#demo" },
               { label: "Pricing", href: "/#pricing" },
               { label: "Dashboard", href: "/dashboard" },
-            ].map(l => (
-              <a key={l.label} href={l.href} style={{ display: "block", fontSize: 13, color: T.faint, textDecoration: "none", marginBottom: 10 }}>
+            ].map((l) => (
+              <a key={l.label} href={l.href} className="block text-sm text-[#5a5e72] no-underline hover:text-[#e8eaf0] transition-colors duration-200 py-1 cursor-pointer">
                 {l.label}
               </a>
             ))}
@@ -81,13 +39,13 @@ export default function LandingFooter() {
 
           {/* Company */}
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 16 }}>Company</div>
+            <div className="text-xs uppercase tracking-wider font-semibold text-[#8b8fa8] mb-4">Company</div>
             {[
               { label: "About", href: "/about" },
               { label: "Affiliate Program", href: "/affiliates" },
               { label: "Contact", href: "/contact" },
-            ].map(l => (
-              <a key={l.label} href={l.href} style={{ display: "block", fontSize: 13, color: T.faint, textDecoration: "none", marginBottom: 10 }}>
+            ].map((l) => (
+              <a key={l.label} href={l.href} className="block text-sm text-[#5a5e72] no-underline hover:text-[#e8eaf0] transition-colors duration-200 py-1 cursor-pointer">
                 {l.label}
               </a>
             ))}
@@ -95,12 +53,12 @@ export default function LandingFooter() {
 
           {/* Legal */}
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 16 }}>Legal</div>
+            <div className="text-xs uppercase tracking-wider font-semibold text-[#8b8fa8] mb-4">Legal</div>
             {[
               { label: "Privacy Policy", href: "/privacy-policy" },
               { label: "Terms of Service", href: "/terms-of-service" },
-            ].map(l => (
-              <a key={l.label} href={l.href} style={{ display: "block", fontSize: 13, color: T.faint, textDecoration: "none", marginBottom: 10 }}>
+            ].map((l) => (
+              <a key={l.label} href={l.href} className="block text-sm text-[#5a5e72] no-underline hover:text-[#e8eaf0] transition-colors duration-200 py-1 cursor-pointer">
                 {l.label}
               </a>
             ))}
@@ -108,8 +66,8 @@ export default function LandingFooter() {
         </div>
 
         {/* Bottom bar */}
-        <div className="footer-bottom" style={{ borderTop: `1px solid ${T.border}`, paddingTop: 24 }}>
-          <p style={{ fontSize: 12, color: T.faint, margin: 0 }}>
+        <div className="border-t border-white/[0.06] pt-6 text-center">
+          <p className="text-xs text-[#5a5e72] m-0">
             © {new Date().getFullYear()} Buena Onda. All rights reserved.
           </p>
         </div>

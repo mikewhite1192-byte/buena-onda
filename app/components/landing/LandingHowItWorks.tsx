@@ -1,214 +1,146 @@
 "use client";
 
-const T = {
-  accent: "#f5a623",
-  accentBg: "rgba(245,166,35,0.12)",
-  text: "#e8eaf0",
-  muted: "#8b8fa8",
-  faint: "#5a5e72",
-  border: "rgba(255,255,255,0.06)",
-  surface: "#161820",
-  bg: "#0d0f14",
-};
+import { Rocket, SlidersHorizontal, Zap, BarChart3, Eye } from "lucide-react";
 
 const STEPS = [
   {
-    word: "Launch.",
-    icon: "🚀",
-    title: "We launch your campaigns",
+    num: 1,
+    icon: Rocket,
+    title: "Launch",
     bullets: [
-      "Tell the AI your goal, budget, and target audience",
-      "It writes ad copy, selects audiences, and sets bidding strategy",
-      "Campaigns go live with creatives structured for lead gen or e-commerce",
-      "Every decision is logged — you always see exactly what launched and why",
+      "AI writes ad copy, selects audiences, and sets bidding strategy",
+      "Campaigns go live on Meta, Google, or TikTok in one click",
+      "You approve or let it auto-launch — your call",
+      "No ad experience needed — the AI handles everything",
     ],
   },
   {
-    word: "Manage.",
-    icon: "🎛️",
-    title: "We manage every detail",
+    num: 2,
+    icon: SlidersHorizontal,
+    title: "Manage",
     bullets: [
-      "All your campaigns and ad sets in one dashboard — Meta, Google, and TikTok in one place",
-      "Budget pacing tracked daily so you never over or underspend",
-      "The AI handles ad set structure, audience overlaps, and scheduling",
-      "Agencies: manage every client from a single view with per-client rules",
+      "Unified dashboard — Meta, Google, and TikTok in one place",
+      "Real-time budget pacing so you never overspend",
+      "Every campaign, ad set, and creative tracked live",
+      "Works with your existing campaigns too — not just new ones",
+    ],
+    screenshot: {
+      src: "/brand/campaigns-screenshot.png",
+      alt: "Buena Onda campaigns view showing live performance metrics across ad sets",
+    },
+  },
+  {
+    num: 3,
+    icon: Zap,
+    title: "Optimize",
+    bullets: [
+      "AI checks performance hourly and adjusts automatically",
+      "Pauses losers, scales winners, shifts budget to what works",
+      "Catches issues at 2am so you don't wake up to wasted spend",
+      "Full autonomous or guardrails mode — you choose the control level",
     ],
   },
   {
-    word: "Optimize.",
-    icon: "⚡",
-    title: "We optimize around the clock — every hour",
+    num: 4,
+    icon: BarChart3,
+    title: "Report",
     bullets: [
-      "The AI thinks like a senior media buyer. It scans every campaign every hour and knows what to do.",
-      "Winning ads get more budget. Underperformers get paused. No login required.",
-      "At 2am on a Sunday, if CPL spikes the AI catches it and acts before you wake up.",
-      "Choose guardrails mode where you approve first, or full autonomous mode where the AI just handles it.",
+      "Morning briefings delivered via WhatsApp or Slack",
+      "Weekly PDF reports — white-label ready for agency clients",
+      "Every optimization logged with reasons, not just actions",
+      "Built for agency owners — one report per client, zero effort",
     ],
+    screenshot: {
+      src: "/brand/reports-screenshot.png",
+      alt: "Buena Onda AI-generated performance report with spend, revenue, ROAS, and recommendations",
+    },
   },
   {
-    word: "Report.",
-    icon: "📊",
-    title: "We report what matters",
+    num: 5,
+    icon: Eye,
+    title: "Oversee",
     bullets: [
-      "Weekly performance reports delivered to WhatsApp or your team's Slack — no login required",
-      "Agencies: reports auto-post to a dedicated Slack channel so your whole team is always in the loop",
-      "Full dashboard with 30-day trends, campaign breakdowns, and ROAS tracking",
-      "Client-ready reports generated automatically — no manual exports, no copy-pasting",
-    ],
-  },
-  {
-    word: "Oversee.",
-    icon: "🔭",
-    title: "You stay in control — from anywhere",
-    bullets: [
-      "Reply in WhatsApp or Slack to control the AI: \"pause that campaign\", \"scale the winner\", \"what's my CPL?\"",
-      "The AI executes instantly — no dashboard login needed, works from your phone",
-      "Approve or reject any recommendation before it executes",
-      "Set CPL caps, ROAS targets, and frequency limits per client or campaign",
+      "Control everything from WhatsApp or Slack — no dashboard required",
+      "Set CPL caps, ROAS floors, and daily spend limits",
+      "Override any AI decision at any time — your account, your rules",
+      "Full action log shows exactly what changed and why",
     ],
   },
 ];
 
 export default function LandingHowItWorks() {
   return (
-    <section id="how-it-works" style={{ padding: "100px 24px", background: T.bg }}>
-      <style>{`
-        .how-step {
-          background: #161820;
-          border: 1px solid rgba(255,255,255,0.06);
-          border-radius: 14px;
-          padding: 28px 32px;
-          display: grid;
-          grid-template-columns: 160px 1fr;
-          gap: 32px;
-          align-items: start;
-        }
-        .how-bullets {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 8px 24px;
-        }
-        .how-callout {
-          margin-top: 48px;
-          background: #161820;
-          border: 1px solid rgba(245,166,35,0.15);
-          border-radius: 14px;
-          padding: 28px 32px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          flex-wrap: wrap;
-          gap: 20px;
-        }
-        @media (max-width: 640px) {
-          .how-step {
-            grid-template-columns: 1fr;
-            gap: 16px;
-            padding: 22px 20px;
-          }
-          .how-bullets {
-            grid-template-columns: 1fr;
-            gap: 10px;
-          }
-          .how-callout {
-            padding: 22px 20px;
-            flex-direction: column;
-            align-items: flex-start;
-          }
-          .how-callout a {
-            width: 100%;
-            text-align: center;
-          }
-        }
-      `}</style>
-
-      <div style={{ maxWidth: 1000, margin: "0 auto" }}>
-
+    <section id="how-it-works" className="py-24 px-6 bg-[#0d0f14]">
+      <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: 64 }}>
-          <div style={{ display: "inline-block", padding: "5px 16px", background: T.accentBg, border: "1px solid rgba(245,166,35,0.3)", borderRadius: 20, fontSize: 11, color: T.accent, fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: 20 }}>
+        <div className="text-center mb-14">
+          <div className="inline-block px-4 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-full text-[11px] text-amber-400 font-semibold uppercase tracking-wide mb-5">
             How it works
           </div>
-          <h2 style={{ fontSize: "clamp(24px, 4vw, 48px)", fontWeight: 800, color: T.text, margin: "0 0 16px", letterSpacing: "-1.5px" }}>
-            Launch. Manage. Optimize. Report. Oversee.
+          <h2 className="text-[clamp(28px,4vw,48px)] font-extrabold text-[#e8eaf0] mb-4 tracking-tight">
+            Five steps to autopilot
           </h2>
-          <p style={{ fontSize: 16, color: T.muted, maxWidth: 520, margin: "0 auto", lineHeight: 1.7 }}>
-            Whether you run your own ads or manage them for dozens of clients — Buena Onda handles the full lifecycle so you don&apos;t have to.
+          <p className="text-base text-[#8b8fa8] max-w-lg mx-auto leading-relaxed">
+            From launch to optimization to reporting — the AI handles the full lifecycle of your ad campaigns.
           </p>
         </div>
 
         {/* Steps */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {STEPS.map((step, i) => (
-            <div key={step.word}>
-              <div className="how-step">
-                {/* Left: word + icon */}
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: T.faint, letterSpacing: "0.06em", marginBottom: 8 }}>
-                    0{i + 1}
+        <div className="space-y-6">
+          {STEPS.map((step) => {
+            const Icon = step.icon;
+            return (
+              <div key={step.num}>
+                <div className="bg-[#161820] border border-white/[0.06] rounded-2xl p-8 hover:border-amber-500/20 hover:-translate-y-0.5 transition-all duration-300">
+                  <div className="flex items-start gap-5 mb-5">
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-center text-[#0d0f14] font-bold text-sm">
+                        {step.num}
+                      </div>
+                      <Icon className="w-6 h-6 text-amber-500" />
+                    </div>
+                    <h3 className="text-xl font-bold text-[#e8eaf0] pt-2">{step.title}</h3>
                   </div>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: T.accent, letterSpacing: "-1px", lineHeight: 1, marginBottom: 10 }}>
-                    {step.word}
-                  </div>
-                  <div style={{ fontSize: 22 }}>{step.icon}</div>
-                </div>
 
-                {/* Right: title + bullets */}
-                <div>
-                  <h3 style={{ fontSize: 17, fontWeight: 700, color: T.text, margin: "0 0 16px", letterSpacing: "-0.3px" }}>
-                    {step.title}
-                  </h3>
-                  <div className="how-bullets">
-                    {step.bullets.map(b => (
-                      <div key={b} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                        <span style={{ color: T.accent, fontSize: 12, flexShrink: 0, marginTop: 2 }}>→</span>
-                        <span style={{ fontSize: 13, color: T.muted, lineHeight: 1.6 }}>{b}</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 sm:ml-[76px]">
+                    {step.bullets.map((b) => (
+                      <div key={b} className="flex items-start gap-2.5">
+                        <span className="text-amber-500 text-sm mt-0.5 flex-shrink-0">→</span>
+                        <span className="text-sm text-[#8b8fa8] leading-relaxed">{b}</span>
                       </div>
                     ))}
                   </div>
                 </div>
+
+                {step.screenshot && (
+                  <div className="mt-4 rounded-xl overflow-hidden border border-white/[0.06] shadow-2xl shadow-amber-500/5">
+                    <img
+                      src={step.screenshot.src}
+                      alt={step.screenshot.alt}
+                      className="w-full block"
+                    />
+                  </div>
+                )}
               </div>
-
-              {/* Screenshot after Manage step */}
-              {i === 1 && (
-                <div style={{ marginTop: 20, borderRadius: 12, overflow: "hidden", border: `1px solid ${T.border}`, boxShadow: "0 16px 60px rgba(0,0,0,0.4)" }}>
-                  <img
-                    src="/brand/campaigns-screenshot.png"
-                    alt="Buena Onda campaigns view showing live performance metrics across ad sets"
-                    style={{ width: "100%", display: "block" }}
-                  />
-                </div>
-              )}
-
-              {/* Screenshot after Report step */}
-              {i === 3 && (
-                <div style={{ marginTop: 20, borderRadius: 12, overflow: "hidden", border: `1px solid ${T.border}`, boxShadow: "0 16px 60px rgba(0,0,0,0.4)" }}>
-                  <img
-                    src="/brand/reports-screenshot.png"
-                    alt="Buena Onda AI-generated performance report with spend, revenue, ROAS, and recommendations"
-                    style={{ width: "100%", display: "block" }}
-                  />
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        {/* Bottom callout */}
-        <div className="how-callout">
+        {/* Callout */}
+        <div className="mt-12 bg-[#161820] border border-amber-500/20 rounded-2xl p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 4 }}>
-              Already running ads — or managing them for clients?
-            </div>
-            <div style={{ fontSize: 13, color: T.muted }}>
-              Connect your existing accounts. Buena Onda audits what&apos;s working, fixes what&apos;s not, and scales winners across every client.
-            </div>
+            <h3 className="text-lg font-bold text-[#e8eaf0] mb-2">Already running ads?</h3>
+            <p className="text-sm text-[#8b8fa8] leading-relaxed max-w-lg">
+              Connect your existing Meta, Google, or TikTok ad account. The AI audits your campaigns in minutes — finds what&apos;s wasting money, what&apos;s working, and starts optimizing immediately.
+            </p>
           </div>
-          <a href="/demo" style={{ padding: "12px 28px", borderRadius: 10, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 14, fontWeight: 800, textDecoration: "none", whiteSpace: "nowrap" }}>
-            Try the live demo →
+          <a
+            href="/#pricing"
+            className="flex-shrink-0 px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-[#0d0f14] font-bold text-sm no-underline hover:brightness-110 transition-all duration-200 cursor-pointer"
+          >
+            Connect your account →
           </a>
         </div>
-
       </div>
     </section>
   );

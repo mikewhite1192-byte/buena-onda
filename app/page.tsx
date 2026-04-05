@@ -8,7 +8,7 @@ import LandingFooter from "./components/landing/LandingFooter";
 
 export default function Page() {
   return (
-    <div style={{ background: "#0d0f14", minHeight: "100vh", fontFamily: "'DM Mono', 'Fira Mono', monospace", color: "#e8eaf0" }}>
+    <div className="landing-dark min-h-screen bg-[#0d0f14] text-[#e8eaf0]">
       <LandingNav />
       <LandingHero />
       <LandingHowItWorks />

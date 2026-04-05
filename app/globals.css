@@ -104,3 +104,65 @@ html, body {
     @apply bg-background text-foreground;
   }
 }
+
+/* ─── Landing page animations ─── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes ticker-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.8); }
+}
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-fade-up-d1 { animation-delay: 0.1s; }
+.animate-fade-up-d2 { animation-delay: 0.2s; }
+.animate-fade-up-d3 { animation-delay: 0.35s; }
+.animate-fade-up-d4 { animation-delay: 0.5s; }
+.animate-fade-up-d5 { animation-delay: 0.65s; }
+
+.animate-ticker {
+  animation: ticker-scroll 40s linear infinite;
+}
+.animate-live-pulse {
+  animation: live-pulse 2s ease-in-out infinite;
+}
+.animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+/* Landing dark section */
+.landing-dark {
+  --landing-bg: #0d0f14;
+  --landing-surface: #161820;
+  --landing-card: #13151d;
+  --landing-border: rgba(255,255,255,0.06);
+  --landing-accent: #f5a623;
+  --landing-text: #e8eaf0;
+  --landing-muted: #8b8fa8;
+  --landing-faint: #5a5e72;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-ticker,
+  .animate-live-pulse,
+  .animate-glow-pulse {
+    animation: none !important;
+  }
+  .animate-fade-up {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
