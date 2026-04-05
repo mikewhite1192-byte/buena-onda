@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useAuth } from "@clerk/nextjs";
-import { Check } from "lucide-react";
+import { Check, Crown } from "lucide-react";
 
 const SHARED_FEATURES = [
   "AI campaign creation & launch",
@@ -24,10 +24,10 @@ const PLANS = [
     price: 97,
     priceId: "price_1TDsTU2LedSrht7tPlVdEkEM",
     spend: "Up to $10k/mo ad spend",
-    desc: "Perfect for small businesses ready to put their ad campaigns on autopilot.",
-    features: [...SHARED_FEATURES],
+    desc: "Perfect for small businesses ready to put their campaigns on autopilot.",
     cta: "Start Free",
     highlight: false,
+    extra: null,
   },
   {
     name: "Growth",
@@ -35,10 +35,10 @@ const PLANS = [
     priceId: "price_1TDsV42LedSrht7tW379Owbh",
     spend: "Up to $50k/mo ad spend",
     desc: "For growing businesses ready to scale their ad results.",
-    features: [...SHARED_FEATURES],
     cta: "Start Free",
     highlight: true,
     badge: "Most Popular",
+    extra: null,
   },
   {
     name: "Pro",
@@ -46,9 +46,9 @@ const PLANS = [
     priceId: "price_PRO_PLACEHOLDER",
     spend: "Up to $100k/mo ad spend",
     desc: "For serious operators scaling multiple campaigns at high spend.",
-    features: [...SHARED_FEATURES],
     cta: "Start Free",
     highlight: false,
+    extra: null,
   },
   {
     name: "Agency",
@@ -56,9 +56,9 @@ const PLANS = [
     priceId: "price_1TDsW92LedSrht7tspIcI8Td",
     spend: "Up to $150k/mo ad spend",
     desc: "For agencies managing multiple clients with branded reporting.",
-    features: [...SHARED_FEATURES, "White-label reporting"],
     cta: "Start Free",
     highlight: false,
+    extra: "White-label reporting",
   },
 ];
 
@@ -102,18 +102,18 @@ export default function LandingPricing() {
             Simple pricing. No surprises.
           </h2>
           <p className="text-base text-[#8b8fa8] max-w-md mx-auto leading-relaxed">
-            All plans include a 14-day free trial. Cancel anytime. No setup fees.
+            Every plan includes the full platform. Pick the one that fits your ad spend.
           </p>
         </div>
 
-        {/* Plans */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 items-stretch">
+        {/* Plan cards — compact, no feature lists */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 items-stretch mb-14">
           {PLANS.map((plan) => (
             <div
               key={plan.name}
-              className={`relative rounded-2xl p-8 transition-all duration-300 hover:-translate-y-0.5 ${
+              className={`relative rounded-2xl p-7 transition-all duration-300 hover:-translate-y-0.5 flex flex-col ${
                 plan.highlight
-                  ? "bg-[#1e2130] border-2 border-amber-500/30 md:scale-[1.02]"
+                  ? "bg-[#1e2130] border-2 border-amber-500/30 lg:scale-[1.03]"
                   : "bg-[#161820] border border-white/[0.06] hover:border-white/[0.12]"
               }`}
             >
@@ -123,42 +123,57 @@ export default function LandingPricing() {
                 </div>
               )}
 
-              <div className="mb-6">
-                <div className="text-sm font-semibold text-[#8b8fa8] mb-2">{plan.name}</div>
-                <div className="flex items-baseline gap-1 mb-1">
-                  <span className="text-[42px] font-extrabold text-[#e8eaf0] tracking-tighter">${plan.price}</span>
-                  <span className="text-sm text-[#5a5e72]">/month</span>
-                </div>
-                <div className="text-xs text-amber-400 font-semibold mb-3">{plan.spend}</div>
-                <div className="text-sm text-[#8b8fa8] leading-relaxed">{plan.desc}</div>
+              <div className="text-sm font-semibold text-[#8b8fa8] mb-2">{plan.name}</div>
+              <div className="flex items-baseline gap-1 mb-1">
+                <span className="text-[42px] font-extrabold text-[#e8eaf0] tracking-tighter">${plan.price}</span>
+                <span className="text-sm text-[#5a5e72]">/mo</span>
               </div>
+              <div className="text-xs text-amber-400 font-semibold mb-3">{plan.spend}</div>
+              <div className="text-sm text-[#8b8fa8] leading-relaxed mb-6">{plan.desc}</div>
 
-              <button
-                onClick={() => checkout(plan)}
-                disabled={loading === plan.name}
-                className={`w-full py-3.5 rounded-xl text-sm font-bold cursor-pointer transition-all duration-200 mb-6 ${
-                  plan.highlight
-                    ? "bg-gradient-to-r from-amber-500 to-orange-500 text-[#0d0f14] hover:brightness-110 shadow-lg shadow-amber-500/20"
-                    : "bg-white/5 border border-white/[0.1] text-[#e8eaf0] hover:bg-white/10"
-                } ${loading === plan.name ? "opacity-60 cursor-not-allowed" : ""}`}
-              >
-                {loading === plan.name ? "Loading..." : `${plan.cta} →`}
-              </button>
+              {/* Agency-only extra */}
+              {plan.extra && (
+                <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                  <Crown className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                  <span className="text-xs text-amber-400 font-semibold">{plan.extra}</span>
+                </div>
+              )}
 
-              <div className="border-t border-white/[0.06] pt-6 space-y-3">
-                {plan.features.map((f) => (
-                  <div key={f} className="flex items-start gap-3">
-                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-[#8b8fa8] leading-snug">{f}</span>
-                  </div>
-                ))}
+              <div className="mt-auto">
+                <button
+                  onClick={() => checkout(plan)}
+                  disabled={loading === plan.name}
+                  className={`w-full py-3.5 rounded-xl text-sm font-bold cursor-pointer transition-all duration-200 ${
+                    plan.highlight
+                      ? "bg-gradient-to-r from-amber-500 to-orange-500 text-[#0d0f14] hover:brightness-110 shadow-lg shadow-amber-500/20"
+                      : "bg-white/5 border border-white/[0.1] text-[#e8eaf0] hover:bg-white/10"
+                  } ${loading === plan.name ? "opacity-60 cursor-not-allowed" : ""}`}
+                >
+                  {loading === plan.name ? "Loading..." : `${plan.cta} →`}
+                </button>
               </div>
             </div>
           ))}
         </div>
 
+        {/* All plans include */}
+        <div className="bg-[#161820] border border-white/[0.06] rounded-2xl p-8 mb-10">
+          <div className="text-center mb-6">
+            <h3 className="text-lg font-bold text-[#e8eaf0] mb-1">All plans include</h3>
+            <p className="text-sm text-[#5a5e72]">The only difference between plans is your ad spend limit.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 max-w-3xl mx-auto">
+            {SHARED_FEATURES.map((f) => (
+              <div key={f} className="flex items-center gap-2.5">
+                <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                <span className="text-sm text-[#8b8fa8]">{f}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Enterprise note */}
-        <div className="mt-10 text-center">
+        <div className="text-center">
           <p className="text-sm text-[#5a5e72]">
             Spending over $150k/month?{" "}
             <a href="mailto:hello@buenaonda.ai" className="text-amber-400 hover:text-amber-300 font-semibold no-underline transition-colors">
