@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import ConfirmDialog from "../_components/ConfirmDialog";
 
 const T = {
   bg: "#0d0f14",
@@ -62,6 +63,7 @@ export default function TeamPage() {
 
   // Role change / remove state
   const [pendingRemove, setPendingRemove] = useState<string | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<{ id: string; email: string } | null>(null);
 
   useEffect(() => {
     fetchTeam();
@@ -318,7 +320,7 @@ export default function TeamPage() {
 
                 {/* Remove */}
                 <button
-                  onClick={() => removeMember(m.id)}
+                  onClick={() => setConfirmRemove({ id: m.id, email: m.email ?? "this member" })}
                   disabled={pendingRemove === m.id}
                   style={{
                     background: "transparent",
@@ -391,6 +393,19 @@ export default function TeamPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!confirmRemove}
+        title="Remove Team Member"
+        message={`Are you sure you want to remove ${confirmRemove?.email ?? "this member"} from the team? They will lose all access immediately.`}
+        confirmLabel="Remove Member"
+        variant="danger"
+        onConfirm={() => {
+          if (confirmRemove) removeMember(confirmRemove.id);
+          setConfirmRemove(null);
+        }}
+        onCancel={() => setConfirmRemove(null)}
+      />
     </div>
   );
 }

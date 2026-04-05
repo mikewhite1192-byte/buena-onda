@@ -105,9 +105,19 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
         setClientSearch("");
       }
     }
+    function keyHandler(e: KeyboardEvent) {
+      if (e.key === "Escape" && showSwitcher) {
+        setShowSwitcher(false);
+        setClientSearch("");
+      }
+    }
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+    document.addEventListener("keydown", keyHandler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("keydown", keyHandler);
+    };
+  }, [showSwitcher]);
 
   async function fetchClients() {
     try {
@@ -189,7 +199,10 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
                   fontWeight: active ? 600 : 400,
                   transition: "all 0.15s",
                   fontFamily: "inherit",
+                  outline: "none",
                 }}
+                onFocus={e => { e.currentTarget.style.boxShadow = "0 0 0 2px rgba(245,166,35,0.4)"; }}
+                onBlur={e => { e.currentTarget.style.boxShadow = "none"; }}
               >
                 {label}
               </button>

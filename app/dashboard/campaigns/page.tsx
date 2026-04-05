@@ -1370,7 +1370,9 @@ export default function CampaignsPage() {
                       <div
                         onClick={() => toggleCampaignExpand(campaign.campaign_id)}
                         title="Click to expand ad sets"
-                        style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "14px 18px", borderBottom: "1px solid #13151d", fontSize: 12, alignItems: "center", background: isCampaignExpanded ? "rgba(245,166,35,0.06)" : i % 2 === 0 ? "#0d0f14" : "#0d0f14", cursor: "pointer", minWidth: colMin }}
+                        style={{ display: "grid", gridTemplateColumns: colTemplate, padding: "14px 18px", borderBottom: "1px solid #13151d", fontSize: 12, alignItems: "center", background: isCampaignExpanded ? "rgba(245,166,35,0.06)" : "transparent", cursor: "pointer", minWidth: colMin, transition: "background 0.15s" }}
+                        onMouseEnter={e => { if (!isCampaignExpanded) e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}
+                        onMouseLeave={e => { if (!isCampaignExpanded) e.currentTarget.style.background = "transparent"; }}
                       >
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
@@ -1409,7 +1411,17 @@ export default function CampaignsPage() {
                       {isCampaignExpanded && (
                         <div style={{ background: "#080d0d", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                           {isCampaignLoading ? (
-                            <div style={{ padding: "14px 18px 14px 36px", fontSize: 12, color: "#8b8fa8" }}>Loading ad sets...</div>
+                            <div style={{ padding: "10px 18px 10px 36px" }}>
+                              {[1, 2, 3].map(n => (
+                                <div key={n} style={{ display: "flex", gap: 16, padding: "8px 0", alignItems: "center" }}>
+                                  <div style={{ width: 120, height: 12, borderRadius: 6, background: "linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.5s ease-in-out infinite" }} />
+                                  <div style={{ width: 60, height: 12, borderRadius: 6, background: "linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.5s ease-in-out infinite" }} />
+                                  <div style={{ width: 50, height: 12, borderRadius: 6, background: "linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.5s ease-in-out infinite" }} />
+                                  <div style={{ width: 50, height: 12, borderRadius: 6, background: "linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.5s ease-in-out infinite" }} />
+                                </div>
+                              ))}
+                              <style>{`@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
+                            </div>
                           ) : campaignAdSets.length === 0 ? (
                             <div style={{ padding: "14px 18px 14px 36px", fontSize: 12, color: "#8b8fa8" }}>No ad set data for this period.</div>
                           ) : (
@@ -1476,7 +1488,15 @@ export default function CampaignsPage() {
                                         </div>
 
                                         {isAdSetLoading ? (
-                                          <div style={{ padding: "12px 18px 12px 56px", fontSize: 11, color: "#8b8fa8" }}>Loading ads...</div>
+                                          <div style={{ padding: "8px 18px 8px 56px" }}>
+                                            {[1, 2].map(n => (
+                                              <div key={n} style={{ display: "flex", gap: 14, padding: "6px 0", alignItems: "center" }}>
+                                                <div style={{ width: 100, height: 11, borderRadius: 5, background: "linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.5s ease-in-out infinite" }} />
+                                                <div style={{ width: 50, height: 11, borderRadius: 5, background: "linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.5s ease-in-out infinite" }} />
+                                                <div style={{ width: 40, height: 11, borderRadius: 5, background: "linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.5s ease-in-out infinite" }} />
+                                              </div>
+                                            ))}
+                                          </div>
                                         ) : ads.length === 0 ? (
                                           <div style={{ padding: "12px 18px 12px 56px", fontSize: 11, color: "#8b8fa8" }}>No ad data for this period.</div>
                                         ) : (

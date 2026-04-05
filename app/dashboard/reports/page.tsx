@@ -181,20 +181,10 @@ export default function ReportsPage() {
           ))}
         </div>
 
-        {/* Coming soon for TikTok/Shopify */}
-        {(platform === "tiktok" || platform === "shopify") && (
-          <div className="no-print" style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "60px 24px", marginBottom: 28, textAlign: "center" }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>{platform === "tiktok" ? "🎵" : "🛍"}</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 8 }}>{platform === "tiktok" ? "TikTok" : "Shopify"} Reports — Coming Soon</div>
-            <div style={{ fontSize: 13, color: T.muted }}>This integration is on the roadmap. Check back soon.</div>
-          </div>
-        )}
-
         {/* Generator panel */}
-        {(platform === "meta" || platform === "google") && (
         <div className="no-print" style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "24px", marginBottom: 28 }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 20 }}>
-            Generate {platform === "google" ? "Google Ads" : "Meta"} Report
+            Generate {platform === "google" ? "Google Ads" : platform === "tiktok" ? "TikTok" : platform === "shopify" ? "Shopify" : "Meta"} Report
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 16 }}>
@@ -304,7 +294,6 @@ export default function ReportsPage() {
             </div>
           )}
         </div>
-        )}
 
         {/* Report output */}
         {report && (

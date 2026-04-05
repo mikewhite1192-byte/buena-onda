@@ -3,6 +3,7 @@
 // app/dashboard/page.tsx — Agency Overview
 import { useEffect, useState, useCallback, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import ConfirmDialog from "./_components/ConfirmDialog";
 import Link from "next/link";
 import { useActiveClient } from "@/lib/context/client-context";
 import { useTour } from "@/lib/context/tour-context";
@@ -686,6 +687,16 @@ function DashboardContent() {
   const allRecs = useMemo(() => generateRecommendations(clients, allMetrics, recentBudgetIncreases), [clients, allMetrics, recentBudgetIncreases]);
   const visibleRecs = allRecs.filter(r => !dismissed.has(r.id) && !snoozed.has(r.id));
 
+  const [pendingConfirm, setPendingConfirm] = useState<Recommendation | null>(null);
+
+  function requestApprove(rec: Recommendation) {
+    if (rec.actionType === "reconnect" || rec.actionType === "view" || !rec.targetCampaignId) {
+      handleApprove(rec);
+      return;
+    }
+    setPendingConfirm(rec);
+  }
+
   async function handleApprove(rec: Recommendation) {
     if (rec.actionType === "reconnect") {
       router.push("/dashboard/clients");
@@ -1093,7 +1104,7 @@ function DashboardContent() {
                       ) : (
                         <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
                           <button
-                            onClick={() => handleApprove(rec)}
+                            onClick={() => requestApprove(rec)}
                             disabled={actionState[rec.id] === "loading"}
                             style={{ flex: 1, padding: "5px 0", fontSize: 11, fontWeight: 600, borderRadius: 5, border: "none", background: actionState[rec.id] === "loading" ? "rgba(255,255,255,0.05)" : borderColor + "22", color: actionState[rec.id] === "loading" ? T.muted : borderColor, cursor: actionState[rec.id] === "loading" ? "not-allowed" : "pointer", fontFamily: "inherit" }}
                           >
@@ -1169,6 +1180,21 @@ function DashboardContent() {
 
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!pendingConfirm}
+        title={pendingConfirm?.actionType === "pause_campaign" ? "Pause Campaign" : "Scale Budget"}
+        message={pendingConfirm?.actionType === "pause_campaign"
+          ? `Are you sure you want to pause "${pendingConfirm?.targetCampaignName ?? "this campaign"}"? This will stop all ad delivery immediately.`
+          : `Are you sure you want to scale the budget for "${pendingConfirm?.targetCampaignName ?? "this campaign"}"? This will increase daily spend.`}
+        confirmLabel={pendingConfirm?.actionType === "pause_campaign" ? "Pause Campaign" : "Scale Budget"}
+        variant={pendingConfirm?.actionType === "pause_campaign" ? "danger" : "warning"}
+        onConfirm={() => {
+          if (pendingConfirm) handleApprove(pendingConfirm);
+          setPendingConfirm(null);
+        }}
+        onCancel={() => setPendingConfirm(null)}
+      />
     </div>
   );
 }

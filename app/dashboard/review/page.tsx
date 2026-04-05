@@ -2,6 +2,7 @@
 
 // app/dashboard/review/page.tsx — Campaign review queue + AI recommendations
 import { useEffect, useState } from "react";
+import ConfirmDialog from "../_components/ConfirmDialog";
 
 const T = {
   bg: "#0d0f14", surface: "#161820", surfaceAlt: "#1e2130", border: "rgba(255,255,255,0.06)",
@@ -111,6 +112,19 @@ export default function ReviewPage() {
     }
   }
 
+  const [confirmAction, setConfirmAction] = useState<{ type: "campaign" | "rec"; id: string; action: "approved" | "rejected"; notes?: string; name?: string } | null>(null);
+
+  function requestAction(type: "campaign" | "rec", id: string, action: "approved" | "rejected", name?: string, notes?: string) {
+    setConfirmAction({ type, id, action, name, notes });
+  }
+
+  function executeConfirm() {
+    if (!confirmAction) return;
+    if (confirmAction.type === "campaign") handleAction(confirmAction.id, confirmAction.action, confirmAction.notes);
+    else handleRecAction(confirmAction.id, confirmAction.action);
+    setConfirmAction(null);
+  }
+
   const filtered = filter === "all" ? campaigns : campaigns.filter(c => c.status === filter);
   const pendingCount = campaigns.filter(c => c.status === "pending").length;
   const filteredRecs = recsFilter === "all" ? recs : recs.filter(r => r.status === recsFilter);
@@ -208,11 +222,11 @@ export default function ReviewPage() {
                     </div>
                     {isPending && (
                       <div style={{ padding: "10px 20px 14px", borderTop: `1px solid ${T.border}`, display: "flex", gap: 8 }}>
-                        <button onClick={() => handleRecAction(rec.id, "approved")} disabled={actingRec === rec.id}
+                        <button onClick={() => requestAction("rec", rec.id, "approved", rec.details?.reason)} disabled={actingRec === rec.id}
                           style={{ flex: 1, padding: "9px 0", fontSize: 12, fontWeight: 700, borderRadius: 7, border: "none", background: T.healthy + "18", color: T.healthy, cursor: actingRec === rec.id ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
                           {actingRec === rec.id ? "…" : "✓ Approve & Execute"}
                         </button>
-                        <button onClick={() => handleRecAction(rec.id, "rejected")} disabled={actingRec === rec.id}
+                        <button onClick={() => requestAction("rec", rec.id, "rejected", rec.details?.reason)} disabled={actingRec === rec.id}
                           style={{ flex: 1, padding: "9px 0", fontSize: 12, fontWeight: 600, borderRadius: 7, border: `1px solid rgba(255,77,77,0.2)`, background: "rgba(255,77,77,0.06)", color: T.critical, cursor: "pointer", fontFamily: "inherit" }}>
                           ✕ Reject
                         </button>
@@ -315,7 +329,7 @@ export default function ReviewPage() {
                 {isPending && (
                   <div style={{ padding: "12px 20px 16px", borderTop: `1px solid ${T.border}`, display: "flex", gap: 8 }}>
                     <button
-                      onClick={() => handleAction(campaign.id, "approved")}
+                      onClick={() => requestAction("campaign", campaign.id, "approved", campaign.campaign_name)}
                       disabled={acting === campaign.id}
                       style={{ flex: 1, padding: "9px 0", fontSize: 12, fontWeight: 700, borderRadius: 7, border: "none", background: T.healthy + "18", color: T.healthy, cursor: acting === campaign.id ? "not-allowed" : "pointer", fontFamily: "inherit" }}
                     >
@@ -351,7 +365,7 @@ export default function ReviewPage() {
                     />
                     <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                       <button
-                        onClick={() => handleAction(campaign.id, "rejected", notesInput)}
+                        onClick={() => requestAction("campaign", campaign.id, "rejected", campaign.campaign_name, notesInput)}
                         style={{ padding: "7px 18px", fontSize: 12, fontWeight: 600, borderRadius: 7, border: "none", background: editingNotes === `reject:${campaign.id}` ? T.critical + "20" : T.accentBg, color: editingNotes === `reject:${campaign.id}` ? T.critical : T.accent, cursor: "pointer", fontFamily: "inherit" }}
                       >
                         {editingNotes === `reject:${campaign.id}` ? "Reject" : "Send for Changes"}
@@ -371,6 +385,28 @@ export default function ReviewPage() {
         </div>
       )}
       </>)}
+
+      <ConfirmDialog
+        open={!!confirmAction}
+        title={
+          confirmAction?.action === "approved"
+            ? confirmAction?.type === "campaign" ? "Approve & Launch Campaign" : "Approve Recommendation"
+            : confirmAction?.type === "campaign" ? "Reject Campaign" : "Reject Recommendation"
+        }
+        message={
+          confirmAction?.action === "approved"
+            ? confirmAction?.type === "campaign"
+              ? `Are you sure you want to approve and launch "${confirmAction?.name ?? "this campaign"}"? It will go live immediately.`
+              : "Are you sure you want to approve and execute this recommendation?"
+            : confirmAction?.type === "campaign"
+              ? `Are you sure you want to reject "${confirmAction?.name ?? "this campaign"}"?`
+              : "Are you sure you want to reject this recommendation?"
+        }
+        confirmLabel={confirmAction?.action === "approved" ? "Approve" : "Reject"}
+        variant={confirmAction?.action === "rejected" ? "danger" : "warning"}
+        onConfirm={executeConfirm}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   );
 }
