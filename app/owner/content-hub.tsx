@@ -16,6 +16,25 @@ const T = {
   info: "#4fc3f7",
 };
 
+const BUSINESSES = [
+  {
+    id: "buenaonda",
+    name: "Buena Onda",
+    tagline: "AI Ad Management Platform",
+    desc: "Autonomous AI agent that launches, manages, optimizes, and reports on Meta, Google, and TikTok ad campaigns. Like a senior media buyer working 24/7 — hourly optimization, creative fatigue detection, A/B testing, and client-ready reports via Slack and WhatsApp.",
+    audience: "Small businesses running their own ads, agencies managing multiple client accounts, and marketers without dedicated media buying expertise.",
+    color: "#f5a623",
+  },
+  {
+    id: "wolfpack",
+    name: "The Wolf Pack",
+    tagline: "AI Appointment Setter",
+    desc: "AI-powered sales automation that texts leads via iMessage in 3 seconds, qualifies them through natural conversation, and books appointments on your calendar. 24/7 follow-ups on days 1, 3, 7, and 14. Uses iMessage (blue texts) to bypass carrier filtering.",
+    audience: "Sales professionals, small business owners, and agencies that need instant lead response and automated appointment booking without hiring staff.",
+    color: "#4fc3f7",
+  },
+];
+
 const WEEK_THEMES = [
   { day: "Monday", theme: "Authority / Education", desc: "Teach something about AI or automation" },
   { day: "Tuesday", theme: "Trending", desc: "React to what's hot in your niche right now" },
@@ -67,6 +86,7 @@ const VIDEO_FORMATS = [
 ];
 
 type MainTab = "wizard" | "brief" | "trending" | "hooks" | "ads";
+type Business = typeof BUSINESSES[number];
 
 // ─── Shared helpers ───
 function OutputBox({ output, field, copiedField, onCopy }: { output: string; field: string; copiedField: string; onCopy: (text: string, field: string) => void }) {
@@ -93,6 +113,7 @@ function GoldButton({ onClick, disabled, children }: { onClick: () => void; disa
 // ─── Main Component ───
 export default function ContentHub() {
   const [mainTab, setMainTab] = useState<MainTab>("wizard");
+  const [selectedBusiness, setSelectedBusiness] = useState("buenaonda");
   const [copiedField, setCopiedField] = useState("");
 
   function copyToClipboard(text: string, field: string) {
@@ -100,6 +121,8 @@ export default function ContentHub() {
     setCopiedField(field);
     setTimeout(() => setCopiedField(""), 2000);
   }
+
+  const biz = BUSINESSES.find(b => b.id === selectedBusiness)!;
 
   const TABS: { id: MainTab; label: string }[] = [
     { id: "wizard", label: "Script Wizard" },
@@ -111,6 +134,26 @@ export default function ContentHub() {
 
   return (
     <div>
+      {/* Business Selector */}
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: "16px 20px", marginBottom: 20 }}>
+        <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Creating content for</div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+          {BUSINESSES.map((b) => (
+            <button key={b.id} onClick={() => setSelectedBusiness(b.id)}
+              style={{
+                flex: 1, padding: "12px 16px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit", textAlign: "left",
+                background: selectedBusiness === b.id ? `${b.color}10` : "transparent",
+                border: `1px solid ${selectedBusiness === b.id ? b.color : T.border}`,
+              }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: selectedBusiness === b.id ? b.color : T.text }}>{b.name}</div>
+              <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>{b.tagline}</div>
+            </button>
+          ))}
+        </div>
+        <div style={{ fontSize: 12, color: T.text, lineHeight: 1.6, marginBottom: 6 }}>{biz.desc}</div>
+        <div style={{ fontSize: 11, color: T.faint }}><strong style={{ color: T.muted }}>Audience:</strong> {biz.audience}</div>
+      </div>
+
       <div style={{ display: "flex", gap: 6, marginBottom: 24, flexWrap: "wrap" }}>
         {TABS.map((t) => (
           <button key={t.id} onClick={() => setMainTab(t.id)}
@@ -120,17 +163,17 @@ export default function ContentHub() {
         ))}
       </div>
 
-      {mainTab === "wizard" && <ScriptWizard copiedField={copiedField} onCopy={copyToClipboard} />}
-      {mainTab === "brief" && <MorningBrief copiedField={copiedField} onCopy={copyToClipboard} />}
-      {mainTab === "trending" && <TrendingStandalone copiedField={copiedField} onCopy={copyToClipboard} />}
-      {mainTab === "hooks" && <HookBank copiedField={copiedField} onCopy={copyToClipboard} />}
-      {mainTab === "ads" && <AdCopy copiedField={copiedField} onCopy={copyToClipboard} />}
+      {mainTab === "wizard" && <ScriptWizard copiedField={copiedField} onCopy={copyToClipboard} business={biz} />}
+      {mainTab === "brief" && <MorningBrief copiedField={copiedField} onCopy={copyToClipboard} business={biz} />}
+      {mainTab === "trending" && <TrendingStandalone copiedField={copiedField} onCopy={copyToClipboard} business={biz} />}
+      {mainTab === "hooks" && <HookBank copiedField={copiedField} onCopy={copyToClipboard} business={biz} />}
+      {mainTab === "ads" && <AdCopy copiedField={copiedField} onCopy={copyToClipboard} business={biz} />}
     </div>
   );
 }
 
 // ─── SCRIPT WIZARD (guided flow) ───
-function ScriptWizard({ copiedField, onCopy }: { copiedField: string; onCopy: (t: string, f: string) => void }) {
+function ScriptWizard({ copiedField, onCopy, business }: { copiedField: string; onCopy: (t: string, f: string) => void; business: Business }) {
   const [step, setStep] = useState(1);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [topics, setTopics] = useState<string[]>([]);
@@ -152,7 +195,7 @@ function ScriptWizard({ copiedField, onCopy }: { copiedField: string; onCopy: (t
     const res = await fetch("/api/owner/content", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, ...extra }),
+      body: JSON.stringify({ action, businessId: business.id, businessName: business.name, businessDesc: business.desc, businessAudience: business.audience, ...extra }),
     });
     const data = await res.json();
     return data.output || data.error || "Error";
@@ -427,7 +470,7 @@ function ScriptWizard({ copiedField, onCopy }: { copiedField: string; onCopy: (t
 }
 
 // ─── MORNING BRIEF (standalone) ───
-function MorningBrief({ copiedField, onCopy }: { copiedField: string; onCopy: (t: string, f: string) => void }) {
+function MorningBrief({ copiedField, onCopy, business }: { copiedField: string; onCopy: (t: string, f: string) => void; business: Business }) {
   const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(false);
   const today = new Date().getDay();
@@ -436,7 +479,7 @@ function MorningBrief({ copiedField, onCopy }: { copiedField: string; onCopy: (t
   async function generate() {
     setLoading(true); setOutput("");
     try {
-      const res = await fetch("/api/owner/content", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "brief" }) });
+      const res = await fetch("/api/owner/content", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "brief", businessId: business.id, businessName: business.name, businessDesc: business.desc, businessAudience: business.audience }) });
       const data = await res.json();
       setOutput(data.output || data.error || "Error");
     } catch { setOutput("Failed to connect"); } finally { setLoading(false); }
@@ -478,14 +521,14 @@ function MorningBrief({ copiedField, onCopy }: { copiedField: string; onCopy: (t
 }
 
 // ─── TRENDING (standalone) ───
-function TrendingStandalone({ copiedField, onCopy }: { copiedField: string; onCopy: (t: string, f: string) => void }) {
+function TrendingStandalone({ copiedField, onCopy, business }: { copiedField: string; onCopy: (t: string, f: string) => void; business: Business }) {
   const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function generate() {
     setLoading(true); setOutput("");
     try {
-      const res = await fetch("/api/owner/content", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "trending" }) });
+      const res = await fetch("/api/owner/content", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "trending", businessId: business.id, businessName: business.name, businessDesc: business.desc, businessAudience: business.audience }) });
       const data = await res.json();
       setOutput(data.output || data.error || "Error");
     } catch { setOutput("Failed to connect"); } finally { setLoading(false); }
@@ -504,7 +547,7 @@ function TrendingStandalone({ copiedField, onCopy }: { copiedField: string; onCo
 }
 
 // ─── HOOK BANK (standalone) ───
-function HookBank({ copiedField, onCopy }: { copiedField: string; onCopy: (t: string, f: string) => void }) {
+function HookBank({ copiedField, onCopy, business }: { copiedField: string; onCopy: (t: string, f: string) => void; business: Business }) {
   const [topic, setTopic] = useState("");
   const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -513,7 +556,7 @@ function HookBank({ copiedField, onCopy }: { copiedField: string; onCopy: (t: st
     if (!topic.trim()) return;
     setLoading(true); setOutput("");
     try {
-      const res = await fetch("/api/owner/content", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "hooks", topic: topic.trim() }) });
+      const res = await fetch("/api/owner/content", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "hooks", topic: topic.trim(), businessId: business.id, businessName: business.name, businessDesc: business.desc, businessAudience: business.audience }) });
       const data = await res.json();
       setOutput(data.output || data.error || "Error");
     } catch { setOutput("Failed to connect"); } finally { setLoading(false); }
@@ -534,7 +577,7 @@ function HookBank({ copiedField, onCopy }: { copiedField: string; onCopy: (t: st
 }
 
 // ─── AD COPY (standalone) ───
-function AdCopy({ copiedField, onCopy }: { copiedField: string; onCopy: (t: string, f: string) => void }) {
+function AdCopy({ copiedField, onCopy, business }: { copiedField: string; onCopy: (t: string, f: string) => void; business: Business }) {
   const [topic, setTopic] = useState("");
   const [platform, setPlatform] = useState("meta");
   const [output, setOutput] = useState("");
@@ -544,7 +587,7 @@ function AdCopy({ copiedField, onCopy }: { copiedField: string; onCopy: (t: stri
     if (!topic.trim()) return;
     setLoading(true); setOutput("");
     try {
-      const res = await fetch("/api/owner/content", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "ad-copy", topic: topic.trim(), platform }) });
+      const res = await fetch("/api/owner/content", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "ad-copy", topic: topic.trim(), platform, businessId: business.id, businessName: business.name, businessDesc: business.desc, businessAudience: business.audience }) });
       const data = await res.json();
       setOutput(data.output || data.error || "Error");
     } catch { setOutput("Failed to connect"); } finally { setLoading(false); }

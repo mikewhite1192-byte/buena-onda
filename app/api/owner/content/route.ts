@@ -29,13 +29,19 @@ const VIDEO_FORMATS: Record<string, string> = {
 
 export async function POST(req: Request) {
   try {
-    const { action, topic, scriptFormat, videoFormat, viralFormat, platform, theme, dayDesc, trend, hook, day } = await req.json();
+    const { action, topic, scriptFormat, videoFormat, viralFormat, platform, theme, dayDesc, trend, hook, day, businessId, businessName, businessDesc, businessAudience } = await req.json();
 
     if (!process.env.ANTHROPIC_API_KEY) {
       return NextResponse.json({ error: "ANTHROPIC_API_KEY not set" }, { status: 500 });
     }
 
-    let systemPrompt = VOICE_PROFILE;
+    const businessContext = businessName ? `\n\nBUSINESS CONTEXT:
+You are creating content for ${businessName}.
+What it does: ${businessDesc}
+Target audience: ${businessAudience}
+All content should be relevant to this specific business and its audience.` : "";
+
+    let systemPrompt = VOICE_PROFILE + businessContext;
     let userPrompt = "";
 
     if (action === "script") {
