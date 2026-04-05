@@ -3,21 +3,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ContentHub from "./content-hub";
 
-const T = {
-  bg: "#0d0f14",
-  card: "#13151d",
-  surface: "#161820",
-  border: "rgba(255,255,255,0.06)",
-  accent: "#f5a623",
-  accentBg: "rgba(245,166,35,0.1)",
-  text: "#e8eaf0",
-  muted: "#8b8fa8",
-  faint: "#5a5e72",
-  success: "#4ade80",
-  danger: "#f87171",
-  info: "#4fc3f7",
-};
-
 const RISK_LABELS: Record<string, string> = {
   no_clients: "No clients added",
   no_campaigns: "No campaigns running",
@@ -28,10 +13,10 @@ const RISK_LABELS: Record<string, string> = {
 
 function StatCard({ label, value, sub, color }: { label: string; value: string | number; sub?: string; color?: string }) {
   return (
-    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: "18px 20px" }}>
-      <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 800, color: color ?? T.text, letterSpacing: "-0.5px" }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: T.faint, marginTop: 4 }}>{sub}</div>}
+    <div className="bg-[#13151d] border border-white/[0.06] rounded-xl px-5 py-4 hover:border-white/[0.12] transition-all duration-200">
+      <div className="text-[11px] text-[#8b8fa8] uppercase tracking-wider mb-2">{label}</div>
+      <div className="text-[26px] font-extrabold tracking-tight" style={{ color: color ?? "#e8eaf0" }}>{value}</div>
+      {sub && <div className="text-[11px] text-[#5a5e72] mt-1">{sub}</div>}
     </div>
   );
 }
@@ -66,9 +51,11 @@ type User = {
   is_at_risk: boolean;
 };
 
+type TabId = "overview" | "users" | "alerts" | "tickets" | "feedback" | "content";
+
 export default function OwnerDashboard() {
   const router = useRouter();
-  const [tab, setTab] = useState<"overview" | "users" | "alerts" | "tickets" | "feedback" | "content">("overview");
+  const [tab, setTab] = useState<TabId>("overview");
   const [range, setRange] = useState("30d");
   const [platform, setPlatform] = useState("all");
   const [vertical, setVertical] = useState("all");
@@ -92,19 +79,13 @@ export default function OwnerDashboard() {
     try {
       const res = await fetch(`/api/owner/stats?range=${range}&platform=${platform}&vertical=${vertical}`);
       if (res.status === 404) { router.push("/dashboard"); return; }
-      const data = await res.json();
-      setStats(data);
-    } finally {
-      setLoading(false);
-    }
+      setStats(await res.json());
+    } finally { setLoading(false); }
   }
 
   async function loadUsers() {
     const res = await fetch(`/api/owner/users?filter=${userFilter}`);
-    if (res.ok) {
-      const data = await res.json();
-      setUsers(data.users ?? []);
-    }
+    if (res.ok) setUsers((await res.json()).users ?? []);
   }
 
   async function loadTickets() {
@@ -130,241 +111,280 @@ export default function OwnerDashboard() {
     setOutreachMsg("");
   }
 
-  const TABS = [
+  const TABS: { id: TabId; label: string }[] = [
     { id: "overview", label: "Overview" },
     { id: "users", label: `Users${users.length ? ` (${users.length})` : ""}` },
     { id: "alerts", label: `At-Risk${stats ? ` (${users.filter(u => u.is_at_risk).length})` : ""}` },
     { id: "tickets", label: `Tickets${stats ? ` (${stats.support.open_tickets})` : ""}` },
     { id: "feedback", label: `Feedback${stats ? ` (${stats.support.open_feedback})` : ""}` },
     { id: "content", label: "Content" },
-  ] as const;
+  ];
 
   return (
-    <div style={{ minHeight: "100vh", background: T.bg, fontFamily: "'DM Mono','Fira Mono',monospace" }}>
+    <div className="min-h-screen bg-[#0d0f14]">
 
       {/* Header */}
-      <div style={{ borderBottom: `1px solid ${T.border}`, padding: "0 24px", position: "sticky", top: 0, background: T.bg, zIndex: 100 }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", height: 52, display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 26, height: 26, borderRadius: 7, background: "linear-gradient(135deg,#f5a623,#f76b1c)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 12, color: "#fff" }}>B</div>
-            <span style={{ fontWeight: 800, fontSize: 14, color: T.text }}>Owner Dashboard</span>
-            <span style={{ fontSize: 10, color: T.faint, background: "rgba(255,255,255,0.04)", border: `1px solid ${T.border}`, borderRadius: 4, padding: "2px 7px", letterSpacing: "0.06em" }}>PRIVATE</span>
+      <div className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#0d0f14]/90 backdrop-blur-xl px-6">
+        <div className="max-w-5xl mx-auto h-14 flex items-center gap-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-center font-black text-xs text-white">B</div>
+            <span className="font-extrabold text-sm text-[#e8eaf0]">Owner Dashboard</span>
+            <span className="text-[10px] text-[#5a5e72] bg-white/[0.04] border border-white/[0.06] rounded px-2 py-0.5 tracking-wider uppercase">Private</span>
           </div>
-          <div style={{ flex: 1 }} />
-          <a href="/dashboard" style={{ fontSize: 12, color: T.muted, textDecoration: "none" }}>← Dashboard</a>
+          <div className="flex-1" />
+          <a href="/dashboard" className="text-xs text-[#8b8fa8] no-underline hover:text-amber-400 transition-colors">
+            ← Dashboard
+          </a>
         </div>
 
         {/* Tabs */}
-        <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", gap: 2, paddingBottom: 0 }}>
+        <div className="max-w-5xl mx-auto flex gap-0.5">
           {TABS.map(t => (
-            <button key={t.id} onClick={() => { setTab(t.id); if (t.id === "users") loadUsers(); }}
-              style={{ padding: "8px 14px", fontSize: 12, border: "none", background: "transparent", color: tab === t.id ? T.accent : T.muted, borderBottom: `2px solid ${tab === t.id ? T.accent : "transparent"}`, cursor: "pointer", fontFamily: "inherit", fontWeight: tab === t.id ? 700 : 400 }}>
+            <button
+              key={t.id}
+              onClick={() => { setTab(t.id); if (t.id === "users") loadUsers(); }}
+              className={`px-4 py-2.5 text-xs border-b-2 cursor-pointer transition-all duration-200 bg-transparent border-x-0 border-t-0 ${
+                tab === t.id
+                  ? "text-amber-400 border-amber-400 font-bold"
+                  : "text-[#8b8fa8] border-transparent font-normal hover:text-[#e8eaf0]"
+              }`}
+            >
               {t.label}
             </button>
           ))}
         </div>
       </div>
 
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 24px" }}>
+      <div className="max-w-5xl mx-auto px-6 py-7">
 
-        {/* Filters */}
+        {/* ── Filters ── */}
         {tab === "overview" && (
-          <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
+          <div className="flex gap-2 mb-6 flex-wrap">
             {[["7d","7 days"],["30d","30 days"],["90d","90 days"],["all","All time"]].map(([v,l]) => (
               <button key={v} onClick={() => setRange(v)}
-                style={{ padding: "6px 14px", borderRadius: 7, border: `1px solid ${range === v ? T.accent : T.border}`, background: range === v ? T.accentBg : "transparent", color: range === v ? T.accent : T.muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                className={`px-3.5 py-1.5 rounded-lg text-xs cursor-pointer transition-all duration-200 ${
+                  range === v ? "bg-amber-500/10 border border-amber-500/30 text-amber-400" : "bg-transparent border border-white/[0.06] text-[#8b8fa8] hover:border-white/[0.15]"
+                }`}>
                 {l}
               </button>
             ))}
-            <div style={{ width: 1, background: T.border, margin: "0 4px" }} />
+            <div className="w-px bg-white/[0.06] mx-1" />
             {[["all","All Platforms"],["meta","Meta"],["google","Google"],["tiktok","TikTok"],["shopify","Shopify"]].map(([v,l]) => (
               <button key={v} onClick={() => setPlatform(v)}
-                style={{ padding: "6px 14px", borderRadius: 7, border: `1px solid ${platform === v ? T.info : T.border}`, background: platform === v ? "rgba(79,195,247,0.1)" : "transparent", color: platform === v ? T.info : T.muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                className={`px-3.5 py-1.5 rounded-lg text-xs cursor-pointer transition-all duration-200 ${
+                  platform === v ? "bg-sky-400/10 border border-sky-400/30 text-sky-400" : "bg-transparent border border-white/[0.06] text-[#8b8fa8] hover:border-white/[0.15]"
+                }`}>
                 {l}
               </button>
             ))}
-            <div style={{ width: 1, background: T.border, margin: "0 4px" }} />
+            <div className="w-px bg-white/[0.06] mx-1" />
             {[["all","All Verticals"],["leads","Leads"],["ecomm","Ecomm"]].map(([v,l]) => (
               <button key={v} onClick={() => setVertical(v)}
-                style={{ padding: "6px 14px", borderRadius: 7, border: `1px solid ${vertical === v ? "#c07ef0" : T.border}`, background: vertical === v ? "rgba(192,126,240,0.1)" : "transparent", color: vertical === v ? "#c07ef0" : T.muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                className={`px-3.5 py-1.5 rounded-lg text-xs cursor-pointer transition-all duration-200 ${
+                  vertical === v ? "bg-purple-400/10 border border-purple-400/30 text-purple-400" : "bg-transparent border border-white/[0.06] text-[#8b8fa8] hover:border-white/[0.15]"
+                }`}>
                 {l}
               </button>
             ))}
           </div>
         )}
 
-        {/* Overview Tab */}
+        {/* ── Overview Tab ── */}
         {tab === "overview" && (
-          loading ? <div style={{ color: T.muted, fontSize: 13 }}>Loading…</div> :
-          stats && <>
-            {/* Revenue */}
-            <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>Revenue</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10, marginBottom: 24 }}>
-              <StatCard label="Est. MRR" value={fmt$(stats.mrr.estimated_mrr)} color={T.accent} sub={`${stats.mrr.active} active subscribers`} />
-              <StatCard label="Active" value={stats.mrr.active} color={T.success} />
-              <StatCard label="Trialing" value={stats.mrr.trialing} color={T.accent} />
-              <StatCard label="Churned" value={stats.mrr.churned} color={T.danger} />
-              <StatCard label="New Signups" value={stats.signups} sub={`in ${range}`} />
-            </div>
+          loading ? (
+            <div className="text-[#8b8fa8] text-sm py-12 text-center">Loading...</div>
+          ) : stats && (
+            <>
+              <SectionLabel>Revenue</SectionLabel>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-6">
+                <StatCard label="Est. MRR" value={fmt$(stats.mrr.estimated_mrr)} color="#f5a623" sub={`${stats.mrr.active} active subscribers`} />
+                <StatCard label="Active" value={stats.mrr.active} color="#4ade80" />
+                <StatCard label="Trialing" value={stats.mrr.trialing} color="#f5a623" />
+                <StatCard label="Churned" value={stats.mrr.churned} color="#f87171" />
+                <StatCard label="New Signups" value={stats.signups} sub={`in ${range}`} />
+              </div>
 
-            {/* Ad Spend */}
-            <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>Ad Spend Managed</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10, marginBottom: 24 }}>
-              <StatCard label="Total Spend" value={fmt$(stats.spend.total)} color={T.accent} sub={`in ${range}`} />
-              {stats.spend.by_platform.map((p) => (
-                <StatCard key={p.platform} label={p.platform} value={fmt$(Number(p.spend))} />
-              ))}
-            </div>
+              <SectionLabel>Ad Spend Managed</SectionLabel>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-6">
+                <StatCard label="Total Spend" value={fmt$(stats.spend.total)} color="#f5a623" sub={`in ${range}`} />
+                {stats.spend.by_platform.map(p => (
+                  <StatCard key={p.platform} label={p.platform} value={fmt$(Number(p.spend))} />
+                ))}
+              </div>
 
-            {/* Activity */}
-            <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>Platform Activity</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10, marginBottom: 24 }}>
-              <StatCard label="Active Campaigns" value={stats.campaigns.active} color={T.success} sub={`${stats.campaigns.new} new this period`} />
-              <StatCard label="Agent Actions" value={stats.actions.total.toLocaleString()} sub={`in ${range}`} />
-              <StatCard label="Ads Created" value={stats.actions.ads_created.toLocaleString()} />
-              <StatCard label="Recommendations" value={stats.actions.recommendations_made.toLocaleString()} />
-              <StatCard label="Acceptance Rate" value={`${stats.actions.acceptance_rate}%`} color={stats.actions.acceptance_rate > 70 ? T.success : T.accent} />
-            </div>
+              <SectionLabel>Platform Activity</SectionLabel>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-6">
+                <StatCard label="Active Campaigns" value={stats.campaigns.active} color="#4ade80" sub={`${stats.campaigns.new} new this period`} />
+                <StatCard label="Agent Actions" value={stats.actions.total.toLocaleString()} sub={`in ${range}`} />
+                <StatCard label="Ads Created" value={stats.actions.ads_created.toLocaleString()} />
+                <StatCard label="Recommendations" value={stats.actions.recommendations_made.toLocaleString()} />
+                <StatCard label="Acceptance Rate" value={`${stats.actions.acceptance_rate}%`} color={stats.actions.acceptance_rate > 70 ? "#4ade80" : "#f5a623"} />
+              </div>
 
-            {/* Support */}
-            <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>Support</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10, marginBottom: 24 }}>
-              <StatCard label="Open Tickets" value={stats.support.open_tickets} color={stats.support.open_tickets > 0 ? T.danger : T.success} />
-              <StatCard label="Open Feedback" value={stats.support.open_feedback} color={stats.support.open_feedback > 0 ? T.accent : T.success} />
-            </div>
+              <SectionLabel>Support</SectionLabel>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-6">
+                <StatCard label="Open Tickets" value={stats.support.open_tickets} color={stats.support.open_tickets > 0 ? "#f87171" : "#4ade80"} />
+                <StatCard label="Open Feedback" value={stats.support.open_feedback} color={stats.support.open_feedback > 0 ? "#f5a623" : "#4ade80"} />
+              </div>
 
-            {/* Affiliates */}
-            <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>Affiliates</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10 }}>
-              <StatCard label="Active Affiliates" value={stats.affiliates.active} />
-              <StatCard label="Referrals" value={stats.affiliates.referrals_period} sub={`in ${range}`} />
-              <StatCard label="Pending Payouts" value={fmt$(stats.affiliates.pending_payouts)} color={T.accent} />
-            </div>
-          </>
+              <SectionLabel>Affiliates</SectionLabel>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+                <StatCard label="Active Affiliates" value={stats.affiliates.active} />
+                <StatCard label="Referrals" value={stats.affiliates.referrals_period} sub={`in ${range}`} />
+                <StatCard label="Pending Payouts" value={fmt$(stats.affiliates.pending_payouts)} color="#f5a623" />
+              </div>
+            </>
+          )
         )}
 
-        {/* Users Tab */}
+        {/* ── Users / At-Risk Tab ── */}
         {(tab === "users" || tab === "alerts") && (
           <>
-            <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+            <div className="flex gap-2 mb-5 flex-wrap">
               {[["all","All"],["active","Active"],["trial","Trial"],["at_risk","At-Risk"],["churned","Churned"]].map(([v,l]) => (
                 <button key={v} onClick={() => { setUserFilter(v); loadUsers(); }}
-                  style={{ padding: "6px 14px", borderRadius: 7, border: `1px solid ${userFilter === v ? T.accent : T.border}`, background: userFilter === v ? T.accentBg : "transparent", color: userFilter === v ? T.accent : T.muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                  className={`px-3.5 py-1.5 rounded-lg text-xs cursor-pointer transition-all duration-200 ${
+                    userFilter === v ? "bg-amber-500/10 border border-amber-500/30 text-amber-400" : "bg-transparent border border-white/[0.06] text-[#8b8fa8] hover:border-white/[0.15]"
+                  }`}>
                   {l}
                 </button>
               ))}
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div className="flex flex-col gap-1.5">
               {(tab === "alerts" ? users.filter(u => u.is_at_risk) : users).map(u => (
-                <div key={u.clerk_user_id} style={{ background: T.card, border: `1px solid ${u.is_at_risk ? "rgba(248,113,113,0.2)" : T.border}`, borderRadius: 10, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, color: T.text, fontWeight: 600, fontFamily: "monospace" }}>{u.clerk_user_id.slice(0, 20)}…</div>
-                    <div style={{ display: "flex", gap: 8, marginTop: 5, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 10, color: u.status === "active" ? T.success : u.status === "trialing" ? T.accent : T.danger }}>{u.status}</span>
-                      <span style={{ fontSize: 10, color: T.faint }}>·</span>
-                      <span style={{ fontSize: 10, color: T.muted }}>{u.client_count} clients</span>
-                      <span style={{ fontSize: 10, color: T.faint }}>·</span>
-                      <span style={{ fontSize: 10, color: T.muted }}>{u.campaign_count} campaigns</span>
-                      <span style={{ fontSize: 10, color: T.faint }}>·</span>
-                      <span style={{ fontSize: 10, color: T.muted }}>{fmt$(Number(u.total_spend))} spend</span>
-                      <span style={{ fontSize: 10, color: T.faint }}>·</span>
-                      <span style={{ fontSize: 10, color: T.muted }}>{u.action_count} actions</span>
+                <div key={u.clerk_user_id} className={`bg-[#13151d] border rounded-xl px-5 py-3.5 flex items-center gap-3.5 flex-wrap transition-all duration-200 hover:border-white/[0.12] ${u.is_at_risk ? "border-red-400/20" : "border-white/[0.06]"}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs text-[#e8eaf0] font-semibold font-mono">{u.clerk_user_id.slice(0, 20)}...</div>
+                    <div className="flex gap-2 mt-1.5 flex-wrap text-[10px]">
+                      <span className={u.status === "active" ? "text-emerald-400" : u.status === "trialing" ? "text-amber-400" : "text-red-400"}>{u.status}</span>
+                      <span className="text-[#5a5e72]">·</span>
+                      <span className="text-[#8b8fa8]">{u.client_count} clients</span>
+                      <span className="text-[#5a5e72]">·</span>
+                      <span className="text-[#8b8fa8]">{u.campaign_count} campaigns</span>
+                      <span className="text-[#5a5e72]">·</span>
+                      <span className="text-[#8b8fa8]">{fmt$(Number(u.total_spend))} spend</span>
+                      <span className="text-[#5a5e72]">·</span>
+                      <span className="text-[#8b8fa8]">{u.action_count} actions</span>
                     </div>
                     {u.risks.length > 0 && (
-                      <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                      <div className="flex gap-1.5 mt-1.5 flex-wrap">
                         {u.risks.map(r => (
-                          <span key={r} style={{ fontSize: 10, color: T.danger, background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", borderRadius: 4, padding: "2px 7px" }}>
+                          <span key={r} className="text-[10px] text-red-400 bg-red-400/[0.08] border border-red-400/20 rounded px-2 py-0.5">
                             {RISK_LABELS[r] ?? r}
                           </span>
                         ))}
                       </div>
                     )}
                   </div>
-                  <div style={{ fontSize: 10, color: T.faint, whiteSpace: "nowrap" }}>
+                  <div className="text-[10px] text-[#5a5e72] whitespace-nowrap">
                     {new Date(u.subscribed_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                   </div>
-                  <button onClick={() => { setOutreachId(u.clerk_user_id); setOutreachMsg(""); }}
-                    style={{ background: T.accentBg, border: `1px solid rgba(245,166,35,0.3)`, color: T.accent, borderRadius: 7, padding: "6px 12px", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: 700, whiteSpace: "nowrap" }}>
+                  <button
+                    onClick={() => { setOutreachId(u.clerk_user_id); setOutreachMsg(""); }}
+                    className="bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg px-3 py-1.5 text-[11px] font-bold cursor-pointer whitespace-nowrap hover:bg-amber-500/20 transition-all duration-200"
+                  >
                     Message
                   </button>
                 </div>
               ))}
               {(tab === "alerts" ? users.filter(u => u.is_at_risk) : users).length === 0 && (
-                <div style={{ color: T.faint, fontSize: 13, padding: "24px 0", textAlign: "center" }}>
-                  {tab === "alerts" ? "No at-risk users right now ✓" : "No users found"}
+                <div className="text-[#5a5e72] text-sm py-6 text-center">
+                  {tab === "alerts" ? "No at-risk users right now" : "No users found"}
                 </div>
               )}
             </div>
           </>
         )}
 
-        {/* Tickets Tab */}
+        {/* ── Tickets Tab ── */}
         {tab === "tickets" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="flex flex-col gap-2">
             {tickets.length === 0 ? (
-              <div style={{ color: T.faint, fontSize: 13, padding: "24px 0", textAlign: "center" }}>No open tickets</div>
-            ) : tickets.map((t) => (
-              <div key={String(t.id)} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: "16px 18px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{String(t.subject)}</span>
-                  <span style={{ fontSize: 10, color: T.accent, background: T.accentBg, borderRadius: 4, padding: "2px 7px" }}>{String(t.category)}</span>
-                  <span style={{ marginLeft: "auto", fontSize: 11, color: T.faint }}>{new Date(String(t.created_at)).toLocaleDateString()}</span>
+              <div className="text-[#5a5e72] text-sm py-6 text-center">No open tickets</div>
+            ) : tickets.map(t => (
+              <div key={String(t.id)} className="bg-[#13151d] border border-white/[0.06] rounded-xl px-5 py-4 hover:border-white/[0.12] transition-all duration-200">
+                <div className="flex items-center gap-2.5 mb-2">
+                  <span className="text-sm font-bold text-[#e8eaf0]">{String(t.subject)}</span>
+                  <span className="text-[10px] text-amber-400 bg-amber-500/10 rounded px-2 py-0.5">{String(t.category)}</span>
+                  <span className="ml-auto text-[11px] text-[#5a5e72]">{new Date(String(t.created_at)).toLocaleDateString()}</span>
                 </div>
-                <div style={{ fontSize: 12, color: T.muted, marginBottom: 6 }}>{String(t.user_name)} — {String(t.user_email)}</div>
-                <div style={{ fontSize: 12, color: T.muted, lineHeight: 1.6 }}>{String(t.description).slice(0, 200)}{String(t.description).length > 200 ? "…" : ""}</div>
+                <div className="text-xs text-[#8b8fa8] mb-1.5">{String(t.user_name)} — {String(t.user_email)}</div>
+                <div className="text-xs text-[#8b8fa8] leading-relaxed">{String(t.description).slice(0, 200)}{String(t.description).length > 200 ? "..." : ""}</div>
               </div>
             ))}
           </div>
         )}
 
-        {/* Feedback Tab */}
+        {/* ── Feedback Tab ── */}
         {tab === "feedback" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="flex flex-col gap-2">
             {feedback.length === 0 ? (
-              <div style={{ color: T.faint, fontSize: 13, padding: "24px 0", textAlign: "center" }}>No open feedback</div>
-            ) : feedback.map((f) => (
-              <div key={String(f.id)} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: "16px 18px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                  <span style={{ fontSize: 12, color: T.muted }}>{String(f.user_name)} — {String(f.user_email)}</span>
-                  <span style={{ marginLeft: "auto", fontSize: 11, color: T.faint }}>{new Date(String(f.created_at)).toLocaleDateString()}</span>
+              <div className="text-[#5a5e72] text-sm py-6 text-center">No open feedback</div>
+            ) : feedback.map(f => (
+              <div key={String(f.id)} className="bg-[#13151d] border border-white/[0.06] rounded-xl px-5 py-4 hover:border-white/[0.12] transition-all duration-200">
+                <div className="flex items-center gap-2.5 mb-2">
+                  <span className="text-xs text-[#8b8fa8]">{String(f.user_name)} — {String(f.user_email)}</span>
+                  <span className="ml-auto text-[11px] text-[#5a5e72]">{new Date(String(f.created_at)).toLocaleDateString()}</span>
                 </div>
-                <div style={{ fontSize: 13, color: T.text, lineHeight: 1.6 }}>{String(f.message)}</div>
+                <div className="text-sm text-[#e8eaf0] leading-relaxed">{String(f.message)}</div>
               </div>
             ))}
           </div>
         )}
-        {/* Content Tab */}
+
+        {/* ── Content Tab ── */}
         {tab === "content" && <ContentHub />}
       </div>
 
-      {/* Outreach Modal */}
+      {/* ── Outreach Modal ── */}
       {outreachId && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center" }}
-          onClick={e => { if (e.target === e.currentTarget) setOutreachId(null); }}>
-          <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "28px 32px", width: 480, maxWidth: "90vw" }}>
-            <h3 style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: T.text }}>Send WhatsApp Message</h3>
-            <p style={{ margin: "0 0 16px", fontSize: 12, color: T.muted }}>Sent as "Mike from Buena Onda" to the user's WhatsApp number.</p>
+        <div
+          className="fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm flex items-center justify-center"
+          onClick={e => { if (e.target === e.currentTarget) setOutreachId(null); }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="bg-[#161820] border border-white/[0.06] rounded-2xl p-8 w-[480px] max-w-[90vw]">
+            <h3 className="text-base font-bold text-[#e8eaf0] mb-1.5">Send WhatsApp Message</h3>
+            <p className="text-xs text-[#8b8fa8] mb-4">Sent as &quot;Mike from Buena Onda&quot; to the user&apos;s WhatsApp number.</p>
             <textarea
               value={outreachMsg}
               onChange={e => setOutreachMsg(e.target.value)}
               placeholder="Hey! Just checking in to see how things are going..."
               rows={4}
-              style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 13, color: T.text, fontFamily: "inherit", outline: "none", resize: "vertical", boxSizing: "border-box" as const }}
+              className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-3.5 py-2.5 text-sm text-[#e8eaf0] outline-none resize-y focus:border-amber-500/40 transition-colors"
             />
-            <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-              <button onClick={sendOutreach} disabled={sendingOutreach || !outreachMsg.trim()}
-                style={{ flex: 1, background: outreachMsg.trim() ? "linear-gradient(135deg,#f5a623,#f76b1c)" : "rgba(255,255,255,0.05)", border: "none", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 700, color: outreachMsg.trim() ? "#0d0f14" : T.faint, cursor: outreachMsg.trim() ? "pointer" : "not-allowed", fontFamily: "inherit" }}>
-                {sendingOutreach ? "Sending…" : "Send via WhatsApp"}
+            <div className="flex gap-2 mt-3.5">
+              <button
+                onClick={sendOutreach}
+                disabled={sendingOutreach || !outreachMsg.trim()}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-all duration-200 ${
+                  outreachMsg.trim()
+                    ? "bg-gradient-to-r from-amber-500 to-orange-500 text-[#0d0f14] hover:brightness-110"
+                    : "bg-white/5 text-[#5a5e72] cursor-not-allowed"
+                }`}
+              >
+                {sendingOutreach ? "Sending..." : "Send via WhatsApp"}
               </button>
-              <button onClick={() => setOutreachId(null)}
-                style={{ background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 16px", fontSize: 13, color: T.muted, cursor: "pointer", fontFamily: "inherit" }}>
+              <button
+                onClick={() => setOutreachId(null)}
+                className="bg-transparent border border-white/[0.06] rounded-xl px-4 py-2.5 text-sm text-[#8b8fa8] cursor-pointer hover:bg-white/5 transition-all duration-200"
+              >
                 Cancel
               </button>
             </div>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="text-[11px] font-bold text-[#8b8fa8] uppercase tracking-wider mb-2.5">
+      {children}
     </div>
   );
 }
