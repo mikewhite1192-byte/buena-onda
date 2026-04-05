@@ -4,6 +4,20 @@ import { useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { Check } from "lucide-react";
 
+const SHARED_FEATURES = [
+  "AI campaign creation & launch",
+  "Unlimited active campaigns",
+  "Hourly autonomous optimization",
+  "Creative fatigue detection",
+  "A/B testing automation",
+  "ROAS & CPL goal tracking",
+  "Lead gen & e-commerce support",
+  "WhatsApp & Slack reports",
+  "Multi-client management",
+  "Guardrails or full autonomous mode",
+  "14-day free trial",
+];
+
 const PLANS = [
   {
     name: "Starter",
@@ -11,15 +25,7 @@ const PLANS = [
     priceId: "price_1TDsTU2LedSrht7tPlVdEkEM",
     spend: "Up to $10k/mo ad spend",
     desc: "Perfect for small businesses ready to put their ad campaigns on autopilot.",
-    features: [
-      "AI campaign creation & launch",
-      "Hourly autonomous optimization",
-      "Lead gen & e-commerce support",
-      "WhatsApp & Slack performance reports",
-      "Up to 5 active campaigns",
-      "Guardrails or full autonomous mode",
-      "14-day free trial",
-    ],
+    features: [...SHARED_FEATURES],
     cta: "Start Free",
     highlight: false,
   },
@@ -29,34 +35,28 @@ const PLANS = [
     priceId: "price_1TDsV42LedSrht7tW379Owbh",
     spend: "Up to $50k/mo ad spend",
     desc: "For growing businesses ready to scale their ad results.",
-    features: [
-      "Everything in Starter",
-      "Unlimited active campaigns",
-      "Creative fatigue detection",
-      "A/B testing automation",
-      "ROAS & CPL goal tracking",
-      "Priority AI optimization",
-      "14-day free trial",
-    ],
+    features: [...SHARED_FEATURES],
     cta: "Start Free",
     highlight: true,
     badge: "Most Popular",
+  },
+  {
+    name: "Pro",
+    price: 297,
+    priceId: "price_PRO_PLACEHOLDER",
+    spend: "Up to $100k/mo ad spend",
+    desc: "For serious operators scaling multiple campaigns at high spend.",
+    features: [...SHARED_FEATURES],
+    cta: "Start Free",
+    highlight: false,
   },
   {
     name: "Agency",
     price: 397,
     priceId: "price_1TDsW92LedSrht7tspIcI8Td",
     spend: "Up to $150k/mo ad spend",
-    desc: "For agencies and power users managing multiple clients.",
-    features: [
-      "Everything in Growth",
-      "Multi-client management",
-      "Client memory & strategies",
-      "White-label reporting",
-      "Dedicated AI agent per client",
-      "Advanced campaign analytics",
-      "14-day free trial",
-    ],
+    desc: "For agencies managing multiple clients with branded reporting.",
+    features: [...SHARED_FEATURES, "White-label reporting"],
     cta: "Start Free",
     highlight: false,
   },
@@ -107,7 +107,7 @@ export default function LandingPricing() {
         </div>
 
         {/* Plans */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 items-stretch">
           {PLANS.map((plan) => (
             <div
               key={plan.name}

@@ -1,17 +1,6 @@
 import LandingNav from "../components/landing/LandingNav";
 import LandingFooter from "../components/landing/LandingFooter";
 
-const T = {
-  accent: "#f5a623",
-  accentBg: "rgba(245,166,35,0.08)",
-  text: "#e8eaf0",
-  muted: "#8b8fa8",
-  faint: "#5a5e72",
-  border: "rgba(255,255,255,0.06)",
-  surface: "#161820",
-  bg: "#0d0f14",
-};
-
 export const metadata = {
   title: "Contact — Buena Onda",
   description: "Get in touch with the Buena Onda team.",
@@ -19,69 +8,43 @@ export const metadata = {
 
 export default function ContactPage() {
   return (
-    <div style={{ background: T.bg, minHeight: "100vh", fontFamily: "'DM Mono', 'Fira Mono', monospace", color: T.text }}>
+    <div className="landing-dark min-h-screen bg-[#0d0f14] text-[#e8eaf0]">
       <LandingNav />
 
-      <main style={{ maxWidth: 560, margin: "0 auto", padding: "120px 24px 80px" }}>
-        <div style={{ marginBottom: 48 }}>
-          <div style={{
-            display: "inline-block",
-            padding: "4px 14px",
-            background: T.accentBg,
-            border: `1px solid rgba(245,166,35,0.2)`,
-            borderRadius: 20,
-            fontSize: 11,
-            color: T.accent,
-            fontWeight: 600,
-            letterSpacing: "0.5px",
-            textTransform: "uppercase",
-            marginBottom: 20,
-          }}>
+      <main className="max-w-xl mx-auto px-6 pt-32 pb-20">
+        <div className="mb-12">
+          <div className="inline-block px-4 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full text-[11px] text-amber-400 font-semibold uppercase tracking-wide mb-5">
             Contact
           </div>
-          <h1 style={{ fontSize: "clamp(28px, 4vw, 42px)", fontWeight: 800, margin: "0 0 12px", letterSpacing: "-1.5px" }}>
+          <h1 className="text-[clamp(28px,4vw,42px)] font-extrabold tracking-tight mb-3">
             Get in touch
           </h1>
-          <p style={{ fontSize: 15, color: T.muted, lineHeight: 1.8, margin: 0 }}>
+          <p className="text-[15px] text-[#8b8fa8] leading-relaxed">
             Questions about the platform, pricing, or your account — reach us directly.
           </p>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="flex flex-col gap-3">
           {[
             { label: "Email", value: "hello@buenaonda.ai", href: "mailto:hello@buenaonda.ai" },
             { label: "Phone", value: "(619) 888-6686", href: "tel:+16198886686" },
           ].map(({ label, value, href }) => (
-            <a key={label} href={href} style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "20px 24px",
-              background: T.surface,
-              border: `1px solid ${T.border}`,
-              borderRadius: 12,
-              textDecoration: "none",
-              transition: "border-color 0.15s",
-            }}>
+            <a
+              key={label}
+              href={href}
+              className="flex items-center justify-between px-6 py-5 bg-[#161820] border border-white/[0.06] rounded-xl no-underline hover:border-amber-500/20 transition-all duration-200 cursor-pointer group"
+            >
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: T.faint, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4 }}>{label}</div>
-                <div style={{ fontSize: 15, color: T.accent, fontWeight: 600 }}>{value}</div>
+                <div className="text-[11px] font-bold text-[#5a5e72] uppercase tracking-wider mb-1">{label}</div>
+                <div className="text-[15px] text-amber-400 font-semibold group-hover:text-amber-300 transition-colors">{value}</div>
               </div>
-              <span style={{ color: T.faint, fontSize: 18 }}>→</span>
+              <span className="text-[#5a5e72] text-lg group-hover:text-amber-400 transition-colors">→</span>
             </a>
           ))}
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "20px 24px",
-            background: T.surface,
-            border: `1px solid ${T.border}`,
-            borderRadius: 12,
-          }}>
+          <div className="flex items-center justify-between px-6 py-5 bg-[#161820] border border-white/[0.06] rounded-xl">
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: T.faint, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4 }}>Location</div>
-              <div style={{ fontSize: 15, color: T.accent, fontWeight: 600 }}>Warren, MI · United States</div>
+              <div className="text-[11px] font-bold text-[#5a5e72] uppercase tracking-wider mb-1">Location</div>
+              <div className="text-[15px] text-amber-400 font-semibold">Warren, MI · United States</div>
             </div>
           </div>
         </div>

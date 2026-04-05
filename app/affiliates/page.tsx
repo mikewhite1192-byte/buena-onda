@@ -1,28 +1,15 @@
 "use client";
 
-// app/affiliates/page.tsx
 import { useState } from "react";
-
-const T = {
-  bg: "#0d0f14",
-  surface: "#161820",
-  surfaceAlt: "#1e2130",
-  border: "rgba(255,255,255,0.06)",
-  accent: "#f5a623",
-  accentBg: "rgba(245,166,35,0.12)",
-  accentBorder: "rgba(245,166,35,0.3)",
-  text: "#e8eaf0",
-  muted: "#8b8fa8",
-  faint: "#5a5e72",
-  healthy: "#2ecc71",
-  healthyBg: "rgba(46,204,113,0.1)",
-};
+import LandingNav from "../components/landing/LandingNav";
+import LandingFooter from "../components/landing/LandingFooter";
+import { Target, Star } from "lucide-react";
 
 const BASE_URL = "https://buenaonda.ai";
 
 const MILESTONES = [
-  { count: 1,  icon: "🎯", label: "First referral",    reward: "Personal welcome video from the founders" },
-  { count: 10, icon: "⭐", label: "10 active clients", reward: "Personal strategy call + featured partner" },
+  { count: 1, icon: Target, label: "First referral", reward: "Personal welcome video from the founders" },
+  { count: 10, icon: Star, label: "10 active clients", reward: "Personal strategy call + featured partner" },
 ];
 
 const STEPS = [
@@ -32,22 +19,21 @@ const STEPS = [
 ];
 
 export default function AffiliatesPage() {
-  const [name, setName]         = useState("");
-  const [email, setEmail]       = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [affiliateCode, setAffiliateCode] = useState<string | null>(null);
   const [affiliateName, setAffiliateName] = useState("");
-  const [error, setError]       = useState("");
-  const [copied, setCopied]     = useState(false);
-  const [refs, setRefs]         = useState(5);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [refs, setRefs] = useState(5);
 
   const referralLink = affiliateCode ? `${BASE_URL}/?ref=${affiliateCode}` : "";
 
-  // Earnings calculator (avg Growth plan $197)
   const avgPlan = 197;
-  const month1  = Math.round(refs * avgPlan * 0.5);
+  const month1 = Math.round(refs * avgPlan * 0.5);
   const monthly = Math.round(refs * avgPlan * 0.4);
-  const annual  = monthly * 12 + month1;
+  const annual = monthly * 12 + month1;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -85,227 +71,172 @@ export default function AffiliatesPage() {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    background: T.surfaceAlt,
-    border: `1px solid ${T.border}`,
-    borderRadius: 8,
-    color: T.text,
-    fontSize: 14,
-    padding: "13px 16px",
-    fontFamily: "'DM Mono', 'Fira Mono', monospace",
-    outline: "none",
-    boxSizing: "border-box",
-  };
-
   return (
-    <div style={{ minHeight: "100vh", background: T.bg, fontFamily: "'DM Mono', 'Fira Mono', monospace", color: T.text }}>
-      <style>{`
-        .aff-two-col {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 24px;
-          margin-bottom: 64px;
-          align-items: start;
-        }
-        .aff-steps-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 16px;
-        }
-        @media (max-width: 680px) {
-          .aff-two-col {
-            grid-template-columns: 1fr;
-          }
-          .aff-steps-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
+    <div className="landing-dark min-h-screen bg-[#0d0f14] text-[#e8eaf0]">
+      <LandingNav />
 
-      {/* Nav */}
-      <nav style={{ borderBottom: `1px solid ${T.border}`, padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-        <a href="/" style={{ textDecoration: "none" }}>
-          <span style={{ fontWeight: 800, fontSize: 17, background: "linear-gradient(135deg,#f5a623,#f76b1c)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-            Buena Onda
-          </span>
-        </a>
-        <a href="/affiliates/dashboard" style={{ fontSize: 12, color: T.muted, textDecoration: "none" }}>
-          Already an affiliate? View dashboard →
-        </a>
-      </nav>
-
-      <div style={{ maxWidth: 960, margin: "0 auto", padding: "72px 24px 80px" }}>
+      <div className="max-w-[960px] mx-auto px-6 pt-28 pb-20">
 
         {/* Hero */}
-        <div style={{ textAlign: "center", marginBottom: 72 }}>
-          <div style={{ display: "inline-block", padding: "5px 16px", background: T.accentBg, border: `1px solid ${T.accentBorder}`, borderRadius: 20, fontSize: 11, color: T.accent, fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: 28 }}>
+        <div className="text-center mb-16">
+          <div className="inline-block px-4 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-full text-[11px] text-amber-400 font-semibold uppercase tracking-wide mb-7">
             Affiliate Program · Early Access
           </div>
-          <div style={{ margin: "0 0 24px" }}>
+          <div className="mb-6">
             {["Earn 40%.", "Buena Onda.", "Forever."].map((line, i) => (
-              <div key={line} style={{
-                fontSize: "clamp(40px, 5.5vw, 68px)",
-                fontWeight: 800,
-                letterSpacing: "-2px",
-                lineHeight: 1.12,
-                ...(i === 1
-                  ? { background: "linear-gradient(135deg,#f5a623,#f76b1c)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }
-                  : { color: T.text }),
-              }}>
+              <div
+                key={line}
+                className={`text-[clamp(40px,5.5vw,68px)] font-extrabold tracking-tighter leading-tight ${
+                  i === 1 ? "bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent" : ""
+                }`}
+              >
                 {line}
               </div>
             ))}
           </div>
-          <p style={{ fontSize: 17, color: T.muted, maxWidth: 500, margin: "0 auto 14px", lineHeight: 1.7 }}>
+          <p className="text-[17px] text-[#8b8fa8] max-w-[500px] mx-auto mb-3 leading-relaxed">
             50% on their first month. 40% every month after.
           </p>
-          <p style={{ fontSize: 12, color: T.faint, letterSpacing: "0.2px" }}>
+          <p className="text-xs text-[#5a5e72] tracking-wide">
             Early affiliates are locked in at these rates. No cap. No expiry.
           </p>
         </div>
 
         {/* 4-box stat strip */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 64 }}>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-16">
           {[
             { label: "Month 1 commission", value: "50%", sub: "on first payment" },
             { label: "Recurring commission", value: "40%", sub: "every month after" },
-            { label: "Cookie window",        value: "90 days", sub: "from first click" },
-            { label: "Payout cycle",         value: "Monthly", sub: "direct to your bank" },
-          ].map(s => (
-            <div key={s.label} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "20px", textAlign: "center" }}>
-              <div style={{ fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>{s.label}</div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: T.accent, letterSpacing: "-0.5px", marginBottom: 4 }}>{s.value}</div>
-              <div style={{ fontSize: 11, color: T.muted }}>{s.sub}</div>
+            { label: "Cookie window", value: "90 days", sub: "from first click" },
+            { label: "Payout cycle", value: "Monthly", sub: "direct to your bank" },
+          ].map((s) => (
+            <div key={s.label} className="bg-[#161820] border border-white/[0.06] rounded-xl p-5 text-center">
+              <div className="text-[10px] text-[#5a5e72] uppercase tracking-wider mb-2">{s.label}</div>
+              <div className="text-2xl font-extrabold text-amber-400 tracking-tight mb-1">{s.value}</div>
+              <div className="text-[11px] text-[#8b8fa8]">{s.sub}</div>
             </div>
           ))}
         </div>
 
-        {/* Earnings calc + sign up — stacked on mobile */}
-        <div className="aff-two-col">
+        {/* Earnings calc + sign up */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16 items-start">
 
           {/* Earnings calculator */}
-          <div style={{ background: T.surface, border: `1px solid ${T.accentBorder}`, borderRadius: 14, padding: "28px 30px" }}>
-            <div style={{ fontSize: 10, color: T.accent, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 16 }}>Earnings calculator</div>
+          <div className="bg-[#161820] border border-amber-500/30 rounded-2xl p-7">
+            <div className="text-[10px] text-amber-400 uppercase tracking-wider mb-4">Earnings calculator</div>
 
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                <span style={{ fontSize: 13, color: T.muted }}>Active referrals</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{refs}</span>
+            <div className="mb-5">
+              <div className="flex justify-between mb-2">
+                <span className="text-sm text-[#8b8fa8]">Active referrals</span>
+                <span className="text-sm font-bold text-[#e8eaf0]">{refs}</span>
               </div>
               <input
                 type="range" min={1} max={50} value={refs}
-                onChange={e => setRefs(Number(e.target.value))}
-                style={{ width: "100%", accentColor: T.accent }}
+                onChange={(e) => setRefs(Number(e.target.value))}
+                className="w-full accent-amber-500"
               />
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "16px", background: T.surfaceAlt, borderRadius: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 12, color: T.muted }}>Month 1 (50%)</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: T.accent }}>${month1.toLocaleString()}</span>
+            <div className="flex flex-col gap-2.5 p-4 bg-[#1e2130] rounded-xl">
+              <div className="flex justify-between">
+                <span className="text-xs text-[#8b8fa8]">Month 1 (50%)</span>
+                <span className="text-sm font-bold text-amber-400">${month1.toLocaleString()}</span>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 12, color: T.muted }}>Monthly recurring (40%)</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: T.healthy }}>${monthly.toLocaleString()}/mo</span>
+              <div className="flex justify-between">
+                <span className="text-xs text-[#8b8fa8]">Monthly recurring (40%)</span>
+                <span className="text-sm font-bold text-emerald-400">${monthly.toLocaleString()}/mo</span>
               </div>
-              <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 10, display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 12, color: T.muted }}>Year 1 total</span>
-                <span style={{ fontSize: 18, fontWeight: 800, color: T.text }}>${annual.toLocaleString()}</span>
+              <div className="border-t border-white/[0.06] pt-2.5 flex justify-between">
+                <span className="text-xs text-[#8b8fa8]">Year 1 total</span>
+                <span className="text-lg font-extrabold text-[#e8eaf0]">${annual.toLocaleString()}</span>
               </div>
             </div>
 
-            <div style={{ marginTop: 14, fontSize: 11, color: T.faint }}>
-              Based on avg Growth plan ($197/mo). Starter and Agency plans also earn commissions.
+            <div className="mt-3 text-[11px] text-[#5a5e72]">
+              Based on avg Growth plan ($197/mo). All plans earn commissions.
             </div>
           </div>
 
           {/* Sign up form or success state */}
           {!affiliateCode ? (
-            <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 14, padding: "28px 30px" }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 6 }}>Get your referral link</div>
-              <div style={{ fontSize: 12, color: T.muted, marginBottom: 24 }}>No application. Instant access. Locked-in rates.</div>
+            <div className="bg-[#161820] border border-white/[0.06] rounded-2xl p-7">
+              <div className="text-base font-bold text-[#e8eaf0] mb-1.5">Get your referral link</div>
+              <div className="text-xs text-[#8b8fa8] mb-6">No application. Instant access. Locked-in rates.</div>
 
-              <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <form onSubmit={handleSubmit} className="flex flex-col gap-3">
                 <input
-                  style={inputStyle}
+                  className="w-full bg-[#1e2130] border border-white/[0.06] rounded-lg text-sm text-[#e8eaf0] px-4 py-3.5 outline-none focus:border-amber-500/40 transition-colors"
                   placeholder="Your full name"
                   value={name}
-                  onChange={e => setName(e.target.value)}
+                  onChange={(e) => setName(e.target.value)}
                   required
                 />
                 <input
                   type="email"
-                  style={inputStyle}
+                  className="w-full bg-[#1e2130] border border-white/[0.06] rounded-lg text-sm text-[#e8eaf0] px-4 py-3.5 outline-none focus:border-amber-500/40 transition-colors"
                   placeholder="Your email address"
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                 />
 
-                {error && <div style={{ fontSize: 12, color: "#ff4d4d" }}>{error}</div>}
+                {error && <div className="text-xs text-red-400">{error}</div>}
 
                 <button
                   type="submit"
                   disabled={submitting || !name.trim() || !email.trim()}
-                  style={{
-                    padding: "14px 0",
-                    borderRadius: 8,
-                    border: "none",
-                    background: (submitting || !name.trim() || !email.trim())
-                      ? "rgba(255,255,255,0.05)"
-                      : "linear-gradient(135deg,#f5a623,#f76b1c)",
-                    color: (submitting || !name.trim() || !email.trim()) ? T.faint : "#0d0f14",
-                    fontSize: 14,
-                    fontWeight: 800,
-                    cursor: (submitting || !name.trim() || !email.trim()) ? "not-allowed" : "pointer",
-                    fontFamily: "inherit",
-                    transition: "all 0.15s",
-                  }}
+                  className={`py-3.5 rounded-lg text-sm font-extrabold transition-all duration-200 cursor-pointer ${
+                    submitting || !name.trim() || !email.trim()
+                      ? "bg-white/5 text-[#5a5e72] cursor-not-allowed"
+                      : "bg-gradient-to-r from-amber-500 to-orange-500 text-[#0d0f14] hover:brightness-110"
+                  }`}
                 >
-                  {submitting ? "Creating your link…" : "Join the affiliate program →"}
+                  {submitting ? "Creating your link..." : "Join the affiliate program →"}
                 </button>
 
-                <p style={{ fontSize: 11, color: T.faint, textAlign: "center", margin: 0 }}>
+                <p className="text-[11px] text-[#5a5e72] text-center">
                   By joining you agree to our affiliate terms. You&apos;ll connect your bank account via Stripe from your dashboard.
                 </p>
               </form>
             </div>
           ) : (
-            <div style={{ background: T.surface, border: `1px solid rgba(46,204,113,0.25)`, borderRadius: 14, padding: "28px 30px", textAlign: "center" }}>
-              <div style={{ fontSize: 32, marginBottom: 12 }}>🎉</div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: T.healthy, marginBottom: 4, letterSpacing: "-0.5px" }}>
+            <div className="bg-[#161820] border border-emerald-500/25 rounded-2xl p-7 text-center">
+              <div className="text-xl font-extrabold text-emerald-400 mb-1 tracking-tight">
                 You&apos;re in, {affiliateName.split(" ")[0]}!
               </div>
-              <div style={{ fontSize: 13, color: T.muted, marginBottom: 24, lineHeight: 1.6 }}>
+              <div className="text-sm text-[#8b8fa8] mb-6 leading-relaxed">
                 50% on month 1, 40% every month after — locked in for life.
               </div>
 
-              <div style={{ background: T.surfaceAlt, borderRadius: 10, padding: "14px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10, textAlign: "left" }}>
-                <span style={{ flex: 1, fontSize: 12, color: T.accent, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <div className="bg-[#1e2130] rounded-xl px-4 py-3.5 mb-4 flex items-center gap-2.5 text-left">
+                <span className="flex-1 text-xs text-amber-400 overflow-hidden text-ellipsis whitespace-nowrap">
                   {referralLink}
                 </span>
                 <button
                   onClick={copyLink}
-                  style={{ padding: "7px 14px", borderRadius: 6, border: `1px solid ${T.accentBorder}`, background: copied ? T.healthyBg : T.accentBg, color: copied ? T.healthy : T.accent, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0, transition: "all 0.2s" }}
+                  className={`px-3.5 py-1.5 rounded-md text-[11px] font-bold cursor-pointer flex-shrink-0 transition-all duration-200 ${
+                    copied
+                      ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400"
+                      : "bg-amber-500/10 border border-amber-500/30 text-amber-400"
+                  }`}
                 >
                   {copied ? "Copied!" : "Copy"}
                 </button>
               </div>
 
-              <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginBottom: 20 }}>
+              <div className="flex gap-2.5 justify-center flex-wrap mb-5">
                 <a
-                  href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}&quote=${encodeURIComponent(`I use Buena Onda AI to manage Meta ads with AI. Try it free:`)}`}
+                  href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}&quote=${encodeURIComponent("I use Buena Onda AI to manage Meta ads with AI. Try it free:")}`}
                   target="_blank" rel="noopener noreferrer"
-                  style={{ padding: "8px 16px", borderRadius: 7, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, fontSize: 12, textDecoration: "none", fontWeight: 600 }}
+                  className="px-4 py-2 rounded-lg border border-white/[0.06] text-[#8b8fa8] text-xs font-semibold no-underline hover:border-white/[0.15] hover:text-[#e8eaf0] transition-all"
                 >
                   Share on Facebook
                 </a>
                 <a
-                  href={`https://www.instagram.com/`}
+                  href="https://www.instagram.com/"
                   target="_blank" rel="noopener noreferrer"
                   onClick={(e) => { e.preventDefault(); navigator.clipboard.writeText(`I use Buena Onda AI to manage Meta ads with AI. Try it free: ${referralLink}`); alert("Caption copied! Paste it into your Instagram post."); }}
-                  style={{ padding: "8px 16px", borderRadius: 7, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, fontSize: 12, textDecoration: "none", fontWeight: 600, cursor: "pointer" }}
+                  className="px-4 py-2 rounded-lg border border-white/[0.06] text-[#8b8fa8] text-xs font-semibold no-underline hover:border-white/[0.15] hover:text-[#e8eaf0] transition-all cursor-pointer"
                 >
                   Share on Instagram
                 </a>
@@ -313,86 +244,77 @@ export default function AffiliatesPage() {
 
               <a
                 href={`/affiliates/dashboard?email=${encodeURIComponent(email)}`}
-                style={{ display: "block", padding: "12px", borderRadius: 8, border: `1px solid ${T.accentBorder}`, background: T.accentBg, color: T.accent, fontSize: 13, fontWeight: 700, textDecoration: "none" }}
+                className="block py-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm font-bold no-underline hover:bg-amber-500/20 transition-all"
               >
-                Set up payouts & view dashboard →
+                Set up payouts &amp; view dashboard →
               </a>
             </div>
           )}
         </div>
 
         {/* How it works */}
-        <div style={{ marginBottom: 64 }}>
-          <div style={{ fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 28, textAlign: "center" }}>How it works</div>
-          <div className="aff-steps-grid">
-            {STEPS.map(s => (
-              <div key={s.n} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "24px 22px" }}>
-                <div style={{ fontSize: 28, fontWeight: 900, color: T.accentBg, letterSpacing: "-1px", marginBottom: 12, lineHeight: 1 }}>{s.n}</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 8 }}>{s.title}</div>
-                <div style={{ fontSize: 12, color: T.muted, lineHeight: 1.7 }}>{s.body}</div>
+        <div className="mb-16">
+          <div className="text-[10px] text-[#5a5e72] uppercase tracking-wider mb-7 text-center">How it works</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {STEPS.map((s) => (
+              <div key={s.n} className="bg-[#161820] border border-white/[0.06] rounded-xl p-6">
+                <div className="text-[28px] font-black text-amber-500/20 tracking-tighter leading-none mb-3">{s.n}</div>
+                <div className="text-sm font-bold text-[#e8eaf0] mb-2">{s.title}</div>
+                <div className="text-xs text-[#8b8fa8] leading-relaxed">{s.body}</div>
               </div>
             ))}
           </div>
         </div>
 
         {/* Milestone rewards */}
-        <div style={{ marginBottom: 64 }}>
-          <div style={{ textAlign: "center", marginBottom: 32 }}>
-            <div style={{ fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 12 }}>Milestone rewards</div>
-            <h2 style={{ fontSize: 28, fontWeight: 800, color: T.text, margin: "0 0 8px", letterSpacing: "-0.5px" }}>
+        <div className="mb-16">
+          <div className="text-center mb-8">
+            <div className="text-[10px] text-[#5a5e72] uppercase tracking-wider mb-3">Milestone rewards</div>
+            <h2 className="text-[28px] font-extrabold text-[#e8eaf0] tracking-tight mb-2">
               The more you refer, the better it gets
             </h2>
-            <p style={{ fontSize: 13, color: T.muted }}>
+            <p className="text-sm text-[#8b8fa8]">
               We personally reach out at every milestone. These aren&apos;t automated badges — they&apos;re real rewards.
             </p>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
-            {MILESTONES.map((m) => (
-              <div
-                key={m.count}
-                style={{
-                  background: T.surface,
-                  border: `1px solid ${T.border}`,
-                  borderRadius: 12,
-                  padding: "18px 20px",
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 14,
-                }}
-              >
-                <span style={{ fontSize: 24, flexShrink: 0 }}>{m.icon}</span>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 3 }}>{m.label}</div>
-                  <div style={{ fontSize: 12, color: T.muted }}>{m.reward}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {MILESTONES.map((m) => {
+              const Icon = m.icon;
+              return (
+                <div key={m.count} className="bg-[#161820] border border-white/[0.06] rounded-xl p-5 flex items-start gap-3.5">
+                  <Icon className="w-6 h-6 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <div className="text-sm font-bold text-[#e8eaf0] mb-1">{m.label}</div>
+                    <div className="text-xs text-[#8b8fa8]">{m.reward}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
         {/* Bottom CTA */}
         {!affiliateCode && (
-          <div style={{ textAlign: "center", padding: "48px 24px", background: T.surface, border: `1px solid ${T.accentBorder}`, borderRadius: 16 }}>
-            <h3 style={{ fontSize: 26, fontWeight: 800, color: T.text, margin: "0 0 12px", letterSpacing: "-0.5px" }}>
+          <div className="text-center p-12 bg-[#161820] border border-amber-500/30 rounded-2xl">
+            <h3 className="text-[26px] font-extrabold text-[#e8eaf0] tracking-tight mb-3">
               Ready to earn?
             </h3>
-            <p style={{ fontSize: 14, color: T.muted, marginBottom: 28 }}>
+            <p className="text-sm text-[#8b8fa8] mb-7">
               Early affiliates lock in these rates permanently. Join now before we change the structure.
             </p>
-            <a href="#top" onClick={e => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }} style={{ display: "inline-block", padding: "14px 40px", borderRadius: 10, background: "linear-gradient(135deg,#f5a623,#f76b1c)", color: "#0d0f14", fontSize: 14, fontWeight: 800, textDecoration: "none" }}>
+            <a
+              href="#top"
+              onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+              className="inline-block px-10 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-[#0d0f14] text-sm font-extrabold no-underline hover:brightness-110 transition-all cursor-pointer"
+            >
               Get your referral link →
             </a>
           </div>
         )}
-
-        {/* Footer */}
-        <div style={{ marginTop: 56, paddingTop: 24, borderTop: `1px solid ${T.border}`, textAlign: "center", fontSize: 12, color: T.faint }}>
-          Questions? <a href="mailto:hello@buenaonda.ai" style={{ color: T.accent, textDecoration: "none" }}>hello@buenaonda.ai</a>
-          <span style={{ margin: "0 12px" }}>·</span>
-          <a href="/" style={{ color: T.faint, textDecoration: "none" }}>← Back to Buena Onda</a>
-        </div>
       </div>
+
+      <LandingFooter />
     </div>
   );
 }
