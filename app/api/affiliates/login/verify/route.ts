@@ -41,8 +41,8 @@ export async function GET(req: NextRequest) {
   res.cookies.set('affiliate_email', email, {
     httpOnly: true,
     secure: true,
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 30, // 30 days
+    sameSite: 'strict',
+    maxAge: 60 * 60 * 24 * 7, // 7 days
     path: '/',
   })
 

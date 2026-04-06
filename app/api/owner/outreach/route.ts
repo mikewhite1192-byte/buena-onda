@@ -5,11 +5,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
 import { sendWhatsAppMessage } from '@/lib/whatsapp/client'
 import { Resend } from 'resend'
+import { requireOwner, isErrorResponse } from '@/lib/auth/owner'
 
 const sql = neon(process.env.DATABASE_URL!)
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
 export async function POST(req: NextRequest) {
+  const ownerCheck = await requireOwner()
+  if (isErrorResponse(ownerCheck)) return ownerCheck
   const { clerk_user_id, message, channel } = await req.json()
   // channel: 'whatsapp' | 'email'
 

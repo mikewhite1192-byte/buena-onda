@@ -396,6 +396,177 @@ ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS autonomous_mode BOOLEAN 
 -- Status tracking on agent_actions — pending (awaiting approval) | executed | approved | rejected
 ALTER TABLE agent_actions ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'executed';
 CREATE INDEX IF NOT EXISTS idx_agent_actions_status ON agent_actions(status);
+
+-- ═══════════════════════════════════════════════════════════════════════
+-- AUDIT FIX: Missing columns on ad_metrics (code queries these)
+-- ═══════════════════════════════════════════════════════════════════════
+ALTER TABLE ad_metrics ADD COLUMN IF NOT EXISTS ad_set_id TEXT;
+ALTER TABLE ad_metrics ADD COLUMN IF NOT EXISTS ad_set_name TEXT;
+ALTER TABLE ad_metrics ADD COLUMN IF NOT EXISTS ad_status TEXT;
+ALTER TABLE ad_metrics ADD COLUMN IF NOT EXISTS ad_account_id TEXT;
+ALTER TABLE ad_metrics ADD COLUMN IF NOT EXISTS campaign_id TEXT;
+ALTER TABLE ad_metrics ADD COLUMN IF NOT EXISTS frequency NUMERIC(10,2);
+ALTER TABLE ad_metrics ADD COLUMN IF NOT EXISTS date_recorded DATE;
+-- Backfill date_recorded from date for existing rows
+UPDATE ad_metrics SET date_recorded = date WHERE date_recorded IS NULL;
+
+-- ═══════════════════════════════════════════════════════════════════════
+-- AUDIT FIX: Missing columns on agent_actions (code queries these)
+-- ═══════════════════════════════════════════════════════════════════════
+ALTER TABLE agent_actions ADD COLUMN IF NOT EXISTS ad_set_id TEXT;
+ALTER TABLE agent_actions ADD COLUMN IF NOT EXISTS ad_account_id TEXT;
+ALTER TABLE agent_actions ADD COLUMN IF NOT EXISTS action_details JSONB DEFAULT '{}';
+ALTER TABLE agent_actions ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ;
+ALTER TABLE agent_actions ADD COLUMN IF NOT EXISTS resolved_by TEXT;
+ALTER TABLE agent_actions ADD COLUMN IF NOT EXISTS owner_id TEXT;
+-- Copy existing details → action_details for rows that have data
+UPDATE agent_actions SET action_details = details WHERE action_details = '{}' AND details != '{}';
+
+-- ═══════════════════════════════════════════════════════════════════════
+-- AUDIT FIX: Missing columns on clients (code queries these)
+-- ═══════════════════════════════════════════════════════════════════════
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS meta_page_id TEXT;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS meta_access_token TEXT;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS website_url TEXT;
+
+-- ═══════════════════════════════════════════════════════════════════════
+-- AUDIT FIX: Missing tables referenced in code
+-- ═══════════════════════════════════════════════════════════════════════
+
+-- User metric presets (dashboard column customization)
+CREATE TABLE IF NOT EXISTS user_metric_presets (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_id   TEXT        NOT NULL,
+  name       TEXT        NOT NULL,
+  columns    JSONB       NOT NULL DEFAULT '[]',
+  is_default BOOLEAN     NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Campaign budget change log
+CREATE TABLE IF NOT EXISTS campaign_budget_changes (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  campaign_id TEXT        NOT NULL,
+  client_id   UUID,
+  old_budget  NUMERIC(12,2),
+  new_budget  NUMERIC(12,2),
+  pct         NUMERIC(8,2),
+  changed_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Creatives (also created inline in /api/clients/[id]/creatives)
+CREATE TABLE IF NOT EXISTS creatives (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id  UUID        NOT NULL,
+  user_id    TEXT        NOT NULL,
+  name       TEXT        NOT NULL,
+  format     TEXT        NOT NULL DEFAULT 'image',
+  status     TEXT        NOT NULL DEFAULT 'testing',
+  hook       TEXT,
+  spend      NUMERIC(12,2),
+  cpl        NUMERIC(12,2),
+  roas       NUMERIC(8,4),
+  ctr        NUMERIC(8,6),
+  notes      TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Reports (generated weekly/on-demand)
+CREATE TABLE IF NOT EXISTS reports (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     TEXT        NOT NULL,
+  client_id   UUID,
+  client_name TEXT,
+  token       TEXT        UNIQUE NOT NULL,
+  start_date  DATE,
+  end_date    DATE,
+  snapshot    JSONB       NOT NULL DEFAULT '{}',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_reports_token ON reports(token);
+CREATE INDEX IF NOT EXISTS idx_reports_user ON reports(user_id);
+
+-- Action log (audit trail)
+CREATE TABLE IF NOT EXISTS action_log (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_id    TEXT        NOT NULL,
+  client_id   UUID,
+  client_name TEXT,
+  action_type TEXT        NOT NULL,
+  details     JSONB       DEFAULT '{}',
+  meta        JSONB       DEFAULT '{}',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_action_log_owner ON action_log(owner_id);
+CREATE INDEX IF NOT EXISTS idx_action_log_created ON action_log(created_at);
+
+-- Pending campaigns (review queue)
+CREATE TABLE IF NOT EXISTS pending_campaigns (
+  id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id     UUID        NOT NULL,
+  owner_id      TEXT        NOT NULL,
+  campaign_data JSONB       NOT NULL DEFAULT '{}',
+  status        TEXT        NOT NULL DEFAULT 'pending',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pending_campaigns_status ON pending_campaigns(status);
+CREATE INDEX IF NOT EXISTS idx_pending_campaigns_owner ON pending_campaigns(owner_id);
+
+-- Affiliate login tokens (magic link)
+CREATE TABLE IF NOT EXISTS affiliate_login_tokens (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  email      TEXT        NOT NULL,
+  token      TEXT        NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used       BOOLEAN     NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_affiliate_login_token ON affiliate_login_tokens(token);
+
+-- Agent learnings (accumulated from conversation analysis)
+CREATE TABLE IF NOT EXISTS agent_learnings (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_id    TEXT        NOT NULL,
+  client_id   UUID,
+  category    TEXT        NOT NULL DEFAULT 'general',
+  content     TEXT        NOT NULL,
+  source      TEXT        NOT NULL DEFAULT 'agent',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_learnings_owner ON agent_learnings(owner_id);
+
+-- Client rules (also created inline in rules route)
+CREATE TABLE IF NOT EXISTS client_rules (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_id    TEXT        NOT NULL,
+  client_id   TEXT        NOT NULL,
+  rule_text   TEXT        NOT NULL,
+  category    TEXT        NOT NULL DEFAULT 'general',
+  is_active   BOOLEAN     NOT NULL DEFAULT true,
+  source      TEXT        NOT NULL DEFAULT 'chat',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ═══════════════════════════════════════════════════════════════════════
+-- AUDIT FIX: Missing indexes on frequently queried columns
+-- ═══════════════════════════════════════════════════════════════════════
+CREATE INDEX IF NOT EXISTS idx_clients_owner_id ON clients(owner_id);
+CREATE INDEX IF NOT EXISTS idx_clients_meta_ad_account ON clients(meta_ad_account_id);
+CREATE INDEX IF NOT EXISTS idx_clients_google_customer ON clients(google_customer_id);
+CREATE INDEX IF NOT EXISTS idx_campaign_briefs_ad_account ON campaign_briefs(ad_account_id);
+CREATE INDEX IF NOT EXISTS idx_campaign_briefs_status ON campaign_briefs(status);
+CREATE INDEX IF NOT EXISTS idx_campaign_briefs_created ON campaign_briefs(created_at);
+CREATE INDEX IF NOT EXISTS idx_support_tickets_user ON support_tickets(clerk_user_id);
+CREATE INDEX IF NOT EXISTS idx_feedback_user ON feedback_submissions(clerk_user_id);
+CREATE INDEX IF NOT EXISTS idx_team_invites_email ON team_invites(email);
+CREATE INDEX IF NOT EXISTS idx_ad_metrics_ad_set ON ad_metrics(ad_set_id);
+CREATE INDEX IF NOT EXISTS idx_ad_metrics_account ON ad_metrics(ad_account_id);
 `;
 
 // TypeScript types matching the tables

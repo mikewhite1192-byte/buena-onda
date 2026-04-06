@@ -18,7 +18,7 @@ import { pauseCampaign, enableCampaign, updateCampaignBudget } from "@/lib/googl
 // Set CRON_SECRET in env to secure this endpoint.
 function isAuthorized(req: Request): boolean {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return true; // no secret configured — allow (dev only)
+  if (!secret) return false; // no secret configured — deny all
   const auth = req.headers.get("authorization");
   return auth === `Bearer ${secret}`;
 }

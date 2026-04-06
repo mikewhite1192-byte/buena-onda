@@ -1,5 +1,6 @@
-// app/api/token-debug/route.ts
+// app/api/token-debug/route.ts — owner-only debug endpoint
 export const dynamic = "force-dynamic";
+import { requireOwner, isErrorResponse } from "@/lib/auth/owner";
 
 function b64urlDecode(input: string) {
   input = input.replace(/-/g, "+").replace(/_/g, "/");
@@ -9,6 +10,8 @@ function b64urlDecode(input: string) {
 }
 
 export async function GET(req: Request) {
+  const ownerCheck = await requireOwner();
+  if (isErrorResponse(ownerCheck)) return ownerCheck;
   const cookie = req.headers.get("cookie") || "";
   const sess = cookie.split(";").find(c => c.trim().startsWith("__session="))?.split("=")[1];
 

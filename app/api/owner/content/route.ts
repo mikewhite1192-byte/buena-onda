@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { requireOwner, isErrorResponse } from "@/lib/auth/owner";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -29,6 +30,9 @@ const VIDEO_FORMATS: Record<string, string> = {
 
 export async function POST(req: Request) {
   try {
+    const ownerCheck = await requireOwner();
+    if (isErrorResponse(ownerCheck)) return ownerCheck;
+
     const { action, topic, scriptFormat, videoFormat, viralFormat, platform, theme, dayDesc, trend, hook, day, businessId, businessName, businessDesc, businessAudience } = await req.json();
 
     if (!process.env.ANTHROPIC_API_KEY) {

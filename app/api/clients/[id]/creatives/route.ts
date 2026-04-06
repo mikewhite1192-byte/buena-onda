@@ -48,6 +48,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const sql = neon(process.env.DATABASE_URL!);
   await ensureTable(sql);
 
+  // Verify client belongs to this user
+  const client = await sql`SELECT id FROM clients WHERE id = ${params.id} AND owner_id = ${userId} LIMIT 1`;
+  if (client.length === 0) return NextResponse.json({ error: "Client not found" }, { status: 404 });
+
   const body = await req.json();
   const { name, format, status, hook, spend, cpl, roas, ctr, notes } = body;
 

@@ -3,8 +3,11 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from "next/server";
 import getDb from "@/lib/db";
 import { MIGRATION_SQL } from "@/lib/db/schema";
+import { requireOwner, isErrorResponse } from "@/lib/auth/owner";
 
 export async function GET() {
+  const ownerCheck = await requireOwner();
+  if (isErrorResponse(ownerCheck)) return ownerCheck;
   try {
     const sql = getDb();
     await sql.unsafe(MIGRATION_SQL);

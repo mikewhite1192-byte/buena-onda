@@ -27,6 +27,19 @@ export async function POST(req: Request) {
     );
   }
 
+  // Validate numeric ranges
+  const budget = Number(daily_budget);
+  const cap = Number(cpl_cap);
+  if (isNaN(budget) || budget <= 0 || budget > 1000000) {
+    return NextResponse.json({ error: "daily_budget must be between 0 and 1,000,000" }, { status: 400 });
+  }
+  if (isNaN(cap) || cap <= 0 || cap > 100000) {
+    return NextResponse.json({ error: "cpl_cap must be between 0 and 100,000" }, { status: 400 });
+  }
+  if (avatar.length > 500 || offer.length > 2000) {
+    return NextResponse.json({ error: "Input too long" }, { status: 400 });
+  }
+
   try {
     const sql = getDb();
 

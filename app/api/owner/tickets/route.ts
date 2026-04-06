@@ -2,10 +2,13 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
+import { requireOwner, isErrorResponse } from '@/lib/auth/owner'
 
 const sql = neon(process.env.DATABASE_URL!)
 
 export async function GET(req: NextRequest) {
+  const ownerCheck = await requireOwner()
+  if (isErrorResponse(ownerCheck)) return ownerCheck
   const { searchParams } = new URL(req.url)
   const status = searchParams.get('status') ?? 'all'
 
@@ -21,6 +24,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const ownerCheck = await requireOwner()
+  if (isErrorResponse(ownerCheck)) return ownerCheck
   const { id, status } = await req.json()
   if (!id || !status) return NextResponse.json({ error: 'Missing id or status' }, { status: 400 })
 

@@ -33,8 +33,8 @@ export async function GET(req: NextRequest) {
   res.cookies.set('client_portal_id', client_id, {
     httpOnly: true,
     secure: true,
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 30, // 30 days
+    sameSite: 'strict',
+    maxAge: 60 * 60 * 24 * 7, // 7 days
     path: '/',
   })
 

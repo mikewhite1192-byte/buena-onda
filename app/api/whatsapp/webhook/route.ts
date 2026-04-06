@@ -26,6 +26,19 @@ export async function GET(req: Request) {
 // ── POST — Incoming messages ───────────────────────────────────────────────────
 export async function POST(req: Request) {
   try {
+    // Verify Meta webhook signature (X-Hub-Signature-256)
+    const signature = req.headers.get('x-hub-signature-256')
+    const appSecret = process.env.META_APP_SECRET
+    if (appSecret && signature) {
+      const crypto = await import('crypto')
+      const rawBody = await req.clone().text()
+      const expected = 'sha256=' + crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex')
+      if (signature !== expected) {
+        console.error('[whatsapp] Invalid webhook signature')
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+      }
+    }
+
     const body = await req.json()
 
     // Meta sends a test payload on setup — handle gracefully

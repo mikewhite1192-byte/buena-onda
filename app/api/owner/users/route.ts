@@ -3,10 +3,13 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
+import { requireOwner, isErrorResponse } from '@/lib/auth/owner'
 
 const sql = neon(process.env.DATABASE_URL!)
 
 export async function GET(req: NextRequest) {
+  const ownerCheck = await requireOwner()
+  if (isErrorResponse(ownerCheck)) return ownerCheck
   const { searchParams } = new URL(req.url)
   const filter = searchParams.get('filter') ?? 'all' // all | at_risk | trial | active | churned
 
