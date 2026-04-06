@@ -1,213 +1,181 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function AnimatedBlobs() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [mounted, setMounted] = useState(false);
+  const blob1 = useRef({ x: 30, y: 25, vx: 0.3, vy: 0.2 });
+  const blob2 = useRef({ x: 65, y: 55, vx: -0.25, vy: 0.3 });
+  const blob3 = useRef({ x: 50, y: 15, vx: 0.2, vy: -0.25 });
+  const [pos, setPos] = useState({ b1: { x: 30, y: 25 }, b2: { x: 65, y: 55 }, b3: { x: 50, y: 15 } });
+  const mouseRef = useRef({ x: 50, y: 50 });
+  const scrollVelRef = useRef(0);
+  const lastScrollRef = useRef(0);
+  const opacityRef = useRef(1);
+  const [opacity, setOpacity] = useState(1);
 
+  useEffect(() => { setMounted(true); }, []);
+
+  // Mouse tracking
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    if (!ctx) return;
-
-    let animId = 0;
-    let mouseX = window.innerWidth / 2;
-    let mouseY = window.innerHeight / 2;
-    let scrollY = 0;
-    let lastScrollY = 0;
-    let scrollVelocity = 0;
-
-    // Blob physics
-    const blobs = [
-      { x: 0, y: 0, vx: 0.7, vy: 0.5, radius: 0, r: 255, g: 140, b: 0 },   // #FF8C00
-      { x: 0, y: 0, vx: -0.5, vy: 0.6, radius: 0, r: 255, g: 107, b: 0 },   // #FF6B00
-      { x: 0, y: 0, vx: 0.4, vy: -0.55, radius: 0, r: 255, g: 183, b: 0 },  // #FFB700
-    ];
-
-    function resize() {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas!.width = window.innerWidth * dpr;
-      canvas!.height = window.innerHeight * dpr;
-      canvas!.style.width = window.innerWidth + "px";
-      canvas!.style.height = window.innerHeight + "px";
-      ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      const base = Math.min(w, h) * 0.22;
-
-      blobs[0].x = w * 0.3; blobs[0].y = h * 0.35; blobs[0].radius = base * 1.4;
-      blobs[1].x = w * 0.7; blobs[1].y = h * 0.55; blobs[1].radius = base * 1.2;
-      blobs[2].x = w * 0.5; blobs[2].y = h * 0.25; blobs[2].radius = base * 1.0;
+    function onMove(e: MouseEvent) {
+      mouseRef.current = { x: (e.clientX / window.innerWidth) * 100, y: (e.clientY / window.innerHeight) * 100 };
     }
-    resize();
-    window.addEventListener("resize", resize);
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, []);
 
-    // Mouse tracking
-    function onMouseMove(e: MouseEvent) { mouseX = e.clientX; mouseY = e.clientY; }
-    window.addEventListener("mousemove", onMouseMove);
-
-    // Scroll tracking
+  // Scroll tracking
+  useEffect(() => {
     function onScroll() {
-      scrollY = window.scrollY;
-      scrollVelocity = Math.abs(scrollY - lastScrollY) * 0.15;
-      lastScrollY = scrollY;
-    }
-    window.addEventListener("scroll", onScroll, { passive: true });
+      const sy = window.scrollY;
+      scrollVelRef.current = Math.abs(sy - lastScrollRef.current) * 0.08;
+      lastScrollRef.current = sy;
 
-    // Calculate scroll-based opacity
-    function getOpacity(): number {
+      // Opacity by scroll position
       const vh = window.innerHeight;
       const docH = document.documentElement.scrollHeight;
-      const scrollBottom = docH - scrollY - vh;
-
-      // Hero — full
-      if (scrollY < vh) return 0.85 + 0.15 * (1 - scrollY / vh);
-      // Bottom (pricing/CTA) — ramp back up
-      if (scrollBottom < vh * 1.8) {
-        const progress = 1 - scrollBottom / (vh * 1.8);
-        return 0.25 + progress * 0.55;
-      }
-      // Content — pulled back
-      return 0.25;
+      const bottom = docH - sy - vh;
+      let op = 0.25;
+      if (sy < vh) op = 0.85 + 0.15 * (1 - sy / vh);
+      else if (bottom < vh * 1.8) op = 0.25 + (1 - bottom / (vh * 1.8)) * 0.55;
+      opacityRef.current = op;
+      setOpacity(op);
     }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
-    // Metaball field function — returns intensity at point (px, py)
-    function field(px: number, py: number): number {
-      let sum = 0;
+  // Animation loop
+  useEffect(() => {
+    if (!mounted) return;
+    let animId: number;
+
+    function tick() {
+      const blobs = [blob1.current, blob2.current, blob3.current];
+      const mouse = mouseRef.current;
+
       for (const b of blobs) {
-        const dx = px - b.x;
-        const dy = py - b.y;
-        const distSq = dx * dx + dy * dy;
-        sum += (b.radius * b.radius) / distSq;
-      }
-      return sum;
-    }
-
-    // Get dominant color at point based on closest blob influence
-    function getColor(px: number, py: number): [number, number, number] {
-      let totalWeight = 0;
-      let r = 0, g = 0, b = 0;
-      for (const blob of blobs) {
-        const dx = px - blob.x;
-        const dy = py - blob.y;
-        const distSq = dx * dx + dy * dy;
-        const weight = (blob.radius * blob.radius) / distSq;
-        r += blob.r * weight;
-        g += blob.g * weight;
-        b += blob.b * weight;
-        totalWeight += weight;
-      }
-      return [r / totalWeight, g / totalWeight, b / totalWeight];
-    }
-
-    function draw() {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-
-      ctx!.clearRect(0, 0, w, h);
-
-      // Update blob positions
-      for (const blob of blobs) {
-        // Mouse attraction — 8% pull
-        const mdx = mouseX - blob.x;
-        const mdy = mouseY - blob.y;
-        const mDist = Math.sqrt(mdx * mdx + mdy * mdy);
-        if (mDist > 10) {
-          blob.vx += (mdx / mDist) * 0.008;
-          blob.vy += (mdy / mDist) * 0.008;
-        }
+        // Mouse pull — 8%
+        b.vx += (mouse.x - b.x) * 0.0008;
+        b.vy += (mouse.y - b.y) * 0.0008;
 
         // Scroll disturbance
-        blob.vy += scrollVelocity * 0.02 * (Math.random() - 0.5);
-        blob.vx += scrollVelocity * 0.01 * (Math.random() - 0.5);
+        b.vx += scrollVelRef.current * (Math.random() - 0.5) * 0.03;
+        b.vy += scrollVelRef.current * (Math.random() - 0.5) * 0.03;
 
-        // Blob-to-blob attraction when close
+        // Attraction between blobs
         for (const other of blobs) {
-          if (blob === other) continue;
-          const dx = other.x - blob.x;
-          const dy = other.y - blob.y;
+          if (b === other) continue;
+          const dx = other.x - b.x;
+          const dy = other.y - b.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          const threshold = blob.radius + other.radius;
-          if (dist < threshold * 2 && dist > 1) {
-            const force = 0.0004 * Math.max(0, threshold * 2 - dist);
-            blob.vx += (dx / dist) * force;
-            blob.vy += (dy / dist) * force;
+          if (dist < 40 && dist > 0.1) {
+            b.vx += (dx / dist) * 0.003;
+            b.vy += (dy / dist) * 0.003;
           }
         }
 
         // Dampen
-        blob.vx *= 0.995;
-        blob.vy *= 0.995;
+        b.vx *= 0.997;
+        b.vy *= 0.997;
 
-        // Minimum speed
-        const speed = Math.sqrt(blob.vx * blob.vx + blob.vy * blob.vy);
-        if (speed < 0.3) { blob.vx *= 2; blob.vy *= 2; }
-        if (speed > 3) { blob.vx *= 0.8; blob.vy *= 0.8; }
+        // Min/max speed
+        const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+        if (speed < 0.08) { b.vx *= 3; b.vy *= 3; }
+        if (speed > 1.2) { b.vx *= 0.7; b.vy *= 0.7; }
 
-        // Move
-        blob.x += blob.vx;
-        blob.y += blob.vy;
+        // Move (in % of viewport)
+        b.x += b.vx;
+        b.y += b.vy;
 
-        // Bounce off viewport edges
-        if (blob.x < blob.radius * 0.3) { blob.x = blob.radius * 0.3; blob.vx = Math.abs(blob.vx); }
-        if (blob.x > w - blob.radius * 0.3) { blob.x = w - blob.radius * 0.3; blob.vx = -Math.abs(blob.vx); }
-        if (blob.y < blob.radius * 0.3) { blob.y = blob.radius * 0.3; blob.vy = Math.abs(blob.vy); }
-        if (blob.y > h - blob.radius * 0.3) { blob.y = h - blob.radius * 0.3; blob.vy = -Math.abs(blob.vy); }
+        // Bounce
+        if (b.x < -10) { b.x = -10; b.vx = Math.abs(b.vx); }
+        if (b.x > 110) { b.x = 110; b.vx = -Math.abs(b.vx); }
+        if (b.y < -10) { b.y = -10; b.vy = Math.abs(b.vy); }
+        if (b.y > 110) { b.y = 110; b.vy = -Math.abs(b.vy); }
       }
 
-      // Decay scroll velocity
-      scrollVelocity *= 0.92;
+      scrollVelRef.current *= 0.9;
 
-      // Render metaballs using pixel sampling
-      const opacity = getOpacity();
-      const step = 4; // Sample every 4px for performance
-      const imgData = ctx!.createImageData(w, h);
-      const data = imgData.data;
-      const threshold = 1.0;
+      setPos({
+        b1: { x: blob1.current.x, y: blob1.current.y },
+        b2: { x: blob2.current.x, y: blob2.current.y },
+        b3: { x: blob3.current.x, y: blob3.current.y },
+      });
 
-      for (let py = 0; py < h; py += step) {
-        for (let px = 0; px < w; px += step) {
-          const f = field(px, py);
-          if (f >= threshold) {
-            const [r, g, b] = getColor(px, py);
-            const alpha = Math.min((f - threshold) * 180, 255) * opacity;
-
-            // Fill the step x step block
-            for (let dy = 0; dy < step && py + dy < h; dy++) {
-              for (let dx = 0; dx < step && px + dx < w; dx++) {
-                const idx = ((py + dy) * w + (px + dx)) * 4;
-                data[idx] = r;
-                data[idx + 1] = g;
-                data[idx + 2] = b;
-                data[idx + 3] = alpha;
-              }
-            }
-          }
-        }
-      }
-
-      ctx!.putImageData(imgData, 0, 0);
-
-      animId = requestAnimationFrame(draw);
+      animId = requestAnimationFrame(tick);
     }
 
-    animId = requestAnimationFrame(draw);
+    animId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animId);
+  }, [mounted]);
 
-    return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener("resize", resize);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("scroll", onScroll);
-    };
-  }, []);
+  if (!mounted) return null;
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="fixed inset-0 z-0 pointer-events-none"
-      style={{ background: "#080808" }}
-    />
+    <>
+      {/* SVG filter for metaball gooey merge effect */}
+      <svg className="fixed" style={{ width: 0, height: 0, position: "fixed" }}>
+        <defs>
+          <filter id="gooey">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="20" result="blur" />
+            <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 35 -15" result="goo" />
+            <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+          </filter>
+        </defs>
+      </svg>
+
+      {/* Blob container — FIXED to viewport, behind all content */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{
+          zIndex: 0,
+          filter: "url(#gooey)",
+          opacity,
+          transition: "opacity 0.4s ease",
+        }}
+      >
+        {/* Blob 1 — dominant orange, largest */}
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: "min(45vw, 500px)",
+            height: "min(45vw, 500px)",
+            background: "#FF8C00",
+            left: `${pos.b1.x}%`,
+            top: `${pos.b1.y}%`,
+            transform: "translate(-50%, -50%)",
+            transition: "left 0.05s linear, top 0.05s linear",
+          }}
+        />
+        {/* Blob 2 — deep amber */}
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: "min(38vw, 420px)",
+            height: "min(38vw, 420px)",
+            background: "#FF6B00",
+            left: `${pos.b2.x}%`,
+            top: `${pos.b2.y}%`,
+            transform: "translate(-50%, -50%)",
+            transition: "left 0.05s linear, top 0.05s linear",
+          }}
+        />
+        {/* Blob 3 — gold, smaller, faster */}
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: "min(30vw, 340px)",
+            height: "min(30vw, 340px)",
+            background: "#FFB700",
+            left: `${pos.b3.x}%`,
+            top: `${pos.b3.y}%`,
+            transform: "translate(-50%, -50%)",
+            transition: "left 0.05s linear, top 0.05s linear",
+          }}
+        />
+      </div>
+    </>
   );
 }
