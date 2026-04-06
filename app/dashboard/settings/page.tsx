@@ -40,6 +40,10 @@ function SettingsInner() {
   const [savingMode, setSavingMode] = useState(false);
   const [modeSaved, setModeSaved] = useState(false);
 
+  // Billing state
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingError, setBillingError] = useState("");
+
   // Slack state
   const [slackStatus, setSlackStatus] = useState<"" | "connected" | "error">("");
 
@@ -114,6 +118,24 @@ function SettingsInner() {
       setTimeout(() => setBrandingSaved(false), 3000);
     } finally {
       setSavingBranding(false);
+    }
+  }
+
+  async function openBillingPortal() {
+    setBillingLoading(true);
+    setBillingError("");
+    try {
+      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setBillingError(data.error ?? "Failed to open billing portal");
+        return;
+      }
+      window.location.href = data.url;
+    } catch {
+      setBillingError("Network error");
+    } finally {
+      setBillingLoading(false);
     }
   }
 
@@ -192,6 +214,50 @@ function SettingsInner() {
 
         <p style={{ fontSize: 11, color: T.faint, margin: 0, lineHeight: 1.6 }}>
           New accounts start in Recommendations Mode. Switch to Autonomous Mode once you&apos;ve reviewed a few AI decisions and trust its judgment.
+        </p>
+      </div>
+
+      {/* Billing & Subscription */}
+      <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 24, marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+          <span style={{ fontSize: 18 }}>💳</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: T.text }}>Billing & Subscription</span>
+        </div>
+        <p style={{ fontSize: 13, color: T.muted, margin: "0 0 20px", lineHeight: 1.6 }}>
+          Manage your subscription, update payment methods, view invoices, or change your plan.
+        </p>
+
+        {billingError && (
+          <p style={{ fontSize: 12, color: T.error, background: "rgba(231,76,60,0.12)", padding: "8px 12px", borderRadius: 8, marginBottom: 16 }}>
+            {billingError}
+          </p>
+        )}
+
+        <button
+          onClick={openBillingPortal}
+          disabled={billingLoading}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "10px 20px",
+            borderRadius: 8,
+            border: "none",
+            background: T.accentBg,
+            color: T.accent,
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: billingLoading ? "not-allowed" : "pointer",
+            fontFamily: "inherit",
+            opacity: billingLoading ? 0.7 : 1,
+            transition: "all 0.2s",
+          }}
+        >
+          {billingLoading ? "Opening…" : "Manage Billing →"}
+        </button>
+
+        <p style={{ fontSize: 11, color: T.faint, margin: "10px 0 0", lineHeight: 1.6 }}>
+          Opens the Stripe customer portal where you can update your card, switch plans, download invoices, or cancel.
         </p>
       </div>
 
