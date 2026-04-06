@@ -16,8 +16,7 @@ export default function Page() {
       {/* Grid lines background */}
       <div className="grid-bg" />
 
-      {/* ── Canvas-based animated blobs — bouncing, morphing, visible ── */}
-      <AnimatedBlobs />
+      {/* Blobs are in the hero section only */}
 
       <div className="relative z-[1]">
         <LandingNav />

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { Zap, Pause, Clock, RefreshCw, TrendingUp, Target, BarChart3, MessageSquare, OctagonX, CheckCircle2 } from "lucide-react";
 import AnimatedDashboard from "./AnimatedDashboard";
+import AnimatedBlobs from "./AnimatedBlobs";
 
 /* ── Ticker Data ── */
 
@@ -127,7 +128,9 @@ export default function LandingHero() {
       `}</style>
 
       {/* ── HERO ── */}
-      <section className="relative min-h-screen flex flex-col justify-center overflow-visible">
+      <section className="relative min-h-screen flex flex-col justify-center overflow-hidden">
+        {/* Bouncing blobs — hero only, no blur */}
+        <AnimatedBlobs />
 
         {/* Content */}
         <div className="relative z-[2] max-w-[1100px] mx-auto px-6 pt-44 pb-16">

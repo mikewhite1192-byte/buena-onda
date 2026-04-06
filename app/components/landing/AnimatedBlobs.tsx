@@ -89,8 +89,7 @@ export default function AnimatedBlobs() {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 z-0 pointer-events-none"
-      style={{ filter: "blur(60px)" }}
+      className="absolute inset-0 z-0 pointer-events-none"
     />
   );
 }
