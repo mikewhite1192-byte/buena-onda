@@ -29,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className={`${inter.variable} ${dmMono.variable} font-sans bg-white text-slate-900 antialiased`}>{children}</body>
+        <body className={`${inter.variable} ${dmMono.variable} font-sans antialiased`} style={{ background: "#080808", color: "#e8eaf0" }}>{children}</body>
       </html>
     </ClerkProvider>
   );
