@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { Zap, Pause, Clock, RefreshCw, TrendingUp, Target, BarChart3, MessageSquare, OctagonX, CheckCircle2 } from "lucide-react";
 
@@ -146,9 +146,32 @@ const PLATFORM_PILLS = [
 
 /* ── Hero ── */
 
+// ── Floating particles ──
+function AmbientParticles() {
+  const particles = Array.from({ length: 16 }, (_, i) => ({
+    id: i,
+    left: 10 + Math.random() * 80,
+    top: 20 + Math.random() * 60,
+    size: 1.5 + Math.random() * 2.5,
+    duration: 4 + Math.random() * 4,
+    delay: Math.random() * 5,
+    drift: -10 + Math.random() * 20,
+    driftEnd: -8 + Math.random() * 16,
+  }));
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-[1]">
+      {particles.map(p => (
+        <div key={p.id} className="float-particle" style={{ left: `${p.left}%`, top: `${p.top}%`, "--size": `${p.size}px`, "--duration": `${p.duration}s`, "--delay": `${p.delay}s`, "--drift": `${p.drift}px`, "--drift-end": `${p.driftEnd}px` } as React.CSSProperties} />
+      ))}
+    </div>
+  );
+}
+
 export default function LandingHero() {
   const [platformIdx, setPlatformIdx] = useState(0);
   const [fading, setFading] = useState(false);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const dashRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -161,11 +184,26 @@ export default function LandingHero() {
     return () => clearInterval(interval);
   }, []);
 
+  // Mouse tracking for 3D tilt on dashboard
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!dashRef.current) return;
+    const rect = dashRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    setMousePos({ x, y });
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setMousePos({ x: 0, y: 0 });
+  }, []);
+
+  const tiltX = mousePos.y * -8; // rotate around X axis
+  const tiltY = mousePos.x * 8;  // rotate around Y axis
+
   const tickerItems = [...TICKER, ...TICKER];
 
   return (
     <>
-      {/* Scoped animations — kept minimal, rest moved to globals.css */}
       <style>{`
         @keyframes slideReveal {
           from { transform: translateY(110%); opacity: 0; }
@@ -176,6 +214,10 @@ export default function LandingHero() {
           70% { box-shadow: 0 0 0 8px rgba(255,255,255,0); transform: scale(1.1); }
           100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); transform: scale(1); }
         }
+        @keyframes dashGlow {
+          0%, 100% { box-shadow: 0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04), 0 0 60px rgba(245,166,35,0.08); }
+          50% { box-shadow: 0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06), 0 0 80px rgba(245,166,35,0.15); }
+        }
         .fu1 { animation: fade-up 0.65s 0.05s ease both; }
         .fu2 { animation: slideReveal 0.7s 0.15s cubic-bezier(0.16,1,0.3,1) both; }
         .fu3 { animation: slideReveal 0.7s 0.35s cubic-bezier(0.16,1,0.3,1) both; }
@@ -185,11 +227,13 @@ export default function LandingHero() {
       `}</style>
 
       <section className="relative overflow-hidden bg-[#0d0f14] pt-36 pb-0 px-6 text-center">
-        {/* Ambient glows */}
-        <div className="absolute top-[8%] left-1/2 -translate-x-1/2 w-[720px] h-[480px] pointer-events-none animate-glow-pulse"
-          style={{ background: "radial-gradient(ellipse, rgba(245,166,35,0.08) 0%, transparent 68%)" }} />
-        <div className="absolute top-[35%] left-1/4 w-[360px] h-[260px] pointer-events-none animate-glow-pulse"
-          style={{ background: "radial-gradient(ellipse, rgba(247,107,28,0.05) 0%, transparent 70%)", animationDelay: "2s" }} />
+        {/* Ambient glows — breathing */}
+        <div className="ambient-orb" style={{ top: "5%", left: "30%", width: 600, height: 400, background: "radial-gradient(ellipse, rgba(245,166,35,0.1) 0%, transparent 65%)" }} />
+        <div className="ambient-orb" style={{ top: "40%", right: "10%", width: 400, height: 300, background: "radial-gradient(ellipse, rgba(247,107,28,0.06) 0%, transparent 65%)", animationDelay: "3s", animationDuration: "10s" }} />
+        <div className="ambient-orb" style={{ top: "60%", left: "50%", width: 500, height: 350, background: "radial-gradient(ellipse, rgba(245,166,35,0.05) 0%, transparent 65%)", animationDelay: "5s", animationDuration: "12s" }} />
+
+        {/* Floating particles */}
+        <AmbientParticles />
 
         <div className="max-w-[880px] mx-auto relative">
           {/* Live badge */}
@@ -266,13 +310,34 @@ export default function LandingHero() {
             14-day free trial · Card required · Cancel anytime
           </p>
 
-          {/* Dashboard screenshot */}
-          <div className="fu6 relative max-w-[840px] mx-auto rounded-2xl overflow-hidden border border-white/[0.06] shadow-[0_24px_80px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.04)]">
-            <img
-              src="/brand/dashboard-screenshot.png"
-              alt="Buena Onda dashboard showing live campaign metrics, platform breakdown, alerts, and AI recommendations"
-              className="w-full block"
-            />
+          {/* Dashboard screenshot — 3D tilt on mouse, glowing border */}
+          <div
+            ref={dashRef}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+            className="fu6 relative max-w-[840px] mx-auto"
+            style={{ perspective: 1000 }}
+          >
+            {/* Glow behind dashboard */}
+            <div className="absolute -inset-4 rounded-3xl pointer-events-none z-0" style={{
+              background: "radial-gradient(ellipse at center, rgba(245,166,35,0.1) 0%, transparent 70%)",
+              filter: "blur(40px)",
+              animation: "glow-pulse 3s ease-in-out infinite",
+            }} />
+            <div
+              className="relative z-[1] rounded-2xl overflow-hidden border border-white/[0.08] will-change-transform"
+              style={{
+                transform: `rotateX(${tiltX}deg) rotateY(${tiltY}deg)`,
+                transition: "transform 0.15s ease-out",
+                animation: "dashGlow 4s ease-in-out infinite",
+              }}
+            >
+              <img
+                src="/brand/dashboard-screenshot.png"
+                alt="Buena Onda dashboard showing live campaign metrics, platform breakdown, alerts, and AI recommendations"
+                className="w-full block"
+              />
+            </div>
           </div>
         </div>
 

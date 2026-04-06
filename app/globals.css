@@ -154,6 +154,63 @@ html, body {
   --landing-faint: #5a5e72;
 }
 
+/* ─── Immersive hero effects ─── */
+@keyframes ambient-shift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(10px, -10px) scale(1.02); }
+  66% { transform: translate(-5px, 5px) scale(0.98); }
+}
+
+@keyframes float-particle {
+  0% { transform: translateY(0) translateX(0); opacity: 0; }
+  15% { opacity: 0.6; }
+  50% { transform: translateY(-50px) translateX(var(--drift, 8px)); opacity: 0.3; }
+  100% { transform: translateY(-100px) translateX(var(--drift-end, -4px)); opacity: 0; }
+}
+
+.ambient-orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(80px);
+  animation: ambient-shift 8s ease-in-out infinite;
+}
+
+.float-particle {
+  position: absolute;
+  width: var(--size, 2px);
+  height: var(--size, 2px);
+  border-radius: 50%;
+  background: rgba(245,166,35,0.6);
+  box-shadow: 0 0 4px rgba(245,166,35,0.4);
+  pointer-events: none;
+  animation: float-particle var(--duration, 5s) var(--delay, 0s) ease-out infinite;
+}
+
+/* Grain texture */
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 256px;
+}
+
+/* Grid background */
+.grid-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.02;
+  background-image:
+    linear-gradient(rgba(245,166,35,0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245,166,35,0.1) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
   .animate-ticker,
