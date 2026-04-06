@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { Zap, Pause, Clock, RefreshCw, TrendingUp, Target, BarChart3, MessageSquare, OctagonX, CheckCircle2 } from "lucide-react";
-import AnimatedDashboard from "./AnimatedDashboard";
+// AnimatedDashboard removed — using real screenshot for authenticity
 
 /* ── Ticker Data ── */
 
@@ -169,7 +169,7 @@ export default function LandingHero() {
             <div className="absolute -inset-8 rounded-3xl pointer-events-none z-0 opacity-60"
               style={{ background: "radial-gradient(ellipse at 50% 80%, rgba(245,166,35,0.12) 0%, transparent 60%)", filter: "blur(60px)" }} />
 
-            {/* Animated Dashboard */}
+            {/* Real dashboard screenshot with 3D tilt + shimmer */}
             <div
               className="relative z-[1] rounded-2xl overflow-hidden will-change-transform"
               style={{
@@ -179,8 +179,20 @@ export default function LandingHero() {
               }}
             >
               <div className="p-px rounded-2xl bg-gradient-to-b from-white/10 via-white/[0.03] to-transparent">
-                <div className="rounded-2xl overflow-hidden bg-[#0d0f14]">
-                  <AnimatedDashboard />
+                <div className="rounded-2xl overflow-hidden bg-[#0d0f14] relative">
+                  <img
+                    src="/brand/dashboard-screenshot.png"
+                    alt="Buena Onda dashboard showing live campaign metrics"
+                    className="w-full block"
+                  />
+                  {/* Shimmer scan line */}
+                  <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                    <div className="absolute inset-0" style={{
+                      background: "linear-gradient(90deg, transparent 0%, transparent 40%, rgba(245,166,35,0.06) 50%, transparent 60%, transparent 100%)",
+                      backgroundSize: "200% 100%",
+                      animation: "dashScan 4s ease-in-out infinite",
+                    }} />
+                  </div>
                 </div>
               </div>
             </div>
@@ -200,8 +212,8 @@ export default function LandingHero() {
               <svg className="h-6" viewBox="0 0 448 512" fill="white"><path d="M448 209.9a210.1 210.1 0 0 1-122.8-39.3V349.4A162.6 162.6 0 1 1 185 188.3V278.2a74.6 74.6 0 1 0 52.2 71.2V0h88a121 121 0 0 0 122.8 121.1z"/></svg>
               {/* Shopify */}
               <svg className="h-7" viewBox="0 0 448 512" fill="white"><path d="M388.3 104.1a4.7 4.7 0 0 0-4.4-4c-2 0-37.2-.8-37.2-.8s-24.4-24.4-27.5-27.2a18.8 18.8 0 0 0-9.3-3.3l-12 369.4L388 404.5s1.8-.5 2.9-1.5a6 6 0 0 0 1.7-4.5c0 0-4.3-294.4-4.3-294.4zM271.4 98.7l-15.6 47.3c-13.3-4-28.6-7.6-44.8-7.4l2.6-17.2c1.7-9.8 4.2-18.7 6.7-25.6 14.3-4.7 33-2.5 51.1 2.9zm-64.3 18.9c-2.5 7.7-5.3 17.6-7.4 29.4l-22.5-5.5 6.8-43.5c9.5-1.1 16.9 5.3 23.1 19.6zm-69.5 4l-13.5 82.7c-11.3-1.7-36.3-4.2-43.3 11.3-8.2 18 25 42.6 27.7 44.3l-12.3 75.5c-5.5-3.5-39-25.5-43.3-68.3-5-49.7 39-91.6 84.7-145.5z"/></svg>
-              {/* WhatsApp */}
-              <svg className="h-6" viewBox="0 0 448 512" fill="white"><path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6z"/></svg>
+              {/* WhatsApp — phone in speech bubble */}
+              <svg className="h-6" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
               {/* Slack */}
               <svg className="h-6" viewBox="0 0 448 512" fill="white"><path d="M94.1 315.1c0 25.9-21.2 47.1-47.1 47.1S0 341 0 315.1c0-25.9 21.2-47.1 47.1-47.1h47.1v47.1zm23.7 0c0-25.9 21.2-47.1 47.1-47.1s47.1 21.2 47.1 47.1v117.8c0 25.9-21.2 47.1-47.1 47.1s-47.1-21.2-47.1-47.1V315.1zm47.1-189c-25.9 0-47.1-21.2-47.1-47.1S139 32 164.9 32s47.1 21.2 47.1 47.1v47.1H164.9zm0 23.7c25.9 0 47.1 21.2 47.1 47.1s-21.2 47.1-47.1 47.1H47.1C21.2 244 0 222.8 0 196.9s21.2-47.1 47.1-47.1H164.9zm189 47.1c0-25.9 21.2-47.1 47.1-47.1 25.9 0 47.1 21.2 47.1 47.1s-21.2 47.1-47.1 47.1h-47.1v-47.1zm-23.7 0c0 25.9-21.2 47.1-47.1 47.1-25.9 0-47.1-21.2-47.1-47.1V79.1c0-25.9 21.2-47.1 47.1-47.1 25.9 0 47.1 21.2 47.1 47.1v117.8zm-47.1 189c25.9 0 47.1 21.2 47.1 47.1 0 25.9-21.2 47.1-47.1 47.1-25.9 0-47.1-21.2-47.1-47.1v-47.1h47.1zm0-23.7c-25.9 0-47.1-21.2-47.1-47.1 0-25.9 21.2-47.1 47.1-47.1h117.8c25.9 0 47.1 21.2 47.1 47.1 0 25.9-21.2 47.1-47.1 47.1H283.1z"/></svg>
             </div>
