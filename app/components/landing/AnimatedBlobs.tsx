@@ -7,10 +7,16 @@ interface Blob {
   y: number;
   vx: number;
   vy: number;
-  radius: number;
+  baseRadius: number;
   color: string;
   phase: number;
-  speed: number;
+  morphSpeed: number;
+  points: number[];
+}
+
+// Generate organic shape points with variation
+function generatePoints(count: number): number[] {
+  return Array.from({ length: count }, () => 0.85 + Math.random() * 0.3);
 }
 
 export default function AnimatedBlobs() {
@@ -25,55 +31,104 @@ export default function AnimatedBlobs() {
     if (!ctx) return;
 
     function resize() {
-      canvas!.width = window.innerWidth;
-      canvas!.height = window.innerHeight;
+      canvas!.width = canvas!.offsetWidth * (window.devicePixelRatio || 1);
+      canvas!.height = canvas!.offsetHeight * (window.devicePixelRatio || 1);
+      ctx!.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
     }
     resize();
     window.addEventListener("resize", resize);
 
-    // Initialize blobs
+    const w = canvas.offsetWidth;
+    const h = canvas.offsetHeight;
+
+    // 4 blobs — vivid, fully saturated, sharp edges
     blobsRef.current = [
-      { x: canvas.width * 0.7, y: canvas.height * 0.2, vx: 0.4, vy: 0.3, radius: 350, color: "rgba(245,166,35,", phase: 0, speed: 0.008 },
-      { x: canvas.width * 0.2, y: canvas.height * 0.7, vx: -0.3, vy: 0.4, radius: 280, color: "rgba(247,107,28,", phase: 2, speed: 0.006 },
-      { x: canvas.width * 0.5, y: canvas.height * 0.4, vx: 0.25, vy: -0.35, radius: 250, color: "rgba(255,190,50,", phase: 4, speed: 0.007 },
-      { x: canvas.width * 0.3, y: canvas.height * 0.15, vx: -0.2, vy: 0.25, radius: 200, color: "rgba(130,140,255,", phase: 1, speed: 0.005 },
-      { x: canvas.width * 0.8, y: canvas.height * 0.8, vx: 0.3, vy: -0.2, radius: 220, color: "rgba(245,166,35,", phase: 3, speed: 0.009 },
+      // Dominant orange
+      { x: w * 0.65, y: h * 0.3, vx: 1.2, vy: 0.8, baseRadius: Math.min(w, h) * 0.28, color: "#FF6B00", phase: 0, morphSpeed: 0.012, points: generatePoints(8) },
+      // Deep amber
+      { x: w * 0.25, y: h * 0.6, vx: -0.9, vy: 1.1, baseRadius: Math.min(w, h) * 0.24, color: "#FF8C00", phase: 2, morphSpeed: 0.010, points: generatePoints(8) },
+      // Accent gold
+      { x: w * 0.5, y: h * 0.2, vx: 0.7, vy: -1.0, baseRadius: Math.min(w, h) * 0.20, color: "#FFB700", phase: 4, morphSpeed: 0.014, points: generatePoints(8) },
+      // Subtle cool accent
+      { x: w * 0.8, y: h * 0.7, vx: -1.1, vy: -0.7, baseRadius: Math.min(w, h) * 0.18, color: "#FF5500", phase: 1, morphSpeed: 0.011, points: generatePoints(8) },
     ];
 
     let time = 0;
 
     function draw() {
       if (!ctx || !canvas) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const cw = canvas.offsetWidth;
+      const ch = canvas.offsetHeight;
+
+      // Clear with near-black background
+      ctx.clearRect(0, 0, cw, ch);
+
+      // Set blend mode for natural color mixing where blobs overlap
+      ctx.globalCompositeOperation = "screen";
+
       time += 1;
 
       for (const blob of blobsRef.current) {
-        // Move
+        // Move with velocity
         blob.x += blob.vx;
         blob.y += blob.vy;
 
-        // Bounce off edges with some padding
-        const pad = blob.radius * 0.3;
-        if (blob.x - pad < 0) { blob.x = pad; blob.vx = Math.abs(blob.vx); }
-        if (blob.x + pad > canvas.width) { blob.x = canvas.width - pad; blob.vx = -Math.abs(blob.vx); }
-        if (blob.y - pad < 0) { blob.y = pad; blob.vy = Math.abs(blob.vy); }
-        if (blob.y + pad > canvas.height) { blob.y = canvas.height - pad; blob.vy = -Math.abs(blob.vy); }
+        // Bounce off edges — billiard ball style, natural reflection
+        if (blob.x < blob.baseRadius * 0.5) { blob.x = blob.baseRadius * 0.5; blob.vx = Math.abs(blob.vx); }
+        if (blob.x > cw - blob.baseRadius * 0.5) { blob.x = cw - blob.baseRadius * 0.5; blob.vx = -Math.abs(blob.vx); }
+        if (blob.y < blob.baseRadius * 0.5) { blob.y = blob.baseRadius * 0.5; blob.vy = Math.abs(blob.vy); }
+        if (blob.y > ch - blob.baseRadius * 0.5) { blob.y = ch - blob.baseRadius * 0.5; blob.vy = -Math.abs(blob.vy); }
 
-        // Morphing radius
-        const morphedRadius = blob.radius + Math.sin(time * blob.speed + blob.phase) * (blob.radius * 0.15);
+        // Draw sharp organic shape — silk ribbon / liquid feel
+        const numPoints = blob.points.length;
+        const angleStep = (Math.PI * 2) / numPoints;
 
-        // Draw blob with radial gradient
-        const gradient = ctx.createRadialGradient(blob.x, blob.y, 0, blob.x, blob.y, morphedRadius);
-        gradient.addColorStop(0, blob.color + "0.35)");
-        gradient.addColorStop(0.3, blob.color + "0.2)");
-        gradient.addColorStop(0.6, blob.color + "0.08)");
-        gradient.addColorStop(1, blob.color + "0)");
+        // Calculate all the morphed points
+        const pts: { x: number; y: number }[] = [];
+        for (let i = 0; i < numPoints; i++) {
+          const baseWobble = blob.points[i];
+          const wobble = baseWobble
+            + Math.sin(time * blob.morphSpeed + i * 1.5 + blob.phase) * 0.12
+            + Math.cos(time * blob.morphSpeed * 0.7 + i * 2.3) * 0.08;
+          const r = blob.baseRadius * wobble;
+          const angle = angleStep * i;
+          pts.push({
+            x: blob.x + Math.cos(angle) * r,
+            y: blob.y + Math.sin(angle) * r,
+          });
+        }
 
+        // Draw smooth closed curve through points using cubic bezier
         ctx.beginPath();
-        ctx.arc(blob.x, blob.y, morphedRadius, 0, Math.PI * 2);
-        ctx.fillStyle = gradient;
+        for (let i = 0; i < numPoints; i++) {
+          const curr = pts[i];
+          const next = pts[(i + 1) % numPoints];
+          const prev = pts[(i - 1 + numPoints) % numPoints];
+          const nextNext = pts[(i + 2) % numPoints];
+
+          if (i === 0) {
+            ctx.moveTo(curr.x, curr.y);
+          }
+
+          // Catmull-Rom to Bezier conversion for smooth organic curves
+          const cp1x = curr.x + (next.x - prev.x) / 6;
+          const cp1y = curr.y + (next.y - prev.y) / 6;
+          const cp2x = next.x - (nextNext.x - curr.x) / 6;
+          const cp2y = next.y - (nextNext.y - curr.y) / 6;
+
+          ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, next.x, next.y);
+        }
+        ctx.closePath();
+
+        // Solid fill — no gradient fade, no opacity reduction, full vivid
+        ctx.fillStyle = blob.color;
+        ctx.globalAlpha = 0.15;
         ctx.fill();
+        ctx.globalAlpha = 1;
       }
+
+      // Reset composite operation
+      ctx.globalCompositeOperation = "source-over";
 
       animRef.current = requestAnimationFrame(draw);
     }
@@ -89,7 +144,7 @@ export default function AnimatedBlobs() {
   return (
     <canvas
       ref={canvasRef}
-      className="absolute inset-0 z-0 pointer-events-none"
+      className="absolute inset-0 w-full h-full z-0 pointer-events-none"
     />
   );
 }

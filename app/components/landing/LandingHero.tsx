@@ -128,8 +128,8 @@ export default function LandingHero() {
       `}</style>
 
       {/* ── HERO ── */}
-      <section className="relative min-h-screen flex flex-col justify-center overflow-hidden">
-        {/* Bouncing blobs — hero only, no blur */}
+      <section className="relative flex flex-col justify-center overflow-hidden" style={{ minHeight: "110vh" }}>
+        {/* Solid bouncing blobs — no blur, no gradients fading out */}
         <AnimatedBlobs />
 
         {/* Content */}
