@@ -1,6 +1,7 @@
 "use client";
 
 import { Rocket, SlidersHorizontal, Zap, BarChart3, Eye } from "lucide-react";
+import AnimatedCampaigns from "./AnimatedCampaigns";
 
 const STEPS = [
   {
@@ -24,10 +25,7 @@ const STEPS = [
       "Every campaign, ad set, and creative tracked live",
       "Works with your existing campaigns too — not just new ones",
     ],
-    screenshot: {
-      src: "/brand/campaigns-screenshot.png",
-      alt: "Buena Onda campaigns view showing live performance metrics across ad sets",
-    },
+    animated: true, // uses AnimatedCampaigns component instead of static screenshot
   },
   {
     num: 3,
@@ -112,6 +110,11 @@ export default function LandingHowItWorks() {
                   </div>
                 </div>
 
+                {step.animated && (
+                  <div className="mt-4 rounded-xl overflow-hidden border border-white/[0.06] shadow-2xl shadow-amber-500/5 relative">
+                    <AnimatedCampaigns />
+                  </div>
+                )}
                 {step.screenshot && (
                   <div className="mt-4 rounded-xl overflow-hidden border border-white/[0.06] shadow-2xl shadow-amber-500/5">
                     <img
