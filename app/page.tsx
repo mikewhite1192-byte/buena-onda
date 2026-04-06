@@ -10,7 +10,7 @@ import AnimatedBlobs from "./components/landing/AnimatedBlobs";
 
 export default function Page() {
   return (
-    <div className="landing-dark min-h-screen bg-[#0d0f14] text-[#e8eaf0] relative">
+    <div className="landing-dark min-h-screen bg-[#080808] text-[#e8eaf0] relative">
       {/* Grain texture overlay */}
       <div className="grain-overlay" />
       {/* Grid lines background */}

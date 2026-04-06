@@ -1,174 +1,213 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
-
-interface MetaBlob {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  radius: number;
-}
+import { useEffect, useRef } from "react";
 
 export default function AnimatedBlobs() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const blobRefs = useRef<MetaBlob[]>([]);
-  const animRef = useRef<number>(0);
-  const [positions, setPositions] = useState<{ x: number; y: number; r: number }[]>([]);
-  const [scrollOpacity, setScrollOpacity] = useState(1);
-
-  // Scroll-based opacity: full in hero, 30% in content, full at pricing/CTA
-  const handleScroll = useCallback(() => {
-    const scrollY = window.scrollY;
-    const vh = window.innerHeight;
-    const docH = document.documentElement.scrollHeight;
-    const scrollBottom = docH - scrollY - vh;
-
-    // Hero zone (top 100vh) — full opacity
-    if (scrollY < vh) {
-      setScrollOpacity(0.8 + 0.2 * (1 - scrollY / vh));
-      return;
-    }
-
-    // Bottom zone (last 150vh — pricing + CTA + footer) — ramp back up
-    if (scrollBottom < vh * 1.5) {
-      const progress = 1 - scrollBottom / (vh * 1.5);
-      setScrollOpacity(0.3 + progress * 0.5);
-      return;
-    }
-
-    // Middle content — pulled back
-    setScrollOpacity(0.3);
-  }, []);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [handleScroll]);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return;
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    let animId = 0;
+    let mouseX = window.innerWidth / 2;
+    let mouseY = window.innerHeight / 2;
+    let scrollY = 0;
+    let lastScrollY = 0;
+    let scrollVelocity = 0;
 
-    const w = container.offsetWidth;
-    const h = container.offsetHeight;
-    const baseR = Math.min(w, h) * 0.18;
-
-    // 3 large metaballs
-    blobRefs.current = [
-      { x: w * 0.3, y: h * 0.35, vx: 0.6, vy: 0.45, radius: baseR * 1.3 },
-      { x: w * 0.7, y: h * 0.5, vx: -0.5, vy: 0.55, radius: baseR * 1.1 },
-      { x: w * 0.5, y: h * 0.25, vx: 0.4, vy: -0.5, radius: baseR * 0.95 },
+    // Blob physics
+    const blobs = [
+      { x: 0, y: 0, vx: 0.7, vy: 0.5, radius: 0, r: 255, g: 140, b: 0 },   // #FF8C00
+      { x: 0, y: 0, vx: -0.5, vy: 0.6, radius: 0, r: 255, g: 107, b: 0 },   // #FF6B00
+      { x: 0, y: 0, vx: 0.4, vy: -0.55, radius: 0, r: 255, g: 183, b: 0 },  // #FFB700
     ];
 
-    function tick() {
-      const blobs = blobRefs.current;
-      const cw = container!.offsetWidth;
-      const ch = container!.offsetHeight;
+    function resize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas!.width = window.innerWidth * dpr;
+      canvas!.height = window.innerHeight * dpr;
+      canvas!.style.width = window.innerWidth + "px";
+      canvas!.style.height = window.innerHeight + "px";
+      ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const base = Math.min(w, h) * 0.22;
+
+      blobs[0].x = w * 0.3; blobs[0].y = h * 0.35; blobs[0].radius = base * 1.4;
+      blobs[1].x = w * 0.7; blobs[1].y = h * 0.55; blobs[1].radius = base * 1.2;
+      blobs[2].x = w * 0.5; blobs[2].y = h * 0.25; blobs[2].radius = base * 1.0;
+    }
+    resize();
+    window.addEventListener("resize", resize);
+
+    // Mouse tracking
+    function onMouseMove(e: MouseEvent) { mouseX = e.clientX; mouseY = e.clientY; }
+    window.addEventListener("mousemove", onMouseMove);
+
+    // Scroll tracking
+    function onScroll() {
+      scrollY = window.scrollY;
+      scrollVelocity = Math.abs(scrollY - lastScrollY) * 0.15;
+      lastScrollY = scrollY;
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    // Calculate scroll-based opacity
+    function getOpacity(): number {
+      const vh = window.innerHeight;
+      const docH = document.documentElement.scrollHeight;
+      const scrollBottom = docH - scrollY - vh;
+
+      // Hero — full
+      if (scrollY < vh) return 0.85 + 0.15 * (1 - scrollY / vh);
+      // Bottom (pricing/CTA) — ramp back up
+      if (scrollBottom < vh * 1.8) {
+        const progress = 1 - scrollBottom / (vh * 1.8);
+        return 0.25 + progress * 0.55;
+      }
+      // Content — pulled back
+      return 0.25;
+    }
+
+    // Metaball field function — returns intensity at point (px, py)
+    function field(px: number, py: number): number {
+      let sum = 0;
       for (const b of blobs) {
-        b.x += b.vx;
-        b.y += b.vy;
+        const dx = px - b.x;
+        const dy = py - b.y;
+        const distSq = dx * dx + dy * dy;
+        sum += (b.radius * b.radius) / distSq;
+      }
+      return sum;
+    }
 
-        // Bounce
-        if (b.x - b.radius < 0) { b.x = b.radius; b.vx = Math.abs(b.vx); }
-        if (b.x + b.radius > cw) { b.x = cw - b.radius; b.vx = -Math.abs(b.vx); }
-        if (b.y - b.radius < 0) { b.y = b.radius; b.vy = Math.abs(b.vy); }
-        if (b.y + b.radius > ch) { b.y = ch - b.radius; b.vy = -Math.abs(b.vy); }
+    // Get dominant color at point based on closest blob influence
+    function getColor(px: number, py: number): [number, number, number] {
+      let totalWeight = 0;
+      let r = 0, g = 0, b = 0;
+      for (const blob of blobs) {
+        const dx = px - blob.x;
+        const dy = py - blob.y;
+        const distSq = dx * dx + dy * dy;
+        const weight = (blob.radius * blob.radius) / distSq;
+        r += blob.r * weight;
+        g += blob.g * weight;
+        b += blob.b * weight;
+        totalWeight += weight;
+      }
+      return [r / totalWeight, g / totalWeight, b / totalWeight];
+    }
 
-        // Slight attraction between blobs when close — creates the stretch effect
+    function draw() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+
+      ctx!.clearRect(0, 0, w, h);
+
+      // Update blob positions
+      for (const blob of blobs) {
+        // Mouse attraction — 8% pull
+        const mdx = mouseX - blob.x;
+        const mdy = mouseY - blob.y;
+        const mDist = Math.sqrt(mdx * mdx + mdy * mdy);
+        if (mDist > 10) {
+          blob.vx += (mdx / mDist) * 0.008;
+          blob.vy += (mdy / mDist) * 0.008;
+        }
+
+        // Scroll disturbance
+        blob.vy += scrollVelocity * 0.02 * (Math.random() - 0.5);
+        blob.vx += scrollVelocity * 0.01 * (Math.random() - 0.5);
+
+        // Blob-to-blob attraction when close
         for (const other of blobs) {
-          if (b === other) continue;
-          const dx = other.x - b.x;
-          const dy = other.y - b.y;
+          if (blob === other) continue;
+          const dx = other.x - blob.x;
+          const dy = other.y - blob.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          const minDist = b.radius + other.radius;
-          if (dist < minDist * 1.8 && dist > 0) {
-            const force = 0.0003 * (minDist * 1.8 - dist);
-            b.vx += (dx / dist) * force;
-            b.vy += (dy / dist) * force;
+          const threshold = blob.radius + other.radius;
+          if (dist < threshold * 2 && dist > 1) {
+            const force = 0.0004 * Math.max(0, threshold * 2 - dist);
+            blob.vx += (dx / dist) * force;
+            blob.vy += (dy / dist) * force;
           }
         }
 
-        // Dampen velocity slightly to keep things smooth
-        b.vx *= 0.999;
-        b.vy *= 0.999;
+        // Dampen
+        blob.vx *= 0.995;
+        blob.vy *= 0.995;
 
-        // Ensure minimum speed so they keep moving
-        const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
-        if (speed < 0.3) {
-          b.vx *= 1.5;
-          b.vy *= 1.5;
+        // Minimum speed
+        const speed = Math.sqrt(blob.vx * blob.vx + blob.vy * blob.vy);
+        if (speed < 0.3) { blob.vx *= 2; blob.vy *= 2; }
+        if (speed > 3) { blob.vx *= 0.8; blob.vy *= 0.8; }
+
+        // Move
+        blob.x += blob.vx;
+        blob.y += blob.vy;
+
+        // Bounce off viewport edges
+        if (blob.x < blob.radius * 0.3) { blob.x = blob.radius * 0.3; blob.vx = Math.abs(blob.vx); }
+        if (blob.x > w - blob.radius * 0.3) { blob.x = w - blob.radius * 0.3; blob.vx = -Math.abs(blob.vx); }
+        if (blob.y < blob.radius * 0.3) { blob.y = blob.radius * 0.3; blob.vy = Math.abs(blob.vy); }
+        if (blob.y > h - blob.radius * 0.3) { blob.y = h - blob.radius * 0.3; blob.vy = -Math.abs(blob.vy); }
+      }
+
+      // Decay scroll velocity
+      scrollVelocity *= 0.92;
+
+      // Render metaballs using pixel sampling
+      const opacity = getOpacity();
+      const step = 4; // Sample every 4px for performance
+      const imgData = ctx!.createImageData(w, h);
+      const data = imgData.data;
+      const threshold = 1.0;
+
+      for (let py = 0; py < h; py += step) {
+        for (let px = 0; px < w; px += step) {
+          const f = field(px, py);
+          if (f >= threshold) {
+            const [r, g, b] = getColor(px, py);
+            const alpha = Math.min((f - threshold) * 180, 255) * opacity;
+
+            // Fill the step x step block
+            for (let dy = 0; dy < step && py + dy < h; dy++) {
+              for (let dx = 0; dx < step && px + dx < w; dx++) {
+                const idx = ((py + dy) * w + (px + dx)) * 4;
+                data[idx] = r;
+                data[idx + 1] = g;
+                data[idx + 2] = b;
+                data[idx + 3] = alpha;
+              }
+            }
+          }
         }
       }
 
-      setPositions(blobs.map(b => ({ x: b.x, y: b.y, r: b.radius })));
-      animRef.current = requestAnimationFrame(tick);
+      ctx!.putImageData(imgData, 0, 0);
+
+      animId = requestAnimationFrame(draw);
     }
 
-    // Initialize positions
-    setPositions(blobRefs.current.map(b => ({ x: b.x, y: b.y, r: b.radius })));
-    animRef.current = requestAnimationFrame(tick);
+    animId = requestAnimationFrame(draw);
 
-    return () => cancelAnimationFrame(animRef.current);
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("scroll", onScroll);
+    };
   }, []);
 
   return (
-    <div ref={containerRef} className="fixed inset-0 z-0 pointer-events-none overflow-hidden" id="metaball-container">
-      <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg" style={{ opacity: scrollOpacity, transition: "opacity 0.3s ease" }}>
-        <defs>
-          {/* The metaball filter — this is the magic */}
-          {/* 1. Blur the circles so their edges bleed together */}
-          {/* 2. Crank contrast so only the thick overlapping parts survive */}
-          {/* 3. Result: liquid merging effect with crisp organic edges */}
-          <filter id="metaball-filter" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="28" result="blur" />
-            <feColorMatrix
-              in="blur"
-              mode="matrix"
-              values="1 0 0 0 0
-                      0 1 0 0 0
-                      0 0 1 0 0
-                      0 0 0 25 -10"
-              result="contrast"
-            />
-            <feComposite in="SourceGraphic" in2="contrast" operator="atop" />
-          </filter>
-        </defs>
-
-        <g filter="url(#metaball-filter)">
-          {/* Blob 1 — vivid orange */}
-          {positions[0] && (
-            <circle
-              cx={positions[0].x}
-              cy={positions[0].y}
-              r={positions[0].r}
-              fill="#FF8C00"
-              opacity="0.18"
-            />
-          )}
-          {/* Blob 2 — deep amber */}
-          {positions[1] && (
-            <circle
-              cx={positions[1].x}
-              cy={positions[1].y}
-              r={positions[1].r}
-              fill="#FF6B00"
-              opacity="0.15"
-            />
-          )}
-          {/* Blob 3 — gold */}
-          {positions[2] && (
-            <circle
-              cx={positions[2].x}
-              cy={positions[2].y}
-              r={positions[2].r}
-              fill="#FFB700"
-              opacity="0.13"
-            />
-          )}
-        </g>
-      </svg>
-    </div>
+    <canvas
+      ref={canvasRef}
+      className="fixed inset-0 z-0 pointer-events-none"
+      style={{ background: "#080808" }}
+    />
   );
 }
