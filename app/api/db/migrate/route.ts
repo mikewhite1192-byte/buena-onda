@@ -10,11 +10,14 @@ export async function GET() {
   if (isErrorResponse(ownerCheck)) return ownerCheck;
   try {
     const sql = getDb();
-    // Split into individual statements so ALTER TABLE + CREATE TABLE don't conflict in batch
-    const statements = MIGRATION_SQL
+    // Strip SQL comments then split into individual statements
+    const cleaned = MIGRATION_SQL
+      .replace(/--[^\n]*/g, "")  // remove single-line comments
+      .replace(/\/\*[\s\S]*?\*\//g, ""); // remove block comments
+    const statements = cleaned
       .split(";")
       .map(s => s.trim())
-      .filter(s => s.length > 0 && !s.startsWith("--"));
+      .filter(s => s.length > 0);
 
     const errors: string[] = [];
     for (const stmt of statements) {
