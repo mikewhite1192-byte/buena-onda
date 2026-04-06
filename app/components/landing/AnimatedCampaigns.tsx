@@ -26,6 +26,25 @@ function useCountUp(target: number, duration: number, start: boolean, delay: num
   return val;
 }
 
+function useCountDown(from: number, to: number, duration: number, start: boolean, delay: number = 0) {
+  const [val, setVal] = useState(from);
+  useEffect(() => {
+    if (!start) return;
+    const t = setTimeout(() => {
+      const s = performance.now();
+      const animate = (now: number) => {
+        const p = Math.min((now - s) / duration, 1);
+        const ease = 1 - Math.pow(1 - p, 4);
+        setVal(from - ease * (from - to));
+        if (p < 1) requestAnimationFrame(animate);
+      };
+      requestAnimationFrame(animate);
+    }, delay);
+    return () => clearTimeout(t);
+  }, [start, from, to, duration, delay]);
+  return val;
+}
+
 const CAMPAIGNS = [
   { name: "Apex HVAC | Homeowners | AC Leads", id: "demo_h_001", spend: 3159.52, leads: 109, cpl: 28.99, ctr: 2.60, freq: 2, impr: 285572, reach: 0 },
   { name: "Apex HVAC | Retargeting | Hot Summer", id: "demo_h_002", spend: 2059.33, leads: 82, cpl: 25.11, ctr: 4.10, freq: 3.3, impr: 122388, reach: 0 },
@@ -47,20 +66,20 @@ export default function AnimatedCampaigns() {
   const dur = 90000;
   const spend = useCountUp(5218.85, dur, vis);
   const leads = useCountUp(191, dur, vis, 500);
-  const cpl = useCountUp(27.32, dur, vis, 1000);
+  const cpl = useCountDown(30, 27.32, dur, vis, 1000);
   const ctr = useCountUp(3.35, dur, vis, 1500);
   const freq = useCountUp(2.65, dur, vis, 2000);
 
   // Campaign row values
   const r1spend = useCountUp(3159.52, dur, vis, 3000);
   const r1leads = useCountUp(109, dur, vis, 3500);
-  const r1cpl = useCountUp(28.99, dur, vis, 4000);
+  const r1cpl = useCountDown(30, 28.99, dur, vis, 4000);
   const r1ctr = useCountUp(2.60, dur, vis, 4500);
   const r1impr = useCountUp(285572, dur, vis, 5000);
 
   const r2spend = useCountUp(2059.33, dur, vis, 3100);
   const r2leads = useCountUp(82, dur, vis, 3600);
-  const r2cpl = useCountUp(25.11, dur, vis, 4100);
+  const r2cpl = useCountDown(30, 25.11, dur, vis, 4100);
   const r2ctr = useCountUp(4.10, dur, vis, 4600);
   const r2impr = useCountUp(122388, dur, vis, 5100);
 
