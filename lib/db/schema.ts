@@ -407,8 +407,7 @@ ALTER TABLE ad_metrics ADD COLUMN IF NOT EXISTS ad_account_id TEXT;
 ALTER TABLE ad_metrics ADD COLUMN IF NOT EXISTS campaign_id TEXT;
 ALTER TABLE ad_metrics ADD COLUMN IF NOT EXISTS frequency NUMERIC(10,2);
 ALTER TABLE ad_metrics ADD COLUMN IF NOT EXISTS date_recorded DATE;
--- Backfill date_recorded from date for existing rows
-UPDATE ad_metrics SET date_recorded = date WHERE date_recorded IS NULL;
+-- After migration, run manually if needed: UPDATE ad_metrics SET date_recorded = date WHERE date_recorded IS NULL;
 
 -- ═══════════════════════════════════════════════════════════════════════
 -- AUDIT FIX: Missing columns on agent_actions (code queries these)
@@ -419,8 +418,7 @@ ALTER TABLE agent_actions ADD COLUMN IF NOT EXISTS action_details JSONB DEFAULT 
 ALTER TABLE agent_actions ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ;
 ALTER TABLE agent_actions ADD COLUMN IF NOT EXISTS resolved_by TEXT;
 ALTER TABLE agent_actions ADD COLUMN IF NOT EXISTS owner_id TEXT;
--- Copy existing details → action_details for rows that have data
-UPDATE agent_actions SET action_details = details WHERE action_details = '{}' AND details != '{}';
+-- After migration, run manually if needed: UPDATE agent_actions SET action_details = details WHERE action_details = '{}' AND details != '{}';
 
 -- ═══════════════════════════════════════════════════════════════════════
 -- AUDIT FIX: Missing columns on clients (code queries these)
