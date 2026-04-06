@@ -109,12 +109,12 @@ export default function LandingHowItWorks() {
                 </div>
 
                 {step.animated && (
-                  <div className="mt-4 rounded-xl overflow-hidden border border-white/[0.06] shadow-2xl shadow-amber-500/5 relative">
+                  <div className="hidden md:block mt-4 rounded-xl overflow-hidden border border-white/[0.06] shadow-2xl shadow-amber-500/5 relative">
                     <AnimatedCampaigns />
                   </div>
                 )}
                 {step.animatedReport && (
-                  <div className="mt-4 rounded-xl overflow-hidden border border-white/[0.06] shadow-2xl shadow-amber-500/5 relative">
+                  <div className="hidden md:block mt-4 rounded-xl overflow-hidden border border-white/[0.06] shadow-2xl shadow-amber-500/5 relative">
                     <AnimatedReport />
                   </div>
                 )}
