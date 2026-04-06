@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { Zap, Pause, Clock, RefreshCw, TrendingUp, Target, BarChart3, MessageSquare, OctagonX, CheckCircle2 } from "lucide-react";
+import AnimatedDashboard from "./AnimatedDashboard";
 
 /* ── Ticker Data ── */
 
@@ -168,7 +169,7 @@ export default function LandingHero() {
             <div className="absolute -inset-8 rounded-3xl pointer-events-none z-0 opacity-60"
               style={{ background: "radial-gradient(ellipse at 50% 80%, rgba(245,166,35,0.12) 0%, transparent 60%)", filter: "blur(60px)" }} />
 
-            {/* Dashboard */}
+            {/* Animated Dashboard */}
             <div
               className="relative z-[1] rounded-2xl overflow-hidden will-change-transform"
               style={{
@@ -177,22 +178,9 @@ export default function LandingHero() {
                 animation: "dashGlow 5s ease-in-out infinite",
               }}
             >
-              {/* Gradient border effect */}
               <div className="p-px rounded-2xl bg-gradient-to-b from-white/10 via-white/[0.03] to-transparent">
-                <div className="rounded-2xl overflow-hidden bg-[#0d0f14] relative">
-                  <img
-                    src="/brand/dashboard-screenshot.png"
-                    alt="Buena Onda dashboard showing live campaign metrics, platform breakdown, alerts, and AI recommendations"
-                    className="w-full block"
-                  />
-                  {/* Shimmer scan line — feels like live data */}
-                  <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl">
-                    <div className="absolute inset-0" style={{
-                      background: "linear-gradient(90deg, transparent 0%, transparent 40%, rgba(245,166,35,0.04) 50%, transparent 60%, transparent 100%)",
-                      backgroundSize: "200% 100%",
-                      animation: "dashScan 4s ease-in-out infinite",
-                    }} />
-                  </div>
+                <div className="rounded-2xl overflow-hidden bg-[#0d0f14]">
+                  <AnimatedDashboard />
                 </div>
               </div>
             </div>
