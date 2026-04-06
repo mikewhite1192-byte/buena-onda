@@ -565,6 +565,21 @@ CREATE INDEX IF NOT EXISTS idx_feedback_user ON feedback_submissions(clerk_user_
 CREATE INDEX IF NOT EXISTS idx_team_invites_email ON team_invites(email);
 CREATE INDEX IF NOT EXISTS idx_ad_metrics_ad_set ON ad_metrics(ad_set_id);
 CREATE INDEX IF NOT EXISTS idx_ad_metrics_account ON ad_metrics(ad_account_id);
+
+-- Site traffic tracking (owner dashboard analytics)
+CREATE TABLE IF NOT EXISTS site_traffic (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  path        TEXT        NOT NULL,
+  referrer    TEXT,
+  user_agent  TEXT,
+  country     TEXT,
+  visitor_id  TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_site_traffic_created ON site_traffic(created_at);
+CREATE INDEX IF NOT EXISTS idx_site_traffic_path ON site_traffic(path);
+CREATE INDEX IF NOT EXISTS idx_site_traffic_visitor ON site_traffic(visitor_id);
 `;
 
 // TypeScript types matching the tables

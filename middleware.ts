@@ -27,6 +27,8 @@ const isPublicRoute = createRouteMatcher([
   "/api/affiliates(.*)",
   "/api/webhooks/(.*)",
   "/api/stripe/checkout",
+  "/api/traffic",
+  "/api/og",
   // Client portal — cookie-based auth, no Clerk required
   "/portal(.*)",
   "/api/client-portal(.*)",
@@ -121,6 +123,36 @@ export default clerkMiddleware(async (auth, req) => {
         });
         return res;
       }
+    }
+  }
+
+  // Track page views on public pages (fire and forget)
+  if (
+    isPublicRoute(req) &&
+    !path.startsWith("/api/") &&
+    !path.startsWith("/_next/") &&
+    !path.match(/\.(ico|png|jpg|svg|css|js|woff2?)$/)
+  ) {
+    const visitorId = req.cookies.get("_bv")?.value || crypto.randomUUID();
+    const referrer = req.headers.get("referer") || null;
+    const userAgent = req.headers.get("user-agent") || null;
+
+    fetch(`${req.nextUrl.origin}/api/traffic`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path, referrer, userAgent, visitorId }),
+    }).catch(() => {});
+
+    // Set visitor cookie if new
+    if (!req.cookies.get("_bv")) {
+      const res = NextResponse.next();
+      res.cookies.set("_bv", visitorId, { httpOnly: true, secure: true, sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
+
+      // Also handle ref cookie if present
+      if (ref && /^[a-z0-9-]{3,30}$/.test(ref)) {
+        res.cookies.set("bo_ref", ref, { maxAge: 60 * 60 * 24 * 90, path: "/", sameSite: "lax", httpOnly: false });
+      }
+      return res;
     }
   }
 

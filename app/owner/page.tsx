@@ -51,7 +51,17 @@ type User = {
   is_at_risk: boolean;
 };
 
-type TabId = "overview" | "users" | "alerts" | "tickets" | "feedback" | "content";
+type TrafficData = {
+  total_views: number;
+  unique_visitors: number;
+  today: number;
+  yesterday: number;
+  daily: { date: string; views: string; visitors: string }[];
+  top_pages: { path: string; views: string; visitors: string }[];
+  top_referrers: { referrer: string; views: string }[];
+};
+
+type TabId = "overview" | "users" | "alerts" | "tickets" | "feedback" | "traffic" | "content";
 
 export default function OwnerDashboard() {
   const router = useRouter();
@@ -65,6 +75,8 @@ export default function OwnerDashboard() {
   const [tickets, setTickets] = useState<Record<string, unknown>[]>([]);
   const [feedback, setFeedback] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
+  const [traffic, setTraffic] = useState<TrafficData | null>(null);
+  const [trafficRange, setTrafficRange] = useState("7d");
   const [outreachId, setOutreachId] = useState<string | null>(null);
   const [outreachMsg, setOutreachMsg] = useState("");
   const [sendingOutreach, setSendingOutreach] = useState(false);
@@ -73,6 +85,7 @@ export default function OwnerDashboard() {
   useEffect(() => { loadUsers(); }, [userFilter]);
   useEffect(() => { if (tab === "tickets") loadTickets(); }, [tab]);
   useEffect(() => { if (tab === "feedback") loadFeedbackData(); }, [tab]);
+  useEffect(() => { if (tab === "traffic") loadTraffic(); }, [tab, trafficRange]);
 
   async function loadStats() {
     setLoading(true);
@@ -98,6 +111,11 @@ export default function OwnerDashboard() {
     if (res.ok) setFeedback((await res.json()).feedback ?? []);
   }
 
+  async function loadTraffic() {
+    const res = await fetch(`/api/owner/traffic?range=${trafficRange}`);
+    if (res.ok) setTraffic(await res.json());
+  }
+
   async function sendOutreach() {
     if (!outreachId || !outreachMsg.trim()) return;
     setSendingOutreach(true);
@@ -117,6 +135,7 @@ export default function OwnerDashboard() {
     { id: "alerts", label: `At-Risk${stats ? ` (${users.filter(u => u.is_at_risk).length})` : ""}` },
     { id: "tickets", label: `Tickets${stats ? ` (${stats.support.open_tickets})` : ""}` },
     { id: "feedback", label: `Feedback${stats ? ` (${stats.support.open_feedback})` : ""}` },
+    { id: "traffic", label: "Traffic" },
     { id: "content", label: "Content" },
   ];
 
@@ -331,6 +350,106 @@ export default function OwnerDashboard() {
               </div>
             ))}
           </div>
+        )}
+
+        {/* ── Traffic Tab ── */}
+        {tab === "traffic" && (
+          <>
+            <div className="flex gap-2 mb-6 flex-wrap">
+              {[["7d","7 days"],["30d","30 days"],["90d","90 days"],["all","All time"]].map(([v,l]) => (
+                <button key={v} onClick={() => setTrafficRange(v)}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs cursor-pointer transition-all duration-200 ${
+                    trafficRange === v ? "bg-amber-500/10 border border-amber-500/30 text-amber-400" : "bg-transparent border border-white/[0.06] text-[#8b8fa8] hover:border-white/[0.15]"
+                  }`}>
+                  {l}
+                </button>
+              ))}
+            </div>
+
+            {!traffic ? (
+              <div className="text-[#8b8fa8] text-sm py-12 text-center">Loading...</div>
+            ) : (
+              <>
+                <SectionLabel>Overview</SectionLabel>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-6">
+                  <StatCard label="Total Views" value={traffic.total_views.toLocaleString()} color="#f5a623" sub={`in ${trafficRange}`} />
+                  <StatCard label="Unique Visitors" value={traffic.unique_visitors.toLocaleString()} color="#7b8cde" />
+                  <StatCard label="Today" value={traffic.today.toLocaleString()} color="#4ade80" />
+                  <StatCard label="Yesterday" value={traffic.yesterday.toLocaleString()} sub={traffic.yesterday > 0 && traffic.today > 0 ? `${traffic.today > traffic.yesterday ? "+" : ""}${Math.round(((traffic.today - traffic.yesterday) / traffic.yesterday) * 100)}% vs yesterday` : undefined} />
+                </div>
+
+                {/* Daily chart - simple bar visualization */}
+                {traffic.daily.length > 0 && (
+                  <>
+                    <SectionLabel>Daily Views</SectionLabel>
+                    <div className="bg-[#13151d] border border-white/[0.06] rounded-xl p-5 mb-6">
+                      <div className="flex items-end gap-[3px] h-[120px]">
+                        {traffic.daily.map((d, i) => {
+                          const maxViews = Math.max(...traffic.daily.map(x => Number(x.views)), 1);
+                          const height = (Number(d.views) / maxViews) * 100;
+                          return (
+                            <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
+                              <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] text-amber-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                {Number(d.views)} views
+                              </div>
+                              <div
+                                className="w-full rounded-t bg-amber-500/60 hover:bg-amber-500 transition-colors cursor-default"
+                                style={{ height: `${Math.max(height, 2)}%` }}
+                              />
+                              {traffic.daily.length <= 14 && (
+                                <div className="text-[7px] text-[#5a5e72] -rotate-45 origin-top-left whitespace-nowrap mt-1">
+                                  {new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Top pages */}
+                  <div>
+                    <SectionLabel>Top Pages</SectionLabel>
+                    <div className="bg-[#13151d] border border-white/[0.06] rounded-xl overflow-hidden">
+                      {traffic.top_pages.length === 0 ? (
+                        <div className="text-[#5a5e72] text-xs py-6 text-center">No data yet</div>
+                      ) : traffic.top_pages.map((p, i) => (
+                        <div key={i} className="flex items-center justify-between px-4 py-2.5 hover:bg-white/[0.02] transition-colors" style={i > 0 ? { borderTop: "1px solid rgba(255,255,255,0.04)" } : undefined}>
+                          <span className="text-xs text-[#e8eaf0] font-mono truncate flex-1 mr-3">{p.path}</span>
+                          <div className="flex gap-3 text-right flex-shrink-0">
+                            <span className="text-xs text-amber-400 font-bold">{Number(p.views).toLocaleString()}</span>
+                            <span className="text-[10px] text-[#5a5e72]">{Number(p.visitors).toLocaleString()} uniq</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Top referrers */}
+                  <div>
+                    <SectionLabel>Top Referrers</SectionLabel>
+                    <div className="bg-[#13151d] border border-white/[0.06] rounded-xl overflow-hidden">
+                      {traffic.top_referrers.length === 0 ? (
+                        <div className="text-[#5a5e72] text-xs py-6 text-center">No data yet</div>
+                      ) : traffic.top_referrers.map((r, i) => {
+                        let displayRef = r.referrer;
+                        try { displayRef = new URL(r.referrer).hostname; } catch { /* use raw */ }
+                        return (
+                          <div key={i} className="flex items-center justify-between px-4 py-2.5 hover:bg-white/[0.02] transition-colors" style={i > 0 ? { borderTop: "1px solid rgba(255,255,255,0.04)" } : undefined}>
+                            <span className="text-xs text-[#e8eaf0] truncate flex-1 mr-3">{displayRef}</span>
+                            <span className="text-xs text-amber-400 font-bold flex-shrink-0">{Number(r.views).toLocaleString()}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </>
         )}
 
         {/* ── Content Tab ── */}
