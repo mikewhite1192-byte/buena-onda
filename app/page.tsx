@@ -15,7 +15,7 @@ export default function Page() {
       <AnimatedBlobs />
 
       {/* PAGE — all content sits above blobs */}
-      <div className="relative min-h-screen text-[#e8eaf0]" style={{ zIndex: 1, background: "transparent" }}>
+      <div className="relative min-h-screen text-[#e8eaf0]" data-scroll-content style={{ zIndex: 1, background: "transparent" }}>
         <div className="grain-overlay" />
         <div className="grid-bg" />
         <LandingNav />

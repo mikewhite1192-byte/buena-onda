@@ -154,6 +154,15 @@ html, body {
   --landing-faint: #5a5e72;
 }
 
+/* ─── Text wrap glass card over metaballs ─── */
+.tw {
+  background: rgba(6,6,8,0.45);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+  padding: 48px 40px;
+}
+
 /* ─── Immersive hero effects ─── */
 @keyframes ambient-shift {
   0%, 100% { transform: translate(0, 0) scale(1); }
