@@ -131,39 +131,39 @@ export default function LandingHero() {
       <section className="relative flex flex-col justify-center overflow-hidden" style={{ minHeight: "110vh" }}>
 
         {/* Content */}
-        <div className="relative z-[2] max-w-[1100px] mx-auto px-6 pt-44 pb-16">
+        <div className="relative z-[2] max-w-[1100px] mx-auto px-4 md:px-6 pt-28 md:pt-44 pb-10 md:pb-16">
 
-          {/* Headline — massive, confident, single statement */}
-          <div className="max-w-[900px] mx-auto text-center mb-6">
-            <h1 className="hero-fade-in hero-fade-d1 text-[clamp(48px,8vw,96px)] font-extrabold leading-[0.95] tracking-[-3px] text-[#e8eaf0]">
+          {/* Headline */}
+          <div className="max-w-[900px] mx-auto text-center mb-4 md:mb-6">
+            <h1 className="hero-fade-in hero-fade-d1 text-[clamp(32px,7vw,96px)] font-extrabold leading-[0.95] tracking-[-2px] md:tracking-[-3px] text-[#e8eaf0]">
               Your ads managed by
               <span className="bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 bg-clip-text text-transparent"> AI that never sleeps</span>
             </h1>
           </div>
 
-          {/* Subheadline — one clean line */}
-          <p className="hero-fade-in hero-fade-d2 text-center text-lg md:text-xl text-[#8b8fa8] max-w-[600px] mx-auto mb-10 leading-relaxed">
+          {/* Subheadline */}
+          <p className="hero-fade-in hero-fade-d2 text-center text-base md:text-xl text-[#8b8fa8] max-w-[600px] mx-auto mb-8 md:mb-10 leading-relaxed px-2">
             Launch, optimize, and report on Meta, Google, and TikTok campaigns — autonomously. Like a senior media buyer, around the clock.
           </p>
 
-          {/* CTAs — clean, two options */}
-          <div className="hero-fade-in hero-fade-d3 flex gap-4 justify-center mb-20">
+          {/* CTAs — stack on mobile */}
+          <div className="hero-fade-in hero-fade-d3 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center mb-12 md:mb-20 px-4 sm:px-0">
             <a href="/demo"
-              className="px-8 py-4 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-[#0d0f14] text-base font-bold no-underline shadow-[0_4px_30px_rgba(245,166,35,0.3)] hover:shadow-[0_8px_40px_rgba(245,166,35,0.4)] hover:-translate-y-0.5 transition-all duration-300">
+              className="w-full sm:w-auto text-center px-8 py-4 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-[#0d0f14] text-base font-bold no-underline shadow-[0_4px_30px_rgba(245,166,35,0.3)] hover:shadow-[0_8px_40px_rgba(245,166,35,0.4)] hover:-translate-y-0.5 transition-all duration-300">
               Try the live demo
             </a>
             <Link href="/#pricing"
-              className="px-8 py-4 rounded-full border border-white/15 text-[#e8eaf0] text-base font-medium no-underline hover:border-white/30 hover:bg-white/[0.03] transition-all duration-300">
+              className="w-full sm:w-auto text-center px-8 py-4 rounded-full border border-white/15 text-[#e8eaf0] text-base font-medium no-underline hover:border-white/30 hover:bg-white/[0.03] transition-all duration-300">
               View pricing
             </Link>
           </div>
 
-          {/* Dashboard — floating 3D with tilt */}
+          {/* Dashboard — hidden on small mobile, 3D tilt on desktop */}
           <div
             ref={dashRef}
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
-            className="hero-fade-in hero-fade-d4 relative max-w-[960px] mx-auto"
+            className="hero-fade-in hero-fade-d4 relative max-w-[960px] mx-auto hidden sm:block"
             style={{ perspective: 1200 }}
           >
             {/* Glow behind */}
@@ -192,7 +192,7 @@ export default function LandingHero() {
         <div className="hero-fade-in hero-fade-d5 relative z-[2] py-10 border-t border-white/[0.04]">
           <div className="max-w-[900px] mx-auto px-6 text-center">
             <div className="text-[11px] text-[#5a5e72] uppercase tracking-[3px] font-medium mb-8">Integrates with</div>
-            <div className="flex justify-center items-center gap-12 md:gap-16 flex-wrap opacity-50 hover:opacity-70 transition-opacity duration-500">
+            <div className="grid grid-cols-3 md:flex md:justify-center items-center gap-8 md:gap-16 max-w-[300px] md:max-w-none mx-auto opacity-50 hover:opacity-70 transition-opacity duration-500">
               {/* Meta — infinity mark */}
               <svg className="h-5" viewBox="0 0 36 16" fill="white"><path d="M8.14 0C3.73 0 1.2 3.01.29 5.57A18.4 18.4 0 0 0 0 8c0 1.2.13 2.18.29 2.43C1.2 12.99 3.73 16 8.14 16c3.2 0 5.63-1.82 7.86-5.14C18.23 14.18 20.66 16 23.86 16c4.41 0 6.94-3.01 7.85-5.57.16-.25.29-1.23.29-2.43s-.13-2.18-.29-2.43C30.8 3.01 28.27 0 23.86 0c-3.2 0-5.63 1.82-7.86 5.14C13.77 1.82 11.34 0 8.14 0zm0 3c2.08 0 3.9 1.42 5.86 5-1.96 3.58-3.78 5-5.86 5-2.7 0-4.32-2.12-4.88-3.47A13 13 0 0 1 3 8c0-.72.07-1.2.26-1.53C3.82 5.12 5.44 3 8.14 3zm15.72 0c2.7 0 4.32 2.12 4.88 3.47.19.33.26.81.26 1.53s-.07 1.2-.26 1.53c-.56 1.35-2.18 3.47-4.88 3.47-2.08 0-3.9-1.42-5.86-5 1.96-3.58 3.78-5 5.86-5z"/></svg>
               {/* Google */}
@@ -211,9 +211,9 @@ export default function LandingHero() {
       </section>
 
       {/* ── Ticker ── */}
-      <div className="relative overflow-hidden border-y border-white/[0.04] bg-[#0d0f14] py-3.5">
-        <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-[#0d0f14] to-transparent z-10 pointer-events-none" />
-        <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-[#0d0f14] to-transparent z-10 pointer-events-none" />
+      <div className="relative overflow-hidden border-y border-white/[0.04] py-3.5">
+        <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-[#080808] to-transparent z-10 pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-[#080808] to-transparent z-10 pointer-events-none" />
         <div className="flex animate-ticker" style={{ width: "max-content" }}>
           {tickerItems.map((item, i) => (
             <div key={i} className="flex items-center gap-2 px-8 whitespace-nowrap">
@@ -226,7 +226,7 @@ export default function LandingHero() {
       </div>
 
       {/* ── Stats ── */}
-      <div className="bg-[#0d0f14] py-16 px-6">
+      <div className="py-16 px-6">
         <div className="max-w-[700px] mx-auto grid grid-cols-3 gap-8 max-[480px]:grid-cols-1 max-[480px]:gap-10 max-[480px]:max-w-[260px]">
           <StatCounter value={40} suffix="%" decimal={false} label="avg CPL reduction" />
           <StatCounter value={3.8} suffix="x" decimal={true} label="avg ROAS lift" />
