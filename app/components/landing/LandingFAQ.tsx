@@ -46,7 +46,7 @@ export default function LandingFAQ() {
   const [open, setOpen] = useState<number | null>(null);
 
   return (
-    <section id="faq" className="py-24 px-6 bg-[#0d0f14]">
+    <section id="faq" className="py-24 px-6 ">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="text-center mb-14">

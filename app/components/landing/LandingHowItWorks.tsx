@@ -70,7 +70,7 @@ const STEPS = [
 
 export default function LandingHowItWorks() {
   return (
-    <section id="how-it-works" className="py-24 px-6 bg-[#0d0f14]">
+    <section id="how-it-works" className="py-24 px-6 ">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="text-center mb-14">

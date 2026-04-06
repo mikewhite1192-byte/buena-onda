@@ -10,16 +10,14 @@ import AnimatedBlobs from "./components/landing/AnimatedBlobs";
 
 export default function Page() {
   return (
-    <div className="landing-dark min-h-screen bg-[#080808] text-[#e8eaf0] relative">
-      {/* Grain texture overlay */}
-      <div className="grain-overlay" />
-      {/* Grid lines background */}
-      <div className="grid-bg" />
-
-      {/* Metaball liquid blobs — fixed viewport, scroll-reactive opacity */}
+    <>
+      {/* BLOBS — rendered OUTSIDE all containers, position fixed, z-0 */}
       <AnimatedBlobs />
 
-      <div className="relative z-[1]">
+      {/* PAGE — all content sits above blobs */}
+      <div className="relative min-h-screen text-[#e8eaf0]" style={{ zIndex: 1, background: "transparent" }}>
+        <div className="grain-overlay" />
+        <div className="grid-bg" />
         <LandingNav />
         <LandingHero />
         <ScrollReveal>
@@ -36,6 +34,6 @@ export default function Page() {
         </ScrollReveal>
         <LandingFooter />
       </div>
-    </div>
+    </>
   );
 }

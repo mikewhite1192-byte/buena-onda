@@ -2,7 +2,7 @@
 
 export default function LandingFooter() {
   return (
-    <footer className="bg-[#0a0c10] border-t border-white/[0.06] py-16 px-6">
+    <footer className="bg-transparent border-t border-white/[0.06] py-16 px-6">
       <div className="max-w-5xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
           {/* Brand */}

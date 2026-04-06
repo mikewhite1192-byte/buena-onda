@@ -68,7 +68,7 @@ export default function LandingDemo() {
   const done = visibleCount >= flow.messages.length;
 
   return (
-    <section id="demo" className="py-24 px-6 bg-[#0d0f14]">
+    <section id="demo" className="py-24 px-6 ">
       <div className="max-w-[800px] mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
