@@ -5,6 +5,7 @@ import LandingDemo from "./components/landing/LandingDemo";
 import LandingPricing from "./components/landing/LandingPricing";
 import LandingFAQ from "./components/landing/LandingFAQ";
 import LandingFooter from "./components/landing/LandingFooter";
+import ScrollReveal from "./components/landing/ScrollReveal";
 
 export default function Page() {
   return (
@@ -16,10 +17,18 @@ export default function Page() {
       <div className="relative z-[1]">
         <LandingNav />
         <LandingHero />
-        <LandingHowItWorks />
-        <LandingDemo />
-        <LandingPricing />
-        <LandingFAQ />
+        <ScrollReveal>
+          <LandingHowItWorks />
+        </ScrollReveal>
+        <ScrollReveal delay={0.1}>
+          <LandingDemo />
+        </ScrollReveal>
+        <ScrollReveal>
+          <LandingPricing />
+        </ScrollReveal>
+        <ScrollReveal delay={0.1}>
+          <LandingFAQ />
+        </ScrollReveal>
         <LandingFooter />
       </div>
     </div>
