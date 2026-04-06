@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 
 interface MetaBlob {
   x: number;
@@ -15,6 +15,36 @@ export default function AnimatedBlobs() {
   const blobRefs = useRef<MetaBlob[]>([]);
   const animRef = useRef<number>(0);
   const [positions, setPositions] = useState<{ x: number; y: number; r: number }[]>([]);
+  const [scrollOpacity, setScrollOpacity] = useState(1);
+
+  // Scroll-based opacity: full in hero, 30% in content, full at pricing/CTA
+  const handleScroll = useCallback(() => {
+    const scrollY = window.scrollY;
+    const vh = window.innerHeight;
+    const docH = document.documentElement.scrollHeight;
+    const scrollBottom = docH - scrollY - vh;
+
+    // Hero zone (top 100vh) — full opacity
+    if (scrollY < vh) {
+      setScrollOpacity(0.8 + 0.2 * (1 - scrollY / vh));
+      return;
+    }
+
+    // Bottom zone (last 150vh — pricing + CTA + footer) — ramp back up
+    if (scrollBottom < vh * 1.5) {
+      const progress = 1 - scrollBottom / (vh * 1.5);
+      setScrollOpacity(0.3 + progress * 0.5);
+      return;
+    }
+
+    // Middle content — pulled back
+    setScrollOpacity(0.3);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [handleScroll]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -84,8 +114,8 @@ export default function AnimatedBlobs() {
   }, []);
 
   return (
-    <div ref={containerRef} className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-      <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
+    <div ref={containerRef} className="fixed inset-0 z-0 pointer-events-none overflow-hidden" id="metaball-container">
+      <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg" style={{ opacity: scrollOpacity, transition: "opacity 0.3s ease" }}>
         <defs>
           {/* The metaball filter — this is the magic */}
           {/* 1. Blur the circles so their edges bleed together */}

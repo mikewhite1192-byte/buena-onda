@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { Zap, Pause, Clock, RefreshCw, TrendingUp, Target, BarChart3, MessageSquare, OctagonX, CheckCircle2 } from "lucide-react";
 import AnimatedDashboard from "./AnimatedDashboard";
-import AnimatedBlobs from "./AnimatedBlobs";
+// Blobs moved to page level (fixed viewport)
 
 /* ── Ticker Data ── */
 
@@ -129,8 +129,6 @@ export default function LandingHero() {
 
       {/* ── HERO ── */}
       <section className="relative flex flex-col justify-center overflow-hidden" style={{ minHeight: "110vh" }}>
-        {/* Solid bouncing blobs — no blur, no gradients fading out */}
-        <AnimatedBlobs />
 
         {/* Content */}
         <div className="relative z-[2] max-w-[1100px] mx-auto px-6 pt-44 pb-16">

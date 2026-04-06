@@ -16,7 +16,8 @@ export default function Page() {
       {/* Grid lines background */}
       <div className="grid-bg" />
 
-      {/* Blobs are in the hero section only */}
+      {/* Metaball liquid blobs — fixed viewport, scroll-reactive opacity */}
+      <AnimatedBlobs />
 
       <div className="relative z-[1]">
         <LandingNav />
