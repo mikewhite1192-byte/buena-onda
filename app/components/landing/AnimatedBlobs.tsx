@@ -64,9 +64,9 @@ export default function AnimatedBlobs() {
 
         // Draw blob with radial gradient
         const gradient = ctx.createRadialGradient(blob.x, blob.y, 0, blob.x, blob.y, morphedRadius);
-        gradient.addColorStop(0, blob.color + "0.25)");
-        gradient.addColorStop(0.4, blob.color + "0.12)");
-        gradient.addColorStop(0.7, blob.color + "0.04)");
+        gradient.addColorStop(0, blob.color + "0.35)");
+        gradient.addColorStop(0.3, blob.color + "0.2)");
+        gradient.addColorStop(0.6, blob.color + "0.08)");
         gradient.addColorStop(1, blob.color + "0)");
 
         ctx.beginPath();

@@ -2,186 +2,240 @@
 
 import { useEffect, useState, useRef } from "react";
 
+// ── Helpers ──
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function getToday() {
+  return new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+}
+
+function fmt(n: number) { return n.toLocaleString(); }
+function fmtDollar(n: number) { return "$" + n.toLocaleString(); }
+
+function useCountUp(target: number, duration: number, start: boolean, delay: number = 0) {
+  const [val, setVal] = useState(0);
+  useEffect(() => {
+    if (!start) return;
+    const t = setTimeout(() => {
+      const s = performance.now();
+      const animate = (now: number) => {
+        const p = Math.min((now - s) / duration, 1);
+        const ease = 1 - Math.pow(1 - p, 4);
+        setVal(Math.round(ease * target));
+        if (p < 1) requestAnimationFrame(animate);
+      };
+      requestAnimationFrame(animate);
+    }, delay);
+    return () => clearTimeout(t);
+  }, [start, target, duration, delay]);
+  return val;
+}
+
 export default function AnimatedDashboard() {
-  const [isVisible, setIsVisible] = useState(false);
-  const [spend, setSpend] = useState(0);
-  const [leads, setLeads] = useState(0);
-  const [attention, setAttention] = useState(0);
-  const [accounts, setAccounts] = useState(0);
-  const [alertIdx, setAlertIdx] = useState(0);
+  const [vis, setVis] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setIsVisible(true); obs.disconnect(); } }, { threshold: 0.15 });
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVis(true); obs.disconnect(); } }, { threshold: 0.1 });
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
 
-  // Count up
-  useEffect(() => {
-    if (!isVisible) return;
-    const targets = { spend: 12847, leads: 247, attention: 2, accounts: 6 };
-    const duration = 2200;
-    const start = performance.now();
-    const animate = (now: number) => {
-      const p = Math.min((now - start) / duration, 1);
-      const ease = 1 - Math.pow(1 - p, 4);
-      setSpend(Math.round(ease * targets.spend));
-      setLeads(Math.round(ease * targets.leads));
-      setAttention(Math.round(ease * targets.attention));
-      setAccounts(Math.round(ease * targets.accounts));
-      if (p < 1) requestAnimationFrame(animate);
-    };
-    requestAnimationFrame(animate);
-  }, [isVisible]);
+  // Top stats
+  const spend = useCountUp(491611, 2200, vis);
+  const leads = useCountUp(3871, 2200, vis, 100);
+  const attention = useCountUp(6, 1500, vis, 200);
+  const accounts = useCountUp(17, 1500, vis, 300);
 
-  // Live increment
-  useEffect(() => {
-    if (!isVisible) return;
-    const t = setTimeout(() => {
-      const live = setInterval(() => {
-        setSpend(p => p + Math.floor(Math.random() * 40 + 10));
-        setLeads(p => p + 1);
-      }, 3500);
-      return () => clearInterval(live);
-    }, 2500);
-    return () => clearTimeout(t);
-  }, [isVisible]);
+  // Platform stats (staggered after top)
+  const metaSpend = useCountUp(491611, 2000, vis, 2400);
+  const metaLeads = useCountUp(3871, 2000, vis, 2500);
+  const metaRevenue = useCountUp(709560, 2000, vis, 2600);
+  const googleSpend = useCountUp(98955, 2000, vis, 2550);
+  const googleConv = useCountUp(3660, 2000, vis, 2650);
+  const tiktokSpend = useCountUp(56022, 2000, vis, 2700);
+  const tiktokConv = useCountUp(4059, 2000, vis, 2800);
+  const shopRevenue = useCountUp(55992, 2000, vis, 2750);
+  const shopOrders = useCountUp(807, 2000, vis, 2850);
 
-  // Alerts
   const alerts = [
-    { text: "Budget scaled +20% on Summit Roofing — CPL dropped to $22", dot: "#4ade80" },
-    { text: "2:14am — CPL spike caught on Metro HVAC, paused automatically", dot: "#f5a623" },
-    { text: "Peak Supplements ROAS hit 4.2x — scaling budget now", dot: "#4ade80" },
-    { text: "Creative fatigue on Solar Pro — replacement brief generated", dot: "#60a5fa" },
+    { severity: "critical", icon: "🔴", name: "Crestwood Financial", text: "Spending $69 with zero leads" },
+    { severity: "critical", icon: "🔴", name: "Pacific Solar", text: "Spending $98 with zero leads" },
+    { severity: "warning", icon: "🟡", name: "Casa Living Co", text: "Ad fatigue — 2 campaigns with frequency >5.8x" },
+    { severity: "warning", icon: "🟡", name: "Urban Threads", text: "Ad fatigue — 1 campaign with frequency >5.2x" },
+    { severity: "warning", icon: "🟡", name: "Bright Smile Dental", text: "Ad fatigue — 1 campaign with frequency >4.1x" },
   ];
-  useEffect(() => { if (!isVisible) return; const t = setInterval(() => setAlertIdx(i => (i + 1) % alerts.length), 3500); return () => clearInterval(t); }, [isVisible, alerts.length]);
-  const alert = alerts[alertIdx];
 
-  // Client campaigns
-  const clients = [
-    { name: "Summit Roofing", status: "healthy", color: "#4ade80", spend: "$2,840", leads: "96", cpl: "$29", campaigns: "3 active" },
-    { name: "Peak Supplements", status: "scaling", color: "#f5a623", spend: "$4,200", roas: "4.2x", purchases: "127", campaigns: "5 active" },
-    { name: "Metro HVAC", status: "warning", color: "#e8b84b", spend: "$1,650", leads: "28", cpl: "$59", campaigns: "2 active" },
-    { name: "Solar Pro", status: "healthy", color: "#4ade80", spend: "$3,180", leads: "84", cpl: "$38", campaigns: "4 active" },
+  const recs = [
+    { type: "info", title: "Scale opportunity — Summit Roofing", body: '"Storm Season" at $22 CPL. Increase budget 20%.', action: "Scale Budget" },
+    { type: "critical", title: "Spending with no leads — Crestwood", body: "$69 spent, 0 leads. Pause top campaign now.", action: "Pause Campaign" },
+    { type: "info", title: "Scale opportunity — Peak Supplements", body: "ROAS at 4.2x. +20% budget while signal is strong.", action: "Scale Budget" },
   ];
+
+  const cardBg = "#161820";
+  const border = "rgba(255,255,255,0.06)";
 
   return (
-    <div ref={ref}>
-      <style>{`@keyframes alertIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+    <div ref={ref} style={{ fontFamily: "'Inter', system-ui, sans-serif", fontSize: 12, color: "#e8eaf0" }}>
+      <style>{`
+        @keyframes slideInLeft { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes recPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(245,166,35,0.3); } 50% { box-shadow: 0 0 0 6px rgba(245,166,35,0); } }
+        .mono { font-family: 'DM Mono', 'Fira Mono', monospace; }
+      `}</style>
 
       {/* ── Title bar ── */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06] bg-white/[0.02]">
+      <div className="flex items-center justify-between px-4 py-2" style={{ borderBottom: `1px solid ${border}`, background: "rgba(255,255,255,0.015)" }}>
         <div className="flex gap-1.5">
           <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
           <div className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
           <div className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
         </div>
-        <div className="text-[10px] text-white/20 tracking-wider">buenaonda.ai</div>
+        <div className="text-[9px] text-white/15 tracking-wider">buenaonda.ai</div>
         <div className="w-12" />
       </div>
 
       {/* ── Nav bar ── */}
-      <div className="flex items-center gap-1 px-4 py-2 border-b border-white/[0.06]">
-        <div className="flex items-center gap-2 mr-4">
-          <div className="w-5 h-5 rounded-md bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-center text-[8px] font-black text-white">B</div>
-          <span className="text-[11px] font-bold text-white/80">Buena Onda</span>
+      <div className="flex items-center px-3 py-1.5" style={{ borderBottom: `1px solid ${border}` }}>
+        <div className="flex items-center gap-1.5 mr-3">
+          <div className="w-5 h-5 rounded-md bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-center text-[7px] font-black text-white">B</div>
+          <span className="text-[10px] font-bold text-white/70">Buena Onda</span>
         </div>
-        {["Overview", "Campaigns", "Clients", "Creatives", "Ads", "Reports"].map((item, i) => (
-          <div key={item} className={`px-2 py-1 rounded text-[10px] ${i === 0 ? "bg-amber-500/12 text-amber-400 font-semibold" : "text-white/25"}`}>{item}</div>
+        {["Overview", "Campaigns", "Clients", "Creatives", "Ads", "Reports", "Review", "History", "Team", "Settings"].map((item, i) => (
+          <div key={item} className={`px-1.5 py-0.5 rounded text-[8px] mx-[1px] ${i === 0 ? "bg-amber-500/15 text-amber-400 font-semibold" : "text-white/20"}`}>{item}</div>
         ))}
-        <div className="ml-auto flex items-center gap-2">
-          <div className="text-[9px] text-white/20">Summit Roofing ▾</div>
-          <div className="w-5 h-5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-center text-[7px] font-bold text-white">M</div>
+        <div className="ml-auto flex items-center gap-1.5">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+          <div className="text-[8px] text-white/25">Covered by Mike ▾</div>
+          <div className="text-[8px] text-white/15">?</div>
+          <div className="w-4 h-4 rounded-full bg-gradient-to-r from-amber-500 to-orange-500" />
         </div>
       </div>
 
-      {/* ── Dashboard content ── */}
-      <div className="p-4 min-h-[360px]">
+      {/* ── Content ── */}
+      <div className="px-4 py-3" style={{ background: "#0f0f12" }}>
 
-        {/* Greeting */}
-        <div className="flex items-center justify-between mb-4">
+        {/* Greeting + filters */}
+        <div className="flex items-center justify-between mb-3">
           <div>
-            <div className="text-[15px] font-extrabold text-white/90 tracking-tight">Good morning 👋</div>
-            <div className="text-[10px] text-white/30 mt-0.5">Saturday, April 5 · <span className="text-amber-400">2 accounts need attention</span></div>
+            <div className="text-[14px] font-extrabold text-white/90 tracking-tight">{getGreeting()} 👋</div>
+            <div className="text-[9px] text-white/25 mt-0.5">{getToday()} · <span className="text-amber-400">{attention} accounts need attention</span></div>
           </div>
-          <div className="flex bg-white/[0.04] border border-white/[0.06] rounded-md p-0.5 gap-0.5">
-            {["7d", "30d", "90d"].map((r, i) => (
-              <div key={r} className={`px-2.5 py-1 rounded text-[9px] font-semibold ${i === 1 ? "bg-amber-500 text-white" : "text-white/30"}`}>{r}</div>
+          <div className="flex p-[2px] rounded-md" style={{ background: cardBg, border: `1px solid ${border}` }}>
+            {["Today", "7d", "30d", "90d", "Max", "Custom"].map((r, i) => (
+              <div key={r} className={`px-2 py-[3px] rounded text-[7px] font-semibold ${i === 3 ? "bg-amber-500 text-white" : "text-white/20"}`}>{r}</div>
             ))}
           </div>
         </div>
 
-        {/* Alert banner */}
-        <div key={alertIdx} className="mb-3 px-3 py-2 rounded-lg flex items-center gap-2 border border-white/[0.06]" style={{ animation: "alertIn 0.3s ease both", background: "rgba(255,255,255,0.02)" }}>
-          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: alert.dot }} />
-          <span className="text-[10px] text-white/50 flex-1">{alert.text}</span>
-          <span className="text-[8px] text-white/15">Just now</span>
-        </div>
-
-        {/* ── 4 stat cards — matches real dashboard ── */}
-        <div className="grid grid-cols-4 gap-2.5 mb-4">
-          {[
-            { label: "Total Spend (30d)", value: `$${spend.toLocaleString()}`, sub: "across 6 accounts", color: "#e8eaf0", border: "rgba(255,255,255,0.06)" },
-            { label: "Leads (30d)", value: leads.toString(), sub: "4 lead gen accounts", color: "#7b8cde", border: "rgba(123,140,222,0.3)" },
-            { label: "Needing Attention", value: attention.toString(), sub: "1 critical", color: "#e8b84b", border: "rgba(232,184,75,0.4)" },
-            { label: "Accounts Managed", value: accounts.toString(), sub: "across all platforms", color: "#f5a623", border: "rgba(245,166,35,0.3)" },
-          ].map(s => (
-            <div key={s.label} className="rounded-xl px-3 py-3" style={{ background: "#161820", border: `1px solid ${s.border}` }}>
-              <div className="text-[8px] text-white/30 uppercase tracking-wider mb-1.5 font-medium">{s.label}</div>
-              <div className="text-[22px] font-extrabold tracking-tight leading-none" style={{ color: s.color }}>{s.value}</div>
-              <div className="text-[9px] text-white/25 mt-1">{s.sub}</div>
-            </div>
-          ))}
+        {/* ── 4 Stat cards ── */}
+        <div className="grid grid-cols-4 gap-2 mb-3">
+          <div className="rounded-lg px-3 py-2.5" style={{ background: cardBg, border: `1px solid ${border}` }}>
+            <div className="text-[7px] text-white/25 uppercase tracking-wider font-medium mb-1">Total Spend (90d)</div>
+            <div className="text-[20px] font-extrabold text-white/90 tracking-tight leading-none mono">{fmtDollar(spend)}</div>
+            <div className="text-[8px] text-white/20 mt-1">across 17 accounts</div>
+          </div>
+          <div className="rounded-lg px-3 py-2.5" style={{ background: cardBg, border: `1px solid rgba(123,140,222,0.25)` }}>
+            <div className="text-[7px] text-white/25 uppercase tracking-wider font-medium mb-1">Leads (90d)</div>
+            <div className="text-[20px] font-extrabold text-[#7b8cde] tracking-tight leading-none mono">{fmt(leads)}</div>
+            <div className="text-[8px] text-white/20 mt-1">12 lead gen accounts</div>
+          </div>
+          <div className="rounded-lg px-3 py-2.5" style={{ background: cardBg, border: `1px solid ${border}` }}>
+            <div className="text-[7px] text-white/25 uppercase tracking-wider font-medium mb-1">Needing Attention</div>
+            <div className="text-[20px] font-extrabold text-white/90 tracking-tight leading-none mono">{attention}</div>
+            <div className="text-[8px] text-white/20 mt-1">2 critical</div>
+          </div>
+          <div className="rounded-lg px-3 py-2.5" style={{ background: cardBg, border: `1px solid rgba(245,166,35,0.25)` }}>
+            <div className="text-[7px] text-white/25 uppercase tracking-wider font-medium mb-1">Accounts Managed</div>
+            <div className="text-[20px] font-extrabold text-amber-400 tracking-tight leading-none mono">{accounts}</div>
+            <div className="text-[8px] text-white/20 mt-1">across all platforms</div>
+          </div>
         </div>
 
         {/* ── Platform Breakdown ── */}
-        <div className="text-[8px] font-semibold text-white/25 uppercase tracking-wider mb-2">Platform Breakdown</div>
-        <div className="grid grid-cols-4 gap-2 mb-4">
-          {[
-            { name: "Meta", icon: "📘", connected: "4 connected", spend: "$8,420", color: "#4a90d9" },
-            { name: "Google", icon: "🔍", connected: "2 connected", spend: "$3,200", color: "#34a853" },
-            { name: "TikTok", icon: "🎵", connected: "1 connected", spend: "$1,227", color: "#ff2d6b" },
-            { name: "Shopify", icon: "🛍", connected: "2 connected", spend: "$0", color: "#96bf48" },
-          ].map(p => (
-            <div key={p.name} className="rounded-lg px-2.5 py-2" style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)" }}>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <span className="text-[11px]">{p.icon}</span>
-                <span className="text-[10px] font-bold text-white/70">{p.name}</span>
-              </div>
-              <div className="text-[9px] text-white/30">{p.connected}</div>
-              <div className="text-[12px] font-bold text-white/60 mt-0.5">{p.spend}</div>
+        <div className="text-[7px] font-semibold text-white/20 uppercase tracking-[1.5px] mb-1.5">Platform Breakdown</div>
+        <div className="grid grid-cols-4 gap-2 mb-3">
+          {/* Meta */}
+          <div className="rounded-lg px-2.5 py-2" style={{ background: cardBg, border: `1px solid ${border}` }}>
+            <div className="flex items-center gap-1 mb-1"><span className="text-[9px]">📘</span><span className="text-[9px] font-bold text-white/60">Meta</span><span className="text-[6px] px-1 py-[1px] rounded bg-emerald-400/10 text-emerald-400 font-semibold">17 connected</span></div>
+            <div className="space-y-0.5 text-[8px]">
+              <div className="flex justify-between"><span className="text-white/25">Spend</span><span className="text-white/50 mono">{fmtDollar(metaSpend)}</span></div>
+              <div className="flex justify-between"><span className="text-white/25">Leads</span><span className="text-[#7b8cde] mono">{fmt(metaLeads)}</span></div>
+              <div className="flex justify-between"><span className="text-white/25">Revenue</span><span className="text-amber-400 mono">{fmtDollar(metaRevenue)}</span></div>
+              <div className="flex justify-between"><span className="text-white/25">Avg ROAS</span><span className="text-amber-400 mono">3.13x</span></div>
             </div>
-          ))}
+          </div>
+          {/* Google */}
+          <div className="rounded-lg px-2.5 py-2" style={{ background: cardBg, border: `1px solid ${border}` }}>
+            <div className="flex items-center gap-1 mb-1"><span className="text-[9px]">🔍</span><span className="text-[9px] font-bold text-white/60">Google</span><span className="text-[6px] px-1 py-[1px] rounded bg-emerald-400/10 text-emerald-400 font-semibold">Connected</span></div>
+            <div className="space-y-0.5 text-[8px]">
+              <div className="flex justify-between"><span className="text-white/25">Spend</span><span className="text-white/50 mono">{fmtDollar(googleSpend)}</span></div>
+              <div className="flex justify-between"><span className="text-white/25">Conversions</span><span className="text-[#7b8cde] mono">{fmt(googleConv)}</span></div>
+            </div>
+          </div>
+          {/* TikTok */}
+          <div className="rounded-lg px-2.5 py-2" style={{ background: cardBg, border: `1px solid ${border}` }}>
+            <div className="flex items-center gap-1 mb-1"><span className="text-[9px]">🎵</span><span className="text-[9px] font-bold text-white/60">TikTok</span><span className="text-[6px] px-1 py-[1px] rounded bg-emerald-400/10 text-emerald-400 font-semibold">Connected</span></div>
+            <div className="space-y-0.5 text-[8px]">
+              <div className="flex justify-between"><span className="text-white/25">Spend</span><span className="text-white/50 mono">{fmtDollar(tiktokSpend)}</span></div>
+              <div className="flex justify-between"><span className="text-white/25">Conversions</span><span className="text-amber-400 mono">{fmt(tiktokConv)}</span></div>
+            </div>
+          </div>
+          {/* Shopify */}
+          <div className="rounded-lg px-2.5 py-2" style={{ background: cardBg, border: `1px solid ${border}` }}>
+            <div className="flex items-center gap-1 mb-1"><span className="text-[9px]">🛍</span><span className="text-[9px] font-bold text-white/60">Shopify</span><span className="text-[6px] px-1 py-[1px] rounded bg-emerald-400/10 text-emerald-400 font-semibold">Connected</span></div>
+            <div className="space-y-0.5 text-[8px]">
+              <div className="flex justify-between"><span className="text-white/25">Revenue</span><span className="text-amber-400 mono">{fmtDollar(shopRevenue)}</span></div>
+              <div className="flex justify-between"><span className="text-white/25">Orders</span><span className="text-amber-400 mono">{fmt(shopOrders)}</span></div>
+            </div>
+          </div>
         </div>
 
-        {/* ── Client cards ── */}
-        <div className="text-[8px] font-semibold text-white/25 uppercase tracking-wider mb-2">Client Accounts</div>
-        <div className="grid grid-cols-2 gap-2">
-          {clients.map((c, i) => (
-            <div key={c.name} className="rounded-lg px-3 py-2.5" style={{ background: "#161820", border: `1px solid ${c.status === "warning" ? "rgba(232,184,75,0.15)" : "rgba(255,255,255,0.06)"}`, animation: isVisible ? `alertIn 0.4s ease ${0.4 + i * 0.15}s both` : "none" }}>
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full" style={{ background: c.color }} />
-                  <span className="text-[10px] font-semibold text-white/80">{c.name}</span>
-                </div>
-                <span className="text-[7px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold" style={{
-                  background: c.status === "healthy" ? "rgba(74,222,128,0.1)" : c.status === "scaling" ? "rgba(245,166,35,0.1)" : "rgba(232,184,75,0.1)",
-                  color: c.color,
-                }}>{c.status}</span>
-              </div>
-              <div className="flex gap-4 text-[9px]">
-                <div><span className="text-white/60 font-semibold">{c.spend}</span><span className="text-white/20 ml-1">spend</span></div>
-                {c.leads && <div><span className="text-emerald-400 font-semibold">{c.leads}</span><span className="text-white/20 ml-1">leads</span></div>}
-                {c.roas && <div><span className="text-emerald-400 font-semibold">{c.roas}</span><span className="text-white/20 ml-1">ROAS</span></div>}
-                {c.cpl && <div><span className="font-semibold" style={{ color: parseInt(c.cpl.replace('$','')) < 40 ? "#4ade80" : "#e8b84b" }}>{c.cpl}</span><span className="text-white/20 ml-1">CPL</span></div>}
-                <div><span className="text-white/40 font-medium">{c.campaigns}</span></div>
-              </div>
+        {/* ── Alerts + Recommendations ── */}
+        <div className="grid grid-cols-[1fr_200px] gap-3">
+          {/* Alerts */}
+          <div>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span className="text-[7px] font-semibold text-white/20 uppercase tracking-[1.5px]">Alerts</span>
+              <span className="text-[7px] font-bold bg-red-500/20 text-red-400 px-1.5 py-[1px] rounded-full">5</span>
             </div>
-          ))}
+            {alerts.map((a, i) => (
+              <div key={i} className="flex items-start gap-1.5 py-1.5" style={{ borderBottom: `1px solid ${border}`, animation: vis ? `slideInLeft 0.4s ease ${i * 0.08}s both` : "none" }}>
+                <span className="text-[8px] mt-0.5 flex-shrink-0">{a.icon}</span>
+                <div className="text-[8px] leading-relaxed">
+                  <span className={a.severity === "critical" ? "text-red-400 font-semibold" : "text-amber-400 font-semibold"}>{a.name}</span>
+                  <span className="text-white/30"> — {a.text}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Recommendations */}
+          <div>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span className="text-[7px] font-semibold text-white/20 uppercase tracking-[1.5px]">Recommendations</span>
+              <span className="text-[7px] font-bold bg-amber-500/20 text-amber-400 px-1.5 py-[1px] rounded-full">15</span>
+            </div>
+            {recs.map((r, i) => (
+              <div key={i} className="rounded-md px-2 py-1.5 mb-1.5" style={{ background: "rgba(255,255,255,0.02)", border: `1px solid ${border}`, borderLeftWidth: 2, borderLeftColor: r.type === "critical" ? "#f87171" : "#60a5fa", animation: vis ? `slideInLeft 0.4s ease ${0.5 + i * 0.15}s both` : "none" }}>
+                <div className="text-[8px] font-semibold text-white/70 mb-0.5">{r.title}</div>
+                <div className="text-[7px] text-white/25 mb-1">{r.body}</div>
+                <div className="text-[6px] font-bold px-1.5 py-[2px] rounded inline-block" style={{ background: r.type === "critical" ? "rgba(248,113,113,0.12)" : "rgba(96,165,250,0.12)", color: r.type === "critical" ? "#f87171" : "#60a5fa" }}>{r.action}</div>
+              </div>
+            ))}
+          </div>
         </div>
+      </div>
+
+      {/* ── Floating AI button (bottom right) ── */}
+      <div className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-[12px] cursor-default" style={{ animation: "recPulse 2s ease-in-out infinite", boxShadow: "0 4px 16px rgba(245,166,35,0.3)" }}>
+        +
       </div>
     </div>
   );
