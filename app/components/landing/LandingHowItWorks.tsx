@@ -2,6 +2,7 @@
 
 import { Rocket, SlidersHorizontal, Zap, BarChart3, Eye } from "lucide-react";
 import AnimatedCampaigns from "./AnimatedCampaigns";
+import AnimatedReport from "./AnimatedReport";
 
 const STEPS = [
   {
@@ -48,10 +49,7 @@ const STEPS = [
       "Every optimization logged with reasons, not just actions",
       "Built for agency owners — one report per client, zero effort",
     ],
-    screenshot: {
-      src: "/brand/reports-screenshot.png",
-      alt: "Buena Onda AI-generated performance report with spend, revenue, ROAS, and recommendations",
-    },
+    animatedReport: true, // uses AnimatedReport component instead of static screenshot
   },
   {
     num: 5,
@@ -115,13 +113,9 @@ export default function LandingHowItWorks() {
                     <AnimatedCampaigns />
                   </div>
                 )}
-                {step.screenshot && (
-                  <div className="mt-4 rounded-xl overflow-hidden border border-white/[0.06] shadow-2xl shadow-amber-500/5">
-                    <img
-                      src={step.screenshot.src}
-                      alt={step.screenshot.alt}
-                      className="w-full block"
-                    />
+                {step.animatedReport && (
+                  <div className="mt-4 rounded-xl overflow-hidden border border-white/[0.06] shadow-2xl shadow-amber-500/5 relative">
+                    <AnimatedReport />
                   </div>
                 )}
               </div>
