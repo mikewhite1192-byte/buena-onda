@@ -1,150 +1,144 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
-interface Blob {
+interface MetaBlob {
   x: number;
   y: number;
   vx: number;
   vy: number;
-  baseRadius: number;
-  color: string;
-  phase: number;
-  morphSpeed: number;
-  points: number[];
-}
-
-// Generate organic shape points with variation
-function generatePoints(count: number): number[] {
-  return Array.from({ length: count }, () => 0.85 + Math.random() * 0.3);
+  radius: number;
 }
 
 export default function AnimatedBlobs() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const blobsRef = useRef<Blob[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const blobRefs = useRef<MetaBlob[]>([]);
   const animRef = useRef<number>(0);
+  const [positions, setPositions] = useState<{ x: number; y: number; r: number }[]>([]);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const container = containerRef.current;
+    if (!container) return;
 
-    function resize() {
-      canvas!.width = canvas!.offsetWidth * (window.devicePixelRatio || 1);
-      canvas!.height = canvas!.offsetHeight * (window.devicePixelRatio || 1);
-      ctx!.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
-    }
-    resize();
-    window.addEventListener("resize", resize);
+    const w = container.offsetWidth;
+    const h = container.offsetHeight;
+    const baseR = Math.min(w, h) * 0.18;
 
-    const w = canvas.offsetWidth;
-    const h = canvas.offsetHeight;
-
-    // 4 blobs — vivid, fully saturated, sharp edges
-    blobsRef.current = [
-      // Dominant orange
-      { x: w * 0.65, y: h * 0.3, vx: 1.2, vy: 0.8, baseRadius: Math.min(w, h) * 0.28, color: "#FF6B00", phase: 0, morphSpeed: 0.012, points: generatePoints(8) },
-      // Deep amber
-      { x: w * 0.25, y: h * 0.6, vx: -0.9, vy: 1.1, baseRadius: Math.min(w, h) * 0.24, color: "#FF8C00", phase: 2, morphSpeed: 0.010, points: generatePoints(8) },
-      // Accent gold
-      { x: w * 0.5, y: h * 0.2, vx: 0.7, vy: -1.0, baseRadius: Math.min(w, h) * 0.20, color: "#FFB700", phase: 4, morphSpeed: 0.014, points: generatePoints(8) },
-      // Subtle cool accent
-      { x: w * 0.8, y: h * 0.7, vx: -1.1, vy: -0.7, baseRadius: Math.min(w, h) * 0.18, color: "#FF5500", phase: 1, morphSpeed: 0.011, points: generatePoints(8) },
+    // 3 large metaballs
+    blobRefs.current = [
+      { x: w * 0.3, y: h * 0.35, vx: 0.6, vy: 0.45, radius: baseR * 1.3 },
+      { x: w * 0.7, y: h * 0.5, vx: -0.5, vy: 0.55, radius: baseR * 1.1 },
+      { x: w * 0.5, y: h * 0.25, vx: 0.4, vy: -0.5, radius: baseR * 0.95 },
     ];
 
-    let time = 0;
+    function tick() {
+      const blobs = blobRefs.current;
+      const cw = container!.offsetWidth;
+      const ch = container!.offsetHeight;
 
-    function draw() {
-      if (!ctx || !canvas) return;
-      const cw = canvas.offsetWidth;
-      const ch = canvas.offsetHeight;
+      for (const b of blobs) {
+        b.x += b.vx;
+        b.y += b.vy;
 
-      // Clear with near-black background
-      ctx.clearRect(0, 0, cw, ch);
+        // Bounce
+        if (b.x - b.radius < 0) { b.x = b.radius; b.vx = Math.abs(b.vx); }
+        if (b.x + b.radius > cw) { b.x = cw - b.radius; b.vx = -Math.abs(b.vx); }
+        if (b.y - b.radius < 0) { b.y = b.radius; b.vy = Math.abs(b.vy); }
+        if (b.y + b.radius > ch) { b.y = ch - b.radius; b.vy = -Math.abs(b.vy); }
 
-      // Set blend mode for natural color mixing where blobs overlap
-      ctx.globalCompositeOperation = "screen";
-
-      time += 1;
-
-      for (const blob of blobsRef.current) {
-        // Move with velocity
-        blob.x += blob.vx;
-        blob.y += blob.vy;
-
-        // Bounce off edges — billiard ball style, natural reflection
-        if (blob.x < blob.baseRadius * 0.5) { blob.x = blob.baseRadius * 0.5; blob.vx = Math.abs(blob.vx); }
-        if (blob.x > cw - blob.baseRadius * 0.5) { blob.x = cw - blob.baseRadius * 0.5; blob.vx = -Math.abs(blob.vx); }
-        if (blob.y < blob.baseRadius * 0.5) { blob.y = blob.baseRadius * 0.5; blob.vy = Math.abs(blob.vy); }
-        if (blob.y > ch - blob.baseRadius * 0.5) { blob.y = ch - blob.baseRadius * 0.5; blob.vy = -Math.abs(blob.vy); }
-
-        // Draw sharp organic shape — silk ribbon / liquid feel
-        const numPoints = blob.points.length;
-        const angleStep = (Math.PI * 2) / numPoints;
-
-        // Calculate all the morphed points
-        const pts: { x: number; y: number }[] = [];
-        for (let i = 0; i < numPoints; i++) {
-          const baseWobble = blob.points[i];
-          const wobble = baseWobble
-            + Math.sin(time * blob.morphSpeed + i * 1.5 + blob.phase) * 0.12
-            + Math.cos(time * blob.morphSpeed * 0.7 + i * 2.3) * 0.08;
-          const r = blob.baseRadius * wobble;
-          const angle = angleStep * i;
-          pts.push({
-            x: blob.x + Math.cos(angle) * r,
-            y: blob.y + Math.sin(angle) * r,
-          });
-        }
-
-        // Draw smooth closed curve through points using cubic bezier
-        ctx.beginPath();
-        for (let i = 0; i < numPoints; i++) {
-          const curr = pts[i];
-          const next = pts[(i + 1) % numPoints];
-          const prev = pts[(i - 1 + numPoints) % numPoints];
-          const nextNext = pts[(i + 2) % numPoints];
-
-          if (i === 0) {
-            ctx.moveTo(curr.x, curr.y);
+        // Slight attraction between blobs when close — creates the stretch effect
+        for (const other of blobs) {
+          if (b === other) continue;
+          const dx = other.x - b.x;
+          const dy = other.y - b.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const minDist = b.radius + other.radius;
+          if (dist < minDist * 1.8 && dist > 0) {
+            const force = 0.0003 * (minDist * 1.8 - dist);
+            b.vx += (dx / dist) * force;
+            b.vy += (dy / dist) * force;
           }
-
-          // Catmull-Rom to Bezier conversion for smooth organic curves
-          const cp1x = curr.x + (next.x - prev.x) / 6;
-          const cp1y = curr.y + (next.y - prev.y) / 6;
-          const cp2x = next.x - (nextNext.x - curr.x) / 6;
-          const cp2y = next.y - (nextNext.y - curr.y) / 6;
-
-          ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, next.x, next.y);
         }
-        ctx.closePath();
 
-        // Solid fill — no gradient fade, no opacity reduction, full vivid
-        ctx.fillStyle = blob.color;
-        ctx.globalAlpha = 0.15;
-        ctx.fill();
-        ctx.globalAlpha = 1;
+        // Dampen velocity slightly to keep things smooth
+        b.vx *= 0.999;
+        b.vy *= 0.999;
+
+        // Ensure minimum speed so they keep moving
+        const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+        if (speed < 0.3) {
+          b.vx *= 1.5;
+          b.vy *= 1.5;
+        }
       }
 
-      // Reset composite operation
-      ctx.globalCompositeOperation = "source-over";
-
-      animRef.current = requestAnimationFrame(draw);
+      setPositions(blobs.map(b => ({ x: b.x, y: b.y, r: b.radius })));
+      animRef.current = requestAnimationFrame(tick);
     }
 
-    animRef.current = requestAnimationFrame(draw);
+    // Initialize positions
+    setPositions(blobRefs.current.map(b => ({ x: b.x, y: b.y, r: b.radius })));
+    animRef.current = requestAnimationFrame(tick);
 
-    return () => {
-      cancelAnimationFrame(animRef.current);
-      window.removeEventListener("resize", resize);
-    };
+    return () => cancelAnimationFrame(animRef.current);
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 w-full h-full z-0 pointer-events-none"
-    />
+    <div ref={containerRef} className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+      <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          {/* The metaball filter — this is the magic */}
+          {/* 1. Blur the circles so their edges bleed together */}
+          {/* 2. Crank contrast so only the thick overlapping parts survive */}
+          {/* 3. Result: liquid merging effect with crisp organic edges */}
+          <filter id="metaball-filter" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="28" result="blur" />
+            <feColorMatrix
+              in="blur"
+              mode="matrix"
+              values="1 0 0 0 0
+                      0 1 0 0 0
+                      0 0 1 0 0
+                      0 0 0 25 -10"
+              result="contrast"
+            />
+            <feComposite in="SourceGraphic" in2="contrast" operator="atop" />
+          </filter>
+        </defs>
+
+        <g filter="url(#metaball-filter)">
+          {/* Blob 1 — vivid orange */}
+          {positions[0] && (
+            <circle
+              cx={positions[0].x}
+              cy={positions[0].y}
+              r={positions[0].r}
+              fill="#FF8C00"
+              opacity="0.18"
+            />
+          )}
+          {/* Blob 2 — deep amber */}
+          {positions[1] && (
+            <circle
+              cx={positions[1].x}
+              cy={positions[1].y}
+              r={positions[1].r}
+              fill="#FF6B00"
+              opacity="0.15"
+            />
+          )}
+          {/* Blob 3 — gold */}
+          {positions[2] && (
+            <circle
+              cx={positions[2].x}
+              cy={positions[2].y}
+              r={positions[2].r}
+              fill="#FFB700"
+              opacity="0.13"
+            />
+          )}
+        </g>
+      </svg>
+    </div>
   );
 }

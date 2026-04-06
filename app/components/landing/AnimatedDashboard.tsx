@@ -49,22 +49,22 @@ export default function AnimatedDashboard() {
   }, []);
 
   // Top stats
-  // Slower count — 4 seconds for main stats, more satisfying
-  const spend = useCountUp(491611, 4000, vis);
-  const leads = useCountUp(3871, 4000, vis, 200);
-  const attention = useCountUp(6, 2500, vis, 400);
-  const accounts = useCountUp(17, 2500, vis, 600);
+  // Long slow count — 60-90 seconds, constantly moving
+  const spend = useCountUp(491611, 75000, vis);
+  const leads = useCountUp(3871, 65000, vis, 1000);
+  const attention = useCountUp(6, 15000, vis, 2000);
+  const accounts = useCountUp(17, 20000, vis, 3000);
 
-  // Platform stats — even slower, staggered well after top finishes
-  const metaSpend = useCountUp(491611, 3500, vis, 4200);
-  const metaLeads = useCountUp(3871, 3500, vis, 4300);
-  const metaRevenue = useCountUp(709560, 3500, vis, 4400);
-  const googleSpend = useCountUp(98955, 3500, vis, 4500);
-  const googleConv = useCountUp(3660, 3500, vis, 4600);
-  const tiktokSpend = useCountUp(56022, 3500, vis, 4700);
-  const tiktokConv = useCountUp(4059, 3500, vis, 4800);
-  const shopRevenue = useCountUp(55992, 3500, vis, 4750);
-  const shopOrders = useCountUp(807, 3500, vis, 4850);
+  // Platform stats — start after 5 seconds, count for 60+ seconds
+  const metaSpend = useCountUp(491611, 70000, vis, 5000);
+  const metaLeads = useCountUp(3871, 60000, vis, 6000);
+  const metaRevenue = useCountUp(709560, 80000, vis, 7000);
+  const googleSpend = useCountUp(98955, 55000, vis, 8000);
+  const googleConv = useCountUp(3660, 50000, vis, 9000);
+  const tiktokSpend = useCountUp(56022, 55000, vis, 10000);
+  const tiktokConv = useCountUp(4059, 50000, vis, 11000);
+  const shopRevenue = useCountUp(55992, 55000, vis, 12000);
+  const shopOrders = useCountUp(807, 45000, vis, 13000);
 
   const alerts = [
     { severity: "critical", icon: "🔴", name: "Crestwood Financial", text: "Spending $69 with zero leads" },
