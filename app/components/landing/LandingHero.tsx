@@ -113,23 +113,9 @@ export default function LandingHero() {
           0%, 100% { box-shadow: 0 40px 100px -20px rgba(245,166,35,0.15), 0 0 0 1px rgba(255,255,255,0.06); }
           50% { box-shadow: 0 40px 100px -20px rgba(245,166,35,0.25), 0 0 0 1px rgba(255,255,255,0.1); }
         }
-        @keyframes blob1 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          25% { transform: translate(-60px, 40px) scale(1.1); }
-          50% { transform: translate(-30px, -30px) scale(0.95); }
-          75% { transform: translate(40px, 20px) scale(1.05); }
-        }
-        @keyframes blob2 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(50px, -40px) scale(1.08); }
-          66% { transform: translate(-40px, 30px) scale(0.92); }
-        }
-        @keyframes blob3 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          20% { transform: translate(30px, -50px) scale(1.12); }
-          40% { transform: translate(-50px, -20px) scale(0.95); }
-          60% { transform: translate(20px, 40px) scale(1.05); }
-          80% { transform: translate(-30px, 10px) scale(0.98); }
+        @keyframes dashScan {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
         }
         .hero-fade-in { animation: fade-up 1s cubic-bezier(0.16,1,0.3,1) both; }
         .hero-fade-d1 { animation-delay: 0.1s; }
@@ -140,39 +126,7 @@ export default function LandingHero() {
       `}</style>
 
       {/* ── HERO ── */}
-      <section className="relative min-h-screen flex flex-col justify-center overflow-hidden bg-[#0d0f14]">
-
-        {/* ── Stripe-style animated gradient blobs ── */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {/* Primary blob — amber/orange, top right */}
-          <div className="absolute w-[800px] h-[800px] rounded-full opacity-20 blur-[120px]"
-            style={{
-              top: "-10%", right: "-5%",
-              background: "radial-gradient(circle, rgba(245,166,35,0.5) 0%, rgba(247,107,28,0.3) 40%, transparent 70%)",
-              animation: "blob1 12s ease-in-out infinite",
-            }} />
-          {/* Secondary blob — deep orange, bottom left */}
-          <div className="absolute w-[600px] h-[600px] rounded-full opacity-15 blur-[100px]"
-            style={{
-              bottom: "0%", left: "-5%",
-              background: "radial-gradient(circle, rgba(247,107,28,0.4) 0%, rgba(245,166,35,0.2) 50%, transparent 70%)",
-              animation: "blob2 15s ease-in-out infinite",
-            }} />
-          {/* Accent blob — warm gold, center */}
-          <div className="absolute w-[500px] h-[500px] rounded-full opacity-10 blur-[100px]"
-            style={{
-              top: "30%", left: "40%",
-              background: "radial-gradient(circle, rgba(255,200,50,0.3) 0%, transparent 60%)",
-              animation: "blob3 18s ease-in-out infinite",
-            }} />
-          {/* Cool accent — subtle blue, top left for contrast */}
-          <div className="absolute w-[400px] h-[400px] rounded-full opacity-[0.07] blur-[80px]"
-            style={{
-              top: "5%", left: "10%",
-              background: "radial-gradient(circle, rgba(100,150,255,0.4) 0%, transparent 60%)",
-              animation: "blob2 20s ease-in-out infinite reverse",
-            }} />
-        </div>
+      <section className="relative min-h-screen flex flex-col justify-center overflow-visible">
 
         {/* Content */}
         <div className="relative z-[2] max-w-[1100px] mx-auto px-6 pt-44 pb-16">
@@ -225,12 +179,20 @@ export default function LandingHero() {
             >
               {/* Gradient border effect */}
               <div className="p-px rounded-2xl bg-gradient-to-b from-white/10 via-white/[0.03] to-transparent">
-                <div className="rounded-2xl overflow-hidden bg-[#0d0f14]">
+                <div className="rounded-2xl overflow-hidden bg-[#0d0f14] relative">
                   <img
                     src="/brand/dashboard-screenshot.png"
                     alt="Buena Onda dashboard showing live campaign metrics, platform breakdown, alerts, and AI recommendations"
                     className="w-full block"
                   />
+                  {/* Shimmer scan line — feels like live data */}
+                  <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl">
+                    <div className="absolute inset-0" style={{
+                      background: "linear-gradient(90deg, transparent 0%, transparent 40%, rgba(245,166,35,0.04) 50%, transparent 60%, transparent 100%)",
+                      backgroundSize: "200% 100%",
+                      animation: "dashScan 4s ease-in-out infinite",
+                    }} />
+                  </div>
                 </div>
               </div>
             </div>
