@@ -1,5 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
+import LandingNav from "../components/landing/LandingNav";
+import LandingFooter from "../components/landing/LandingFooter";
 
 export const metadata: Metadata = {
   title: "Free Ad Tools | Buena Onda",
@@ -47,10 +49,11 @@ const tools = [
 
 export default function ToolsIndexPage() {
   return (
-    <main
-      style={{ background: "#080808", color: "#e8eaf0", minHeight: "100vh" }}
-    >
-      <div className="mx-auto max-w-4xl px-4 py-24 sm:px-6">
+    <div className="relative min-h-screen text-[#e8eaf0]" style={{ zIndex: 1, background: "#080808" }}>
+      <div className="grain-overlay" />
+      <div className="grid-bg" />
+      <LandingNav />
+      <main className="mx-auto max-w-4xl px-4 pt-32 pb-24 sm:px-6">
         <div className="mb-2 text-sm font-semibold uppercase tracking-widest text-[#f5a623]">
           Free Tools
         </div>
@@ -67,7 +70,7 @@ export default function ToolsIndexPage() {
             <Link
               key={tool.href}
               href={tool.href}
-              className="group rounded-2xl border border-[#1e2030] bg-[#0d0f14] p-6 transition hover:border-[#f5a623]/40"
+              className="group rounded-2xl border border-[#1e2030] bg-[#0d0f14] p-6 transition hover:border-[#f5a623]/40 no-underline"
             >
               <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl border-2 border-[#f5a623] bg-[#161820] text-sm font-bold text-[#f5a623]">
                 {tool.badge}
@@ -84,7 +87,8 @@ export default function ToolsIndexPage() {
             </Link>
           ))}
         </div>
-      </div>
-    </main>
+      </main>
+      <LandingFooter />
+    </div>
   );
 }

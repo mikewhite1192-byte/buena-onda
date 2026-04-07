@@ -1,4 +1,6 @@
 import { Metadata } from "next";
+import LandingNav from "../../components/landing/LandingNav";
+import LandingFooter from "../../components/landing/LandingFooter";
 
 export const metadata: Metadata = {
   title: "Ad Copy Scorer — Free Tool | Buena Onda",
@@ -22,10 +24,11 @@ export const metadata: Metadata = {
 
 export default function AdCopyScorerPage() {
   return (
-    <main
-      style={{ background: "#080808", color: "#e8eaf0", minHeight: "100vh" }}
-    >
-      <div className="mx-auto max-w-3xl px-4 py-24 sm:px-6">
+    <div className="relative min-h-screen text-[#e8eaf0]" style={{ zIndex: 1, background: "#080808" }}>
+      <div className="grain-overlay" />
+      <div className="grid-bg" />
+      <LandingNav />
+      <main className="mx-auto max-w-3xl px-4 pt-32 pb-24 sm:px-6">
         <div className="mb-2 text-sm font-semibold uppercase tracking-widest text-[#f5a623]">
           Free Tool
         </div>
@@ -46,12 +49,13 @@ export default function AdCopyScorerPage() {
           </p>
           <a
             href="/waitlist"
-            className="mt-6 inline-block rounded-xl bg-[#f5a623] px-6 py-3 text-sm font-semibold text-[#0d0f14] hover:bg-[#e09510] transition"
+            className="mt-6 inline-block rounded-xl bg-[#f5a623] px-6 py-3 text-sm font-semibold text-[#0d0f14] no-underline hover:bg-[#e09510] transition"
           >
             Join the waitlist
           </a>
         </div>
-      </div>
-    </main>
+      </main>
+      <LandingFooter />
+    </div>
   );
 }
