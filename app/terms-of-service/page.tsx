@@ -11,7 +11,7 @@ export default function TermsOfService() {
   return (
     <div style={{ background: "#0d0f14", minHeight: "100vh", fontFamily: "'DM Mono', 'Fira Mono', monospace", color: "#e8eaf0" }}>
       <LandingNav />
-      <main style={{ maxWidth: 760, margin: "0 auto", padding: "120px 24px 80px" }}>
+      <main className="max-w-[760px] mx-auto px-4 sm:px-6 pt-24 sm:pt-[120px] pb-16 sm:pb-20" style={{ overflowWrap: "break-word" }}>
         <h1 style={{ fontSize: 32, fontWeight: 800, marginBottom: 6, color: "#e8eaf0" }}>Terms of Service</h1>
         <p style={{ color: "#8b8fa8", marginTop: 0, marginBottom: 36 }}>Last updated: April 2026</p>
 

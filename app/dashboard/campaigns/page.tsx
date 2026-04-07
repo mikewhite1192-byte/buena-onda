@@ -1588,7 +1588,7 @@ export default function CampaignsPage() {
                   const avgCTR = googleCampaigns.length > 0 ? googleCampaigns.reduce((s, c) => s + (c.ctr ?? 0), 0) / googleCampaigns.length : 0;
                   void totalImpr;
                   return (
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 24 }}>
                       {[
                         { label: "Total Spend", value: `$${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, color: "#f5a623" },
                         { label: "Conversions", value: totalConv.toLocaleString(), color: "#2ecc71" },
@@ -1679,7 +1679,7 @@ export default function CampaignsPage() {
                   const avgCPA = totalConv > 0 ? totalSpend / totalConv : null;
                   const avgCTR = tiktokCampaigns.length > 0 ? tiktokCampaigns.reduce((s, c) => s + (c.ctr ?? 0), 0) / tiktokCampaigns.length : 0;
                   return (
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 24 }}>
                       {[
                         { label: "Total Spend", value: `$${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, color: "#f5a623" },
                         { label: "Conversions", value: totalConv.toLocaleString(), color: "#2ecc71" },
@@ -1777,15 +1777,15 @@ export default function CampaignsPage() {
                     </div>
 
                     {/* Daily table */}
-                    <div style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden" }}>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 100px 120px 130px", padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", fontSize: 11, fontWeight: 700, color: "#5a5e72", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    <div style={{ background: "#161820", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, overflow: "auto" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 100px 120px 130px", padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", fontSize: 11, fontWeight: 700, color: "#5a5e72", textTransform: "uppercase", letterSpacing: "0.5px", minWidth: 450 }}>
                         <span>Date</span>
                         <span style={{ textAlign: "right" }}>Orders</span>
                         <span style={{ textAlign: "right" }}>Revenue</span>
                         <span style={{ textAlign: "right" }}>Avg Order</span>
                       </div>
                       {shopifyMetrics.slice(0, 30).map((row, i) => (
-                        <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 100px 120px 130px", padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)", fontSize: 13, color: "#e8eaf0" }}>
+                        <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 100px 120px 130px", padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)", fontSize: 13, color: "#e8eaf0", minWidth: 450 }}>
                           <span style={{ color: "#8b8fa8" }}>{row.date_recorded}</span>
                           <span style={{ textAlign: "right" }}>{row.orders}</span>
                           <span style={{ textAlign: "right", color: "#96bf62", fontWeight: 600 }}>${Number(row.revenue).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>

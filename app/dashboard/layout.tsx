@@ -10,6 +10,7 @@ import { TourProvider, useTour } from "@/lib/context/tour-context";
 import ChatBubble from "@/components/chat/ChatBubble";
 import TourCard from "@/components/tour/TourCard";
 import FeedbackButton from "@/components/feedback/FeedbackButton";
+import { Menu, X } from "lucide-react";
 
 const T = {
   bg: "#0d0f14",
@@ -58,7 +59,7 @@ function DemoBanner() {
       position: "sticky", top: 52, zIndex: 90,
       background: "linear-gradient(135deg, rgba(245,166,35,0.18), rgba(247,107,28,0.14))",
       borderBottom: "1px solid rgba(245,166,35,0.3)",
-      padding: "9px 24px",
+      padding: "9px 16px",
       display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
       flexWrap: "wrap",
     }}>
@@ -91,6 +92,7 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
   const [localActive, setLocalActive] = useState<Client | null>(null);
   const [showSwitcher, setShowSwitcher] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const switcherRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -155,21 +157,20 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
     <div style={{ minHeight: "100vh", background: T.bg, fontFamily: "'DM Mono', 'Fira Mono', monospace" }}>
 
       {/* Top Nav */}
-      <div style={{
-        height: 52,
-        background: T.bg,
-        borderBottom: `1px solid ${T.border}`,
-        display: "flex",
-        alignItems: "center",
-        padding: "0 20px",
-        gap: 0,
-        position: "sticky",
-        top: 0,
-        zIndex: 100,
-      }}>
+      <div className="sticky top-0 z-[100] flex items-center h-[52px] px-3 sm:px-5" style={{ background: T.bg, borderBottom: `1px solid ${T.border}` }}>
+
+        {/* Mobile hamburger */}
+        <button
+          className="flex sm:hidden items-center justify-center mr-2"
+          style={{ width: 44, height: 44, background: "transparent", border: "none", cursor: "pointer", borderRadius: 8, flexShrink: 0 }}
+          onClick={() => setMobileMenuOpen(v => !v)}
+          aria-label="Toggle navigation"
+        >
+          {mobileMenuOpen ? <X style={{ width: 20, height: 20, color: T.muted }} /> : <Menu style={{ width: 20, height: 20, color: T.muted }} />}
+        </button>
 
         {/* Logo */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginRight: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginRight: 24, flexShrink: 0 }}>
           <div style={{
             width: 26, height: 26, borderRadius: 7,
             background: "linear-gradient(135deg,#f5a623,#f76b1c)",
@@ -177,11 +178,11 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
             fontWeight: 900, fontSize: 12, color: "#fff",
             boxShadow: `0 3px 10px ${T.accentGlow}`,
           }}>B</div>
-          <span style={{ fontWeight: 800, fontSize: 14, color: T.text, letterSpacing: "-0.3px" }}>Buena Onda</span>
+          <span className="hidden sm:inline" style={{ fontWeight: 800, fontSize: 14, color: T.text, letterSpacing: "-0.3px" }}>Buena Onda</span>
         </div>
 
-        {/* Nav Links */}
-        <nav style={{ display: "flex", gap: 2, flex: 1 }}>
+        {/* Desktop Nav Links */}
+        <nav className="hidden sm:flex" style={{ gap: 2, flex: 1, overflow: "hidden" }}>
           {NAV_ITEMS.map(({ label, path }) => {
             const active = path === "/dashboard" ? pathname === "/dashboard" : pathname === path || pathname.startsWith(path + "/");
             return (
@@ -200,6 +201,8 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
                   transition: "all 0.15s",
                   fontFamily: "inherit",
                   outline: "none",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
                 }}
                 onFocus={e => { e.currentTarget.style.boxShadow = "0 0 0 2px rgba(245,166,35,0.4)"; }}
                 onBlur={e => { e.currentTarget.style.boxShadow = "none"; }}
@@ -210,8 +213,11 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
+        {/* Spacer on mobile */}
+        <div className="flex-1 sm:hidden" />
+
         {/* Account Switcher */}
-        <div ref={switcherRef} style={{ position: "relative", marginRight: 16 }}>
+        <div ref={switcherRef} className="hidden sm:block" style={{ position: "relative", marginRight: 16 }}>
           <button
             onClick={() => setShowSwitcher((v) => !v)}
             style={{
@@ -262,8 +268,8 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
         {/* Help button */}
         <button
           onClick={() => document.dispatchEvent(new CustomEvent("buenaonda:open-chat"))}
+          className="hidden sm:flex"
           style={{
-            display: "flex",
             flexDirection: "column",
             alignItems: "center",
             gap: 2,
@@ -285,6 +291,72 @@ function DashboardNav({ children }: { children: React.ReactNode }) {
         {/* User button */}
         <UserButton afterSignOutUrl="/sign-in" />
       </div>
+
+      {/* Mobile slide-out menu */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 top-[52px] z-[90] sm:hidden" onClick={() => setMobileMenuOpen(false)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div
+            className="absolute inset-y-0 left-0 w-64 max-w-[80vw] overflow-y-auto"
+            style={{ background: "#13151d", borderRight: `1px solid ${T.border}` }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Mobile Account Switcher */}
+            <div style={{ padding: "16px 16px 12px", borderBottom: `1px solid ${T.border}` }}>
+              <div style={{ fontSize: 10, color: T.faint, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>Active Account</div>
+              {localActive ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: T.text }}>
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: vertColor, flexShrink: 0 }} />
+                  {localActive.name}
+                </div>
+              ) : (
+                <div style={{ fontSize: 12, color: T.muted }}>No account selected</div>
+              )}
+            </div>
+
+            {/* Mobile Nav Links */}
+            <nav style={{ padding: "8px 8px" }}>
+              {NAV_ITEMS.map(({ label, path }) => {
+                const active = path === "/dashboard" ? pathname === "/dashboard" : pathname === path || pathname.startsWith(path + "/");
+                return (
+                  <button
+                    key={path}
+                    onClick={() => { router.push(path); setMobileMenuOpen(false); }}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "12px 12px",
+                      fontSize: 13,
+                      borderRadius: 8,
+                      border: "none",
+                      background: active ? T.accentBg : "transparent",
+                      color: active ? T.accent : T.muted,
+                      cursor: "pointer",
+                      fontWeight: active ? 600 : 400,
+                      fontFamily: "inherit",
+                      outline: "none",
+                      marginBottom: 2,
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* Mobile Help */}
+            <div style={{ padding: "12px 16px", borderTop: `1px solid ${T.border}` }}>
+              <button
+                onClick={() => { document.dispatchEvent(new CustomEvent("buenaonda:open-chat")); setMobileMenuOpen(false); }}
+                style={{ fontSize: 12, color: T.muted, background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0 }}
+              >
+                ? Help &amp; Chat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Demo sticky bar */}
       <DemoBanner />

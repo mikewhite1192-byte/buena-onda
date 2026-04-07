@@ -144,16 +144,9 @@ function PortalDashboardInner() {
     <div style={{ minHeight: "100vh", background: T.bg, fontFamily: "'DM Mono','Fira Mono',monospace" }}>
 
       {/* Top Nav */}
-      <div style={{
-        height: 52,
+      <div className="sticky top-0 z-[100] flex items-center h-[52px] px-3 sm:px-6" style={{
         background: T.bg,
         borderBottom: `1px solid ${T.border}`,
-        display: "flex",
-        alignItems: "center",
-        padding: "0 24px",
-        position: "sticky",
-        top: 0,
-        zIndex: 100,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
           {branding.logo_url ? (
@@ -184,7 +177,7 @@ function PortalDashboardInner() {
       </div>
 
       {/* Content */}
-      <div style={{ padding: "32px 24px", maxWidth: 900, margin: "0 auto" }}>
+      <div className="px-4 sm:px-6 py-6 sm:py-8 max-w-[900px] mx-auto">
 
         {/* Client header */}
         <div style={{ marginBottom: 28 }}>
@@ -275,14 +268,11 @@ function PortalDashboardInner() {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {campaigns.map((c) => (
-                <div key={c.id} style={{
+                <div key={c.id} className="flex flex-wrap items-center gap-2 sm:gap-[14px]" style={{
                   background: T.card,
                   border: `1px solid ${T.border}`,
                   borderRadius: 10,
                   padding: "14px 18px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 14,
                 }}>
                   <div style={{ flex: 1, overflow: "hidden" }}>
                     <div style={{ fontSize: 13, color: T.text, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

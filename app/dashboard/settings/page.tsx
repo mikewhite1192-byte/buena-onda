@@ -164,7 +164,7 @@ function SettingsInner() {
   }
 
   return (
-    <div style={{ padding: "32px 24px", maxWidth: 680, margin: "0 auto" }}>
+    <div className="px-4 sm:px-6 py-6 sm:py-8 max-w-[680px] mx-auto">
       <h1 style={{ fontSize: 22, fontWeight: 800, color: T.text, margin: "0 0 8px", letterSpacing: "-0.5px" }}>
         Settings
       </h1>
@@ -183,7 +183,7 @@ function SettingsInner() {
           Control how the AI handles campaign decisions. With guardrails on, the AI recommends actions and you approve before anything executes. With autonomous mode on, the AI acts immediately — 24/7 with no human needed.
         </p>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", background: autonomousMode ? "rgba(245,166,35,0.06)" : "rgba(255,255,255,0.02)", border: `1px solid ${autonomousMode ? "rgba(245,166,35,0.25)" : T.border}`, borderRadius: 10, marginBottom: 16 }}>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4" style={{ padding: "16px 20px", background: autonomousMode ? "rgba(245,166,35,0.06)" : "rgba(255,255,255,0.02)", border: `1px solid ${autonomousMode ? "rgba(245,166,35,0.25)" : T.border}`, borderRadius: 10, marginBottom: 16 }}>
           <div>
             <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 3 }}>
               {autonomousMode ? "🟢 Autonomous Mode" : "🔵 Recommendations Mode"}
@@ -274,7 +274,7 @@ function SettingsInner() {
         <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>
           Your WhatsApp Number
         </label>
-        <div style={{ display: "flex", gap: 10 }}>
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-[10px]">
           <input
             type="tel"
             value={loading ? "" : whatsapp}
@@ -415,8 +415,8 @@ function SettingsInner() {
                 <p style={{ fontSize: 12, color: T.muted, margin: "0 0 10px", lineHeight: 1.6 }}>
                   Add this CNAME record in your domain registrar (GoDaddy, Cloudflare, Namecheap, etc.):
                 </p>
-                <div style={{ background: "rgba(0,0,0,0.3)", borderRadius: 6, padding: "10px 14px", fontFamily: "monospace", fontSize: 12 }}>
-                  <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+                <div style={{ background: "rgba(0,0,0,0.3)", borderRadius: 6, padding: "10px 14px", fontFamily: "monospace", fontSize: 12, overflowX: "auto" }}>
+                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                     <span><span style={{ color: T.faint }}>Type:</span> <span style={{ color: T.text }}>CNAME</span></span>
                     <span><span style={{ color: T.faint }}>Name:</span> <span style={{ color: T.accent }}>{customDomain.split(".")[0]}</span></span>
                     <span><span style={{ color: T.faint }}>Value:</span> <span style={{ color: T.accent }}>buenaonda.ai</span></span>

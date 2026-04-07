@@ -134,7 +134,7 @@ export default function ReviewPage() {
   const actionEmoji: Record<string, string> = { pause: "⏸️", scale: "📈", flag_review: "🔍", creative_brief: "🎨" };
 
   return (
-    <div style={{ padding: "32px 40px", maxWidth: 900, margin: "0 auto", fontFamily: "'DM Mono','Fira Mono',monospace" }}>
+    <div className="px-4 sm:px-10 py-6 sm:py-8 max-w-[900px] mx-auto" style={{ fontFamily: "'DM Mono','Fira Mono',monospace" }}>
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>

@@ -75,7 +75,7 @@ export default function HistoryPage() {
   const filtered = filterType === "all" ? actions : actions.filter(a => a.action_type === filterType);
 
   return (
-    <div style={{ padding: "32px 40px", maxWidth: 860, margin: "0 auto", fontFamily: "'DM Mono','Fira Mono',monospace" }}>
+    <div className="px-4 sm:px-10 py-6 sm:py-8 max-w-[860px] mx-auto" style={{ fontFamily: "'DM Mono','Fira Mono',monospace" }}>
 
       {/* Header */}
       <div style={{ marginBottom: 28 }}>

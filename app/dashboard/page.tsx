@@ -383,7 +383,7 @@ function ClientCard({
       )}
 
       {/* Metrics grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {loading ? (
           [0, 1, 2, 3].map(i => <MetricSkeleton key={i} />)
         ) : metrics && metrics.campaignCount > 0 ? (
@@ -763,7 +763,7 @@ function DashboardContent() {
           </div>
 
           {/* Feature preview tiles */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 32, textAlign: "left" }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-[10px] mb-8 text-left">
             {[
               { icon: "📊", title: "Live Metrics", body: "Campaign → Ad Set → Ad" },
               { icon: "🤖", title: "AI Campaign Builder", body: "Launch in 60 seconds" },
@@ -800,7 +800,7 @@ function DashboardContent() {
 
   // ── Overview dashboard ───────────────────────────────────────────────────────
   return (
-    <div style={{ padding: "26px 28px", background: T.bg, minHeight: "calc(100vh - 52px)" }}>
+    <div className="p-4 sm:p-[26px_28px]" style={{ background: T.bg, minHeight: "calc(100vh - 52px)" }}>
 
 
       {/* Greeting + date range selector */}
@@ -846,7 +846,7 @@ function DashboardContent() {
       </div>
 
       {/* Stat strip */}
-      <div id="tour-overview-stats" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 28 }}>
+      <div id="tour-overview-stats" className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-[14px] mb-7">
         {[
           {
             label: `Total Spend (${DATE_RANGES[activeRange].label})`,
@@ -888,7 +888,7 @@ function DashboardContent() {
       {/* Platform Breakdown */}
       <div style={{ marginBottom: 28 }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 12 }}>Platform Breakdown</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {/* Meta */}
           <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "16px 18px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
@@ -986,7 +986,7 @@ function DashboardContent() {
       </div>
 
       {/* Two-column layout */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 18 }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-[18px]">
 
         {/* Client cards */}
         <div>
@@ -1038,7 +1038,7 @@ function DashboardContent() {
           {loadingClients ? (
             <div style={{ color: T.muted, fontSize: 13, padding: "40px 0", textAlign: "center" }}>Loading accounts…</div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-[10px]">
               {[...clients].sort((a, b) => {
                 // critical first, then warning, then healthy, then no_data
                 const order = { critical: 0, warning: 1, healthy: 2, no_data: 3 };

@@ -67,7 +67,7 @@ export default function LandingNav() {
           <button
             onClick={() => setOpen(!open)}
             aria-label="Toggle menu"
-            className="text-[#8b8fa8] hover:text-amber-400 transition-colors cursor-pointer bg-transparent border-none p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:rounded-md"
+            className="text-[#8b8fa8] hover:text-amber-400 transition-colors cursor-pointer bg-transparent border-none p-2.5 -mr-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:rounded-md"
           >
             {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>

@@ -199,7 +199,7 @@ export default function AnimatedDashboard() {
         </div>
 
         {/* ── Alerts + Recommendations ── */}
-        <div className="grid grid-cols-[1fr_200px] gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_200px] gap-3">
           {/* Alerts */}
           <div>
             <div className="flex items-center gap-1.5 mb-1.5">

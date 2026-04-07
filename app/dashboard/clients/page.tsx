@@ -414,7 +414,7 @@ export default function ClientsPage() {
   }
 
   return (
-    <div style={{ padding: "32px 40px", maxWidth: 900, margin: "0 auto" }}>
+    <div className="px-4 sm:px-10 py-6 sm:py-8 max-w-[900px] mx-auto">
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
         <div>
