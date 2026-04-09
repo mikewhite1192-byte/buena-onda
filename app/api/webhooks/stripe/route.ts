@@ -98,6 +98,28 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       WHERE email = ${email}
     `;
   }
+
+  // ── Activate referral if this user was referred by an affiliate ──
+  // Look up the referral by referred_user_id (set during Clerk user.created webhook)
+  const planAmount = getPlanAmount(planName);
+  const referralRows = await sql`
+    UPDATE referrals
+    SET status = 'active', plan = ${planName}, plan_amount = ${planAmount}
+    WHERE referred_user_id = ${clerkUserId} AND status = 'signed_up'
+    RETURNING affiliate_code
+  `;
+
+  if (referralRows.length > 0) {
+    console.log(`[stripe webhook] Activated referral for affiliate: ${referralRows[0].affiliate_code}`);
+  }
+}
+
+function getPlanAmount(planName: string): number {
+  const lower = (planName || "").toLowerCase();
+  if (lower.includes("starter")) return 97;
+  if (lower.includes("agency")) return 1499;
+  // Default to growth/pro
+  return 179;
 }
 
 async function handleSubscriptionUpdated(sub: Stripe.Subscription) {
@@ -138,4 +160,10 @@ async function handleSubscriptionDeleted(sub: Stripe.Subscription) {
   await clerk.users.updateUserMetadata(clerkUserId, {
     publicMetadata: { subscription_status: "cancelled" },
   });
+
+  // Deactivate the referral so affiliate dashboard reflects churn
+  await sql`
+    UPDATE referrals SET status = 'churned'
+    WHERE referred_user_id = ${clerkUserId} AND status = 'active'
+  `;
 }

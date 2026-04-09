@@ -156,8 +156,15 @@ export default clerkMiddleware(async (auth, req) => {
     }
   }
 
-  // If a ?ref= param is present, set a 90-day cookie and continue
+  // If a ?ref= param is present, set a 90-day cookie, track the click, and continue
   if (ref && /^[a-z0-9-]{3,30}$/.test(ref)) {
+    // Fire-and-forget click tracking — don't block the response
+    fetch(`${req.nextUrl.origin}/api/affiliates/click`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: ref }),
+    }).catch(() => {});
+
     const res = NextResponse.next();
     res.cookies.set("bo_ref", ref, {
       maxAge: 60 * 60 * 24 * 90,
