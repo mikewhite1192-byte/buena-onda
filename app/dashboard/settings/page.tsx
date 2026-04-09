@@ -43,6 +43,9 @@ function SettingsInner() {
   // Billing state
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState("");
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelConfirm, setCancelConfirm] = useState(false);
+  const [cancelResult, setCancelResult] = useState("");
 
   // Slack state
   const [slackStatus, setSlackStatus] = useState<"" | "connected" | "error">("");
@@ -257,8 +260,62 @@ function SettingsInner() {
         </button>
 
         <p style={{ fontSize: 11, color: T.faint, margin: "10px 0 0", lineHeight: 1.6 }}>
-          Opens the Stripe customer portal where you can update your card, switch plans, download invoices, or cancel.
+          Opens the Stripe customer portal where you can update your card, switch plans, or download invoices.
         </p>
+
+        {/* Cancel subscription */}
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
+          {cancelResult && (
+            <p style={{ fontSize: 12, color: T.accent, background: T.accentBg, padding: "8px 12px", borderRadius: 8, marginBottom: 12 }}>
+              {cancelResult}
+            </p>
+          )}
+          {!cancelConfirm ? (
+            <button
+              onClick={() => setCancelConfirm(true)}
+              style={{ fontSize: 12, color: T.error, background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline", fontFamily: "inherit" }}
+            >
+              Cancel subscription
+            </button>
+          ) : (
+            <div style={{ background: "rgba(231,76,60,0.08)", border: `1px solid rgba(231,76,60,0.2)`, borderRadius: 8, padding: 14 }}>
+              <p style={{ fontSize: 13, color: T.text, margin: "0 0 12px", lineHeight: 1.5 }}>
+                Are you sure? Your subscription will remain active until the end of your current billing period, then cancel automatically.
+              </p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  disabled={cancelLoading}
+                  onClick={async () => {
+                    setCancelLoading(true);
+                    setCancelResult("");
+                    try {
+                      const res = await fetch("/api/stripe/cancel", { method: "POST" });
+                      const data = await res.json();
+                      if (res.ok) {
+                        setCancelResult(`Subscription will cancel on ${new Date(data.current_period_end).toLocaleDateString()}. You have access until then.`);
+                        setCancelConfirm(false);
+                      } else {
+                        setCancelResult(data.error || "Failed to cancel. Try again or use Manage Billing above.");
+                      }
+                    } catch {
+                      setCancelResult("Something went wrong. Try again.");
+                    }
+                    setCancelLoading(false);
+                  }}
+                  style={{ padding: "8px 16px", fontSize: 12, fontWeight: 700, background: T.error, color: "#fff", border: "none", borderRadius: 6, cursor: cancelLoading ? "wait" : "pointer", opacity: cancelLoading ? 0.6 : 1, fontFamily: "inherit" }}
+                >
+                  {cancelLoading ? "Canceling..." : "Yes, cancel"}
+                </button>
+                <button
+                  onClick={() => setCancelConfirm(false)}
+                  style={{ padding: "8px 16px", fontSize: 12, color: T.muted, background: "rgba(255,255,255,0.06)", border: `1px solid ${T.border}`, borderRadius: 6, cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  Never mind
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* WhatsApp */}
