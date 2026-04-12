@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { neon } from "@neondatabase/serverless";
+import { createOAuthState } from "@/lib/oauth-state";
 
 const sql = neon(process.env.DATABASE_URL!);
 const APP_ID = process.env.META_APP_ID!;
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
   const rows = await sql`SELECT id FROM clients WHERE id = ${clientId} AND owner_id = ${userId} LIMIT 1`;
   if (rows.length === 0) return NextResponse.json({ error: "Client not found" }, { status: 404 });
 
-  const state = Buffer.from(JSON.stringify({ clientId, nonce: crypto.randomUUID() })).toString("base64url");
+  const state = createOAuthState({ clientId, userId });
   const redirectUri = `${BASE_URL}/api/auth/facebook/callback`;
 
   const url = new URL("https://www.facebook.com/v21.0/dialog/oauth");

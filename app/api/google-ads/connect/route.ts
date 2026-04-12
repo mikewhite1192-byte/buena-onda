@@ -3,6 +3,7 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
+import { createOAuthState } from '@/lib/oauth-state'
 
 export async function GET(req: Request) {
   const { userId } = await auth()
@@ -20,7 +21,7 @@ export async function GET(req: Request) {
     scope: 'https://www.googleapis.com/auth/adwords',
     access_type: 'offline',
     prompt: 'consent',
-    state: clientId ? `${userId}__${clientId}` : userId,
+    state: createOAuthState({ userId, clientId: clientId || undefined }),
   })
 
   return NextResponse.redirect(

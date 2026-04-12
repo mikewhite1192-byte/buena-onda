@@ -20,12 +20,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${BASE_URL}/dashboard/clients?error=${encodeURIComponent("no_code: " + (allParams || "no_params"))}`);
   }
 
+  // Verify HMAC-signed state (CSRF protection + replay prevention)
   let clientId: string;
   try {
-    const decoded = JSON.parse(Buffer.from(state, "base64url").toString());
-    clientId = decoded.clientId;
-    if (!clientId) throw new Error("No clientId");
-  } catch {
+    const { verifyOAuthState } = await import("@/lib/oauth-state");
+    const stateData = verifyOAuthState(state);
+    clientId = stateData.clientId as string;
+    if (!clientId) throw new Error("No clientId in state");
+  } catch (err) {
+    console.error("[facebook/callback] Invalid OAuth state:", err instanceof Error ? err.message : err);
     return NextResponse.redirect(`${BASE_URL}/dashboard/clients?error=invalid_state`);
   }
 

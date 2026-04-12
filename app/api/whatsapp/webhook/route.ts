@@ -6,6 +6,7 @@ export const maxDuration = 60
 
 import { NextResponse } from 'next/server'
 import { handleIncomingMessage } from '@/lib/whatsapp/conversation'
+import { markWebhookProcessed } from '@/lib/webhook-idempotency'
 
 // ── GET — Webhook verification ────────────────────────────────────────────────
 export async function GET(req: Request) {
@@ -53,6 +54,18 @@ export async function POST(req: Request) {
     const tasks: Promise<void>[] = []
     for (const msg of messages) {
       if (msg.type !== 'text') continue
+
+      // Idempotency: Meta may retry webhooks on 5xx. msg.id is unique per
+      // message. Without dedup, the bot would reply twice to the same message.
+      const msgId = msg.id as string | undefined
+      if (msgId) {
+        const isNew = await markWebhookProcessed('whatsapp', msgId)
+        if (!isNew) {
+          console.log(`[whatsapp] Duplicate message ${msgId}, skipping`)
+          continue
+        }
+      }
+
       const from = msg.from
       const text = msg.text.body
       tasks.push(

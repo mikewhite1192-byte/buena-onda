@@ -4,13 +4,14 @@
 import { neon } from '@neondatabase/serverless'
 import { NextResponse } from 'next/server'
 import { listAccessibleCustomers } from '@/lib/google-ads/client'
+import { verifyOAuthState } from '@/lib/oauth-state'
 
 const sql = neon(process.env.DATABASE_URL!)
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const code = searchParams.get('code')
-  const state = searchParams.get('state') // userId or userId__clientId
+  const state = searchParams.get('state')
   const error = searchParams.get('error')
 
   const base = process.env.NEXT_PUBLIC_BASE_URL!
@@ -20,8 +21,18 @@ export async function GET(req: Request) {
     return NextResponse.redirect(`${base}/dashboard/settings?google_ads=error`)
   }
 
-  // Parse state: userId or userId__clientId
-  const [userId, clientId] = state.split('__')
+  // Verify HMAC-signed state (CSRF protection + replay prevention)
+  let userId: string
+  let clientId: string | undefined
+  try {
+    const stateData = verifyOAuthState(state)
+    userId = stateData.userId as string
+    clientId = stateData.clientId as string | undefined
+  } catch (err) {
+    console.error('[google-ads] Invalid OAuth state:', err instanceof Error ? err.message : err)
+    return NextResponse.redirect(`${base}/dashboard/settings?google_ads=error&reason=invalid_state`)
+  }
+
   const redirectBase = clientId ? `${base}/dashboard/clients` : `${base}/dashboard/settings`
 
   try {

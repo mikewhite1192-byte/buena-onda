@@ -3,13 +3,14 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
 import { exchangeSlackCode, sendSlackMessage } from '@/lib/slack/client'
+import { verifyOAuthState } from '@/lib/oauth-state'
 
 const sql = neon(process.env.DATABASE_URL!)
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const code = searchParams.get('code')
-  const state = searchParams.get('state') // userId
+  const state = searchParams.get('state')
   const error = searchParams.get('error')
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://buenaonda.ai'
 
@@ -17,7 +18,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${appUrl}/dashboard/settings?slack=error`)
   }
 
-  const userId = state
+  // Verify HMAC-signed state (CSRF protection + replay prevention)
+  let userId: string
+  try {
+    const stateData = verifyOAuthState(state)
+    userId = stateData.userId as string
+  } catch (err) {
+    console.error('[slack/callback] Invalid OAuth state:', err instanceof Error ? err.message : err)
+    return NextResponse.redirect(`${appUrl}/dashboard/settings?slack=error&reason=invalid_state`)
+  }
 
   try {
     await sql`
