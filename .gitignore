@@ -9,4 +9,5 @@ coverage
 .DS_Store
 ._*
 .claude/worktrees/
+.clerk/
 
