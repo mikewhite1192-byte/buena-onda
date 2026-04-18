@@ -14,9 +14,9 @@ export default function Hero() {
   The <span className="text-onda-teal">AI Business Stack</span> for Modern Entrepreneurs
 </h1>
           <p className="mt-6 text-lg md:text-xl text-onda-slate/80">
-            Daily clarity and support across Business Strategy, GHL systems,
-            HubSpot operations, Meta ads, Google/SEO, and Finance — all in one
-            simple platform powered by AI.
+            Daily clarity and support across Business Strategy, HubSpot
+            operations, Meta ads, Google/SEO, and Finance — all in one simple
+            platform powered by AI.
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row gap-4">
@@ -29,7 +29,7 @@ export default function Hero() {
           </div>
 
           <div className="mt-4 text-sm text-onda-slate/60">
-            One subscription • Six essential tools • Built for creators and entrepreneurs
+            One subscription • Five essential tools • Built for creators and entrepreneurs
           </div>
         </div>
       </Container>

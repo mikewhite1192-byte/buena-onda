@@ -2,11 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 const products = {
-  "engineer-ghl": {
-    name: "Buena Onda | The Engineer (GHL Systems Specialist)",
-    description:
-      "Your technical operations expert for automations, CRM systems, integrations, communications, and backend workflow troubleshooting.",
-  },
   "architect-business": {
     name: "Buena Onda | The Architect (Business & Marketing)",
     description:

@@ -1,7 +1,7 @@
 const quotes = [
   { name: "Agency Owner", text: "Finally a place to start without 500 tabs. The tracks keep me moving." },
   { name: "Solo Founder", text: "Business 101 gave me clarity on my offer and price in one afternoon." },
-  { name: "Contractor → SaaS", text: "GHL + SEO tracks = leads in the pipeline while I’m still building." },
+  { name: "Contractor → SaaS", text: "Meta + SEO tracks = leads in the pipeline while I’m still building." },
 ];
 
 export default function Testimonials() {

@@ -1,6 +1,5 @@
 export default function PainSection() {
   const pains = [
-    "GHL automations break and you don’t know why.",
     "HubSpot lifecycle & properties are a mess.",
     "Meta ads aren’t delivering or scaling.",
     "Google/SEO feels confusing and slow.",

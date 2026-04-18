@@ -33,12 +33,6 @@ export const lineup: Product[] = [
     accent: "onda-teal",
   },
   {
-    id: "engineer",
-    title: "The Engineer",
-    blurb: "Go High Level (GHL) systems — workflows, CRM, calendars, pipelines, automations.",
-    accent: "onda-teal-dark",
-  },
-  {
     id: "integrator",
     title: "The Integrator",
     blurb: "HubSpot operations — objects, automation, integrations, and clean RevOps.",

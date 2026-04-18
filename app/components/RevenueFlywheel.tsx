@@ -16,12 +16,6 @@ const steps: Step[] = [
     tag: "Business AI",
   },
   {
-    title: "Capture & route every lead",
-    blurb: "Forms, webhooks, and automations that never drop a contact.",
-    link: "/products#ghl-systems-ai",
-    tag: "GHL Systems AI",
-  },
-  {
     title: "Produce & scale paid traffic",
     blurb: "Fix setup, test creatives, and scale with rules that protect ROAS.",
     link: "/products#meta-ads-ai",

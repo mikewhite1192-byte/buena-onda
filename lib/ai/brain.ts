@@ -30,7 +30,7 @@ export async function planWorkflowFromPrompt(prompt: string): Promise<WorkflowPl
     model: "claude-sonnet-4-5",
     max_tokens: 1024,
     system:
-      "You turn GoHighLevel operator prompts into strict JSON that matches the WorkflowPlan type. Do not add prose.",
+      "You turn operator prompts into strict JSON that matches the WorkflowPlan type. Do not add prose.",
     messages: [{ role: "user", content: prompt }],
   });
 

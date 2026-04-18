@@ -1,6 +1,6 @@
 const faqs = [
-  { q: "Do I need GHL or HubSpot already?", a: "No. If you do, we’ll optimize them. If not, we’ll guide setup from zero." },
-  { q: "Is everything included in one plan?", a: "Yes — Business AI, GHL Systems AI, HubSpot Ops AI, Meta Ads AI, Google & SEO AI, and Finance AI." },
+  { q: "Do I need HubSpot already?", a: "No. If you do, we’ll optimize it. If not, we’ll guide setup from zero." },
+  { q: "Is everything included in one plan?", a: "Yes — Business AI, HubSpot Ops AI, Meta Ads AI, Google & SEO AI, and Finance AI." },
   { q: "Can I cancel anytime?", a: "Absolutely. No contracts, no hidden fees." },
   { q: "Is this a course?", a: "No — it’s a daily-use AI tool that helps you run your business better every day." },
 ];

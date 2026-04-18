@@ -5,7 +5,6 @@ const tools = [
 { href: '/dashboard/tools/marketing', label: 'Marketing', emoji: '📣', desc: 'Campaign ideas, angles, offers.' },
   { href: '/dashboard/tools/ads', label: 'Ads', emoji: '📊', desc: 'Ad copy + iterative optimization.' },
   { href: '/dashboard/tools/seo', label: 'SEO', emoji: '🔎', desc: 'Keywords, briefs, outlines, content.' },
-  { href: '/dashboard/tools/ghl', label: 'GHL', emoji: '⚙️', desc: 'Workflows & automation helpers.' },
   { href: '/dashboard/tools/finance', label: 'Finance', emoji: '💸', desc: 'Insights & simple forecasts.' },
   { href: '/dashboard/tools/custom', label: 'Custom', emoji: '🧩', desc: 'Your bespoke prompts & flows.' },
 ];

@@ -1,5 +1,5 @@
 const steps = [
-  { t: "Pick a track", d: "Start with Business 101 or jump into GHL, HubSpot, Meta, Google, SEO, or Finance." },
+  { t: "Pick a track", d: "Start with Business 101 or jump into HubSpot, Meta, Google, SEO, or Finance." },
   { t: "Answer 3–5 questions", d: "Your AI configures a plan, templates, and first actions to ship today." },
   { t: "Execute & iterate", d: "Your AI drafts assets, checks work, and keeps momentum with daily nudges." },
 ];

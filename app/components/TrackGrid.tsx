@@ -3,7 +3,6 @@ type Track = { id: string; title: string; tag: string; blurb: string };
 
 const tracks: Track[] = [
   { id: "business-ai",     title: "Business AI",     tag: "Offer • Messaging • Funnels", blurb: "Structure your offer, messaging, and funnel with clear, step-by-step guidance." },
-  { id: "ghl-systems-ai",  title: "GHL Systems AI",  tag: "Pipelines • Automations",     blurb: "Build and troubleshoot pipelines, automations, and snapshots in GoHighLevel." },
   { id: "hubspot-ops-ai",  title: "HubSpot Ops AI",  tag: "Lifecycle • Sequences • RevOps", blurb: "Organize CRM, lifecycle stages, sequences, and reporting with confidence." },
   { id: "meta-ads-ai",     title: "Meta Ads AI",     tag: "Setup • Diagnostics • Scaling", blurb: "Fix setup, test creatives, and scale campaigns with proven frameworks." },
   { id: "google-seo-ai",   title: "Google & SEO AI", tag: "Keywords • Ads • GBP • Content", blurb: "Plan keywords, optimize GBP, run ads, and ship SEO content that compounds." },
@@ -16,7 +15,7 @@ export default function TrackGrid() {
       <div className="flex items-end justify-between gap-6">
         <div>
           <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight">The AI Business Stack</h2>
-          <p className="text-slate-600 mt-2">Six daily-use tools for modern entrepreneurs — all included.</p>
+          <p className="text-slate-600 mt-2">Five daily-use tools for modern entrepreneurs — all included.</p>
         </div>
         <a href="/products" className="hidden md:inline-block rounded-xl px-5 py-2.5 border border-slate-300 text-slate-700 hover:bg-white/70 transition">
           View all →
