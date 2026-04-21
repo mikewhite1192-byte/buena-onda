@@ -12,8 +12,11 @@ export default function CircuitBackground() {
 
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d", { alpha: true });
-    if (!ctx) return;
+    const ctx0 = canvas.getContext("2d", { alpha: true });
+    if (!ctx0) return;
+    // Alias narrowed references so TS keeps non-null inside nested functions
+    const cv: HTMLCanvasElement = canvas;
+    const ctx: CanvasRenderingContext2D = ctx0;
 
     const DPR = Math.min(window.devicePixelRatio || 1, 1.5);
     const CELL = 68;
@@ -142,10 +145,10 @@ export default function CircuitBackground() {
     function resize() {
       W = window.innerWidth;
       H = window.innerHeight;
-      canvas.width = Math.floor(W * DPR);
-      canvas.height = Math.floor(H * DPR);
-      canvas.style.width = W + "px";
-      canvas.style.height = H + "px";
+      cv.width = Math.floor(W * DPR);
+      cv.height = Math.floor(H * DPR);
+      cv.style.width = W + "px";
+      cv.style.height = H + "px";
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(DPR, DPR);
       buildGrid();
