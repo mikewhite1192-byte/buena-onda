@@ -136,6 +136,18 @@ export default function LandingHero() {
         .pill-feed-item {
           animation: pill-feed-enter 420ms cubic-bezier(0.16, 1, 0.3, 1);
         }
+        @keyframes dash-rise {
+          from { transform: rotateX(24deg) translateZ(0); }
+          to   { transform: rotateX(0deg) translateZ(0); }
+        }
+        .dash-entry-tilt {
+          animation: dash-rise 1250ms cubic-bezier(0.16, 1, 0.3, 1) 750ms both;
+          transform-origin: 50% 100%;
+          transform-style: preserve-3d;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .dash-entry-tilt { animation: none; }
+        }
         .hero-gradient {
           background: linear-gradient(100deg, #fde68a 0%, #f5a623 45%, #e8eaf0 100%);
           background-size: 220% 100%;
@@ -249,17 +261,19 @@ export default function LandingHero() {
               <div className="absolute -inset-8 rounded-3xl pointer-events-none z-0 opacity-50"
                 style={{ background: "radial-gradient(ellipse at 50% 80%, rgba(245,166,35,0.1) 0%, transparent 60%)", filter: "blur(70px)" }} />
 
-              <div
-                className="relative z-[1] rounded-2xl overflow-hidden will-change-transform"
-                style={{
-                  transform: `rotateX(${tiltX}deg) rotateY(${tiltY}deg) translateZ(0)`,
-                  transition: "transform 0.2s ease-out",
-                  animation: "dashGlow 6s ease-in-out infinite",
-                }}
-              >
-                <div className="p-px rounded-2xl bg-gradient-to-b from-white/10 via-white/[0.03] to-transparent">
-                  <div className="rounded-2xl overflow-hidden bg-[#0d0f14]">
-                    <AnimatedDashboard />
+              <div className="dash-entry-tilt relative z-[1]">
+                <div
+                  className="rounded-2xl overflow-hidden will-change-transform"
+                  style={{
+                    transform: `rotateX(${tiltX}deg) rotateY(${tiltY}deg) translateZ(0)`,
+                    transition: "transform 0.2s ease-out",
+                    animation: "dashGlow 6s ease-in-out infinite",
+                  }}
+                >
+                  <div className="p-px rounded-2xl bg-gradient-to-b from-white/10 via-white/[0.03] to-transparent">
+                    <div className="rounded-2xl overflow-hidden bg-[#0d0f14]">
+                      <AnimatedDashboard />
+                    </div>
                   </div>
                 </div>
               </div>
