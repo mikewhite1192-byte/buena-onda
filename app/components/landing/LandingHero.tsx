@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
-import { Zap, Pause, Clock, RefreshCw, TrendingUp, Target, BarChart3, MessageSquare, OctagonX, CheckCircle2 } from "lucide-react";
+import { Zap, Pause, Clock, RefreshCw, TrendingUp, Target, BarChart3, MessageSquare, OctagonX, CheckCircle2, ArrowRight } from "lucide-react";
 import AnimatedDashboard from "./AnimatedDashboard";
 // Blobs moved to page level (fixed viewport)
 
@@ -20,6 +20,17 @@ const TICKER_ICONS: Record<string, React.ReactNode> = {
   stop: <OctagonX className="w-3.5 h-3.5" />,
   check: <CheckCircle2 className="w-3.5 h-3.5" />,
 };
+
+/* ── Live feed (hero pill, rotates) ── */
+const LIVE_FEED = [
+  { icon: "pause", text: "Paused underperforming ad set", time: "2m ago" },
+  { icon: "zap", text: "Scaled Summit Roofing budget +20%", time: "7m ago" },
+  { icon: "clock", text: "Caught CPL spike at 2:14am", time: "18m ago" },
+  { icon: "trending", text: "ROAS hit 4.2× on Peak Supplements", time: "34m ago" },
+  { icon: "message", text: "WhatsApp: \"pause the roofing campaign\" — done", time: "52m ago" },
+  { icon: "check", text: "New Phoenix campaign live · 180k homeowners", time: "1h ago" },
+  { icon: "refresh", text: "Creative fatigue detected · brief generated", time: "2h ago" },
+];
 
 const TICKER = [
   { icon: "zap", text: "Budget scaled +20% — Summit Roofing CPL dropped to $22", cls: "text-emerald-400" },
@@ -81,7 +92,15 @@ function StatCounter({ value, suffix, decimal, label }: { value: number; suffix:
 
 export default function LandingHero() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [feedIdx, setFeedIdx] = useState(0);
   const dashRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setFeedIdx((i) => (i + 1) % LIVE_FEED.length);
+    }, 3800);
+    return () => clearInterval(id);
+  }, []);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!dashRef.current) return;
@@ -103,28 +122,52 @@ export default function LandingHero() {
       <style>{`
         @keyframes gradientShift {
           0%, 100% { background-position: 0% 50%; }
-          25% { background-position: 100% 50%; }
-          50% { background-position: 50% 100%; }
-          75% { background-position: 0% 0%; }
-        }
-        @keyframes dashFloat {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-8px); }
+          50% { background-position: 100% 50%; }
         }
         @keyframes dashGlow {
-          0%, 100% { box-shadow: 0 40px 100px -20px rgba(245,166,35,0.15), 0 0 0 1px rgba(255,255,255,0.06); }
-          50% { box-shadow: 0 40px 100px -20px rgba(245,166,35,0.25), 0 0 0 1px rgba(255,255,255,0.1); }
+          0%, 100% { box-shadow: 0 40px 100px -20px rgba(245,166,35,0.12), 0 0 0 1px rgba(255,255,255,0.06); }
+          50% { box-shadow: 0 40px 100px -20px rgba(245,166,35,0.22), 0 0 0 1px rgba(255,255,255,0.1); }
         }
-        @keyframes dashScan {
-          0% { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
+        @keyframes pill-feed-enter {
+          from { opacity: 0; transform: translateY(6px); filter: blur(2px); }
+          to   { opacity: 1; transform: translateY(0); filter: blur(0); }
+        }
+        .pill-feed-item {
+          animation: pill-feed-enter 420ms cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .hero-gradient {
+          background: linear-gradient(100deg, #fde68a 0%, #f5a623 45%, #e8eaf0 100%);
+          background-size: 220% 100%;
+          background-clip: text;
+          -webkit-background-clip: text;
+          color: transparent;
+          -webkit-text-fill-color: transparent;
+          animation: gradientShift 16s ease-in-out infinite;
+        }
+        .cta-primary {
+          position: relative;
+          background: #f5a623;
+          box-shadow: 0 8px 30px -6px rgba(245,166,35,0.35);
+          transition: box-shadow 0.25s ease, transform 0.25s ease, background 0.25s ease;
+        }
+        .cta-primary:hover {
+          background: #ffb33a;
+          box-shadow: 0 12px 38px -6px rgba(245,166,35,0.5);
+        }
+        .hero-stat-row {
+          border-top: 1px solid rgba(255,255,255,0.06);
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .hero-stat-cell + .hero-stat-cell {
+          border-left: 1px solid rgba(255,255,255,0.06);
         }
         .hero-fade-in { animation: fade-up 1s cubic-bezier(0.16,1,0.3,1) both; }
-        .hero-fade-d1 { animation-delay: 0.1s; }
-        .hero-fade-d2 { animation-delay: 0.3s; }
-        .hero-fade-d3 { animation-delay: 0.5s; }
-        .hero-fade-d4 { animation-delay: 0.7s; }
-        .hero-fade-d5 { animation-delay: 0.9s; }
+        .hero-fade-d0 { animation-delay: 0s; }
+        .hero-fade-d1 { animation-delay: 0.15s; }
+        .hero-fade-d2 { animation-delay: 0.35s; }
+        .hero-fade-d3 { animation-delay: 0.55s; }
+        .hero-fade-d4 { animation-delay: 0.75s; }
+        .hero-fade-d5 { animation-delay: 0.95s; }
       `}</style>
 
       {/* ── HERO ── */}
@@ -133,11 +176,35 @@ export default function LandingHero() {
         {/* Content */}
         <div className="relative z-[2] max-w-[1100px] mx-auto px-4 md:px-6 pt-28 md:pt-44 pb-10 md:pb-16">
 
+          {/* Live announcement pill — rotating activity feed */}
+          <div className="hero-fade-in hero-fade-d0 flex justify-center mb-5 md:mb-7">
+            <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full border border-white/10 bg-white/[0.03] backdrop-blur-md text-xs md:text-[13px] max-w-[92vw]">
+              <span className="relative flex w-2 h-2 flex-none">
+                <span className="absolute inset-0 rounded-full bg-amber-400 animate-ping opacity-60" />
+                <span className="relative w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_10px_rgba(245,166,35,0.7)]" />
+              </span>
+              <span className="font-semibold text-[#e8eaf0] tracking-wide flex-none">Live</span>
+              <span className="text-[#5a5e72] flex-none">·</span>
+              <span key={feedIdx} className="pill-feed-item inline-flex items-center gap-2 min-w-0">
+                <span className="text-[#8b8fa8] flex-none">
+                  {TICKER_ICONS[LIVE_FEED[feedIdx].icon]}
+                </span>
+                <span className="text-[#e8eaf0] truncate">
+                  {LIVE_FEED[feedIdx].text}
+                </span>
+                <span className="text-[#5a5e72] flex-none hidden sm:inline">·</span>
+                <span className="text-[#5a5e72] flex-none hidden sm:inline tabular-nums">
+                  {LIVE_FEED[feedIdx].time}
+                </span>
+              </span>
+            </div>
+          </div>
+
           {/* Headline */}
           <div className="max-w-[900px] mx-auto text-center mb-4 md:mb-6">
-            <h1 className="hero-fade-in hero-fade-d1 text-[clamp(32px,7vw,96px)] font-extrabold leading-[0.95] tracking-[-2px] md:tracking-[-3px] text-[#e8eaf0]">
+            <h1 className="hero-fade-in hero-fade-d1 text-[clamp(34px,7.2vw,104px)] font-extrabold leading-[0.92] tracking-[-2.5px] md:tracking-[-4px] text-[#e8eaf0]">
               Your ads managed by
-              <span className="bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 bg-clip-text text-transparent"> AI that never sleeps</span>
+              <span className="hero-gradient"> AI that never sleeps</span>
             </h1>
           </div>
 
@@ -149,39 +216,73 @@ export default function LandingHero() {
           {/* CTAs — stack on mobile */}
           <div className="hero-fade-in hero-fade-d3 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center mb-12 md:mb-20 px-4 sm:px-0">
             <a href="/demo"
-              className="w-full sm:w-auto text-center px-8 py-4 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-[#0d0f14] text-base font-bold no-underline shadow-[0_4px_30px_rgba(245,166,35,0.3)] hover:shadow-[0_8px_40px_rgba(245,166,35,0.4)] hover:-translate-y-0.5 transition-all duration-300">
+              className="cta-primary group w-full sm:w-auto px-7 py-3.5 rounded-full text-[#0d0f14] text-[15px] font-semibold no-underline inline-flex items-center justify-center gap-2">
               Try the live demo
+              <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
             </a>
             <Link href="/#pricing"
-              className="w-full sm:w-auto text-center px-8 py-4 rounded-full border border-white/15 text-[#e8eaf0] text-base font-medium no-underline hover:border-white/30 hover:bg-white/[0.03] transition-all duration-300">
+              className="group w-full sm:w-auto text-center px-7 py-3.5 rounded-full border border-white/12 text-[#e8eaf0] text-[15px] font-medium no-underline hover:border-white/25 hover:bg-white/[0.03] transition-all duration-200 inline-flex items-center justify-center gap-2">
               View pricing
+              <ArrowRight className="w-4 h-4 opacity-50 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0.5" />
             </Link>
           </div>
 
-          {/* Dashboard — hidden on small mobile, 3D tilt on desktop */}
-          <div
-            ref={dashRef}
-            onMouseMove={handleMouseMove}
-            onMouseLeave={handleMouseLeave}
-            className="hero-fade-in hero-fade-d4 relative max-w-[960px] mx-auto hidden sm:block"
-            style={{ perspective: 1200 }}
-          >
-            {/* Glow behind */}
-            <div className="absolute -inset-8 rounded-3xl pointer-events-none z-0 opacity-60"
-              style={{ background: "radial-gradient(ellipse at 50% 80%, rgba(245,166,35,0.12) 0%, transparent 60%)", filter: "blur(60px)" }} />
-
-            {/* Live animated dashboard with 3D tilt */}
+          {/* Dashboard — clean, no floating chips */}
+          <div className="hero-fade-in hero-fade-d4 relative max-w-[960px] mx-auto hidden sm:block">
             <div
-              className="relative z-[1] rounded-2xl overflow-hidden will-change-transform"
-              style={{
-                transform: `rotateX(${tiltX}deg) rotateY(${tiltY}deg) translateZ(0)`,
-                transition: "transform 0.12s ease-out",
-                animation: "dashGlow 5s ease-in-out infinite",
-              }}
+              ref={dashRef}
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
+              className="relative"
+              style={{ perspective: 1400 }}
             >
-              <div className="p-px rounded-2xl bg-gradient-to-b from-white/10 via-white/[0.03] to-transparent">
-                <div className="rounded-2xl overflow-hidden bg-[#0d0f14]">
-                  <AnimatedDashboard />
+              {/* subtle glow behind */}
+              <div className="absolute -inset-8 rounded-3xl pointer-events-none z-0 opacity-50"
+                style={{ background: "radial-gradient(ellipse at 50% 80%, rgba(245,166,35,0.1) 0%, transparent 60%)", filter: "blur(70px)" }} />
+
+              <div
+                className="relative z-[1] rounded-2xl overflow-hidden will-change-transform"
+                style={{
+                  transform: `rotateX(${tiltX}deg) rotateY(${tiltY}deg) translateZ(0)`,
+                  transition: "transform 0.2s ease-out",
+                  animation: "dashGlow 6s ease-in-out infinite",
+                }}
+              >
+                <div className="p-px rounded-2xl bg-gradient-to-b from-white/10 via-white/[0.03] to-transparent">
+                  <div className="rounded-2xl overflow-hidden bg-[#0d0f14]">
+                    <AnimatedDashboard />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Clean stat row under the dashboard — Stripe/Linear style */}
+            <div className="hero-stat-row mt-14 md:mt-20 grid grid-cols-2 md:grid-cols-4 tabular-nums">
+              <div className="hero-stat-cell py-6 px-4 md:px-6">
+                <div className="text-[10px] uppercase tracking-[1.6px] text-[#6a6e82] font-medium mb-2">ROAS</div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[26px] md:text-[32px] font-semibold text-[#e8eaf0] leading-none">4.2×</span>
+                  <span className="text-[11px] font-medium text-emerald-400">↑ 0.8</span>
+                </div>
+              </div>
+              <div className="hero-stat-cell py-6 px-4 md:px-6">
+                <div className="text-[10px] uppercase tracking-[1.6px] text-[#6a6e82] font-medium mb-2">Cost per lead</div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[26px] md:text-[32px] font-semibold text-[#e8eaf0] leading-none">$22</span>
+                  <span className="text-[11px] font-medium text-emerald-400">↓ $3</span>
+                </div>
+              </div>
+              <div className="hero-stat-cell py-6 px-4 md:px-6">
+                <div className="text-[10px] uppercase tracking-[1.6px] text-[#6a6e82] font-medium mb-2">Leads / week</div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[26px] md:text-[32px] font-semibold text-[#e8eaf0] leading-none">847</span>
+                  <span className="text-[11px] font-medium text-emerald-400">↑ 12%</span>
+                </div>
+              </div>
+              <div className="hero-stat-cell py-6 px-4 md:px-6">
+                <div className="text-[10px] uppercase tracking-[1.6px] text-[#6a6e82] font-medium mb-2">Saved · 24h</div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[26px] md:text-[32px] font-semibold text-[#e8eaf0] leading-none">$340</span>
                 </div>
               </div>
             </div>

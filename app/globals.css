@@ -197,6 +197,52 @@ html, body {
   animation: float-particle var(--duration, 5s) var(--delay, 0s) ease-out infinite;
 }
 
+/* ─── Aurora background (minimal, premium) ─── */
+.aurora-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 100% 70% at 50% -10%, #0f1218 0%, #080808 60%),
+    #080808;
+}
+
+.aurora-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.45;
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+
+.aurora-blob-1 {
+  top: -20%;
+  left: 50%;
+  width: 70vw;
+  height: 70vw;
+  max-width: 1100px;
+  max-height: 1100px;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(245,166,35,0.55) 0%, rgba(245,166,35,0) 65%);
+  animation: aurora-drift-1 36s ease-in-out infinite;
+}
+
+@keyframes aurora-drift-1 {
+  0%, 100% { transform: translate3d(-50%, 0, 0) scale(1); }
+  50%      { transform: translate3d(-50%, 6vh, 0) scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob-1 { animation: none !important; }
+}
+
+@media (max-width: 768px) {
+  .aurora-blob { filter: blur(70px); opacity: 0.35; }
+}
+
 /* Grain texture */
 .grain-overlay {
   position: fixed;
@@ -214,11 +260,12 @@ html, body {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.02;
   background-image:
-    linear-gradient(rgba(245,166,35,0.1) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(245,166,35,0.1) 1px, transparent 1px);
-  background-size: 60px 60px;
+    linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 40%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 40%, transparent 100%);
 }
 
 /* ─── Cinematic scroll reveals ─── */
