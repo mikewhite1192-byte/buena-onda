@@ -8,8 +8,6 @@ export default function CircuitBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    if (window.innerWidth < 768) return;
-
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx0 = canvas.getContext("2d", { alpha: true });
@@ -18,12 +16,16 @@ export default function CircuitBackground() {
     const cv: HTMLCanvasElement = canvas;
     const ctx: CanvasRenderingContext2D = ctx0;
 
-    const DPR = Math.min(window.devicePixelRatio || 1, 1.5);
-    const CELL = 68;
-    const JITTER = 10;
+    const isMobile = window.innerWidth < 768;
+
+    const DPR = Math.min(window.devicePixelRatio || 1, isMobile ? 1.25 : 1.5);
+    const CELL = isMobile ? 92 : 68;
+    const JITTER = isMobile ? 6 : 10;
+    const EDGE_PROB = isMobile ? 0.62 : 0.78;
     const TARGET_FPS = 30;
     const FRAME_INTERVAL = 1000 / TARGET_FPS;
-    const MAX_PULSES = 5;
+    const MAX_PULSES = isMobile ? 3 : 5;
+    const ENABLE_MEGA = !isMobile;
 
     // "buena onda" letter paths — each letter is a continuous sequence of
     // waypoints in a 2w × 3h unit grid. Pulses trace these at regular speed,
@@ -83,7 +85,7 @@ export default function CircuitBackground() {
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           const id = grid[r][c];
-          if (c < cols - 1 && Math.random() < 0.78) {
+          if (c < cols - 1 && Math.random() < EDGE_PROB) {
             const other = grid[r][c + 1];
             const ei = edges.length;
             edges.push({
@@ -95,7 +97,7 @@ export default function CircuitBackground() {
             adjacency.get(id)!.push(ei);
             adjacency.get(other)!.push(ei);
           }
-          if (r < rows - 1 && Math.random() < 0.78) {
+          if (r < rows - 1 && Math.random() < EDGE_PROB) {
             const other = grid[r + 1][c];
             const ei = edges.length;
             edges.push({
@@ -409,7 +411,7 @@ export default function CircuitBackground() {
         lastSpawn = now;
       }
 
-      if (pathPulses.length === 0 && now > nextMegaAt) {
+      if (ENABLE_MEGA && pathPulses.length === 0 && now > nextMegaAt) {
         triggerMega();
         // schedule next event — long enough that most people won't notice the pattern
         nextMegaAt = now + 18000 + Math.random() * 7000 + MEGA_TEXT.length * LETTER_STAGGER_MS;

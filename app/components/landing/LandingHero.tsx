@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { Zap, Pause, Clock, RefreshCw, TrendingUp, Target, BarChart3, MessageSquare, OctagonX, CheckCircle2, ArrowRight } from "lucide-react";
 import AnimatedDashboard from "./AnimatedDashboard";
+import MobileDecisionCards from "./MobileDecisionCards";
 // Blobs moved to page level (fixed viewport)
 
 /* ── Ticker Data ── */
@@ -161,6 +162,10 @@ export default function LandingHero() {
         .hero-stat-cell + .hero-stat-cell {
           border-left: 1px solid rgba(255,255,255,0.06);
         }
+        @media (max-width: 767px) {
+          .hero-stat-cell:nth-child(3) { border-left: none; }
+          .hero-stat-cell:nth-child(n+3) { border-top: 1px solid rgba(255,255,255,0.06); }
+        }
         .hero-fade-in { animation: fade-up 1s cubic-bezier(0.16,1,0.3,1) both; }
         .hero-fade-d0 { animation-delay: 0s; }
         .hero-fade-d1 { animation-delay: 0.15s; }
@@ -201,15 +206,15 @@ export default function LandingHero() {
           </div>
 
           {/* Headline */}
-          <div className="max-w-[900px] mx-auto text-center mb-4 md:mb-6">
-            <h1 className="hero-fade-in hero-fade-d1 text-[clamp(34px,7.2vw,104px)] font-extrabold leading-[0.92] tracking-[-2.5px] md:tracking-[-4px] text-[#e8eaf0]">
+          <div className="max-w-[900px] mx-auto text-center mb-5 md:mb-6">
+            <h1 className="hero-fade-in hero-fade-d1 text-[clamp(42px,7.2vw,104px)] font-extrabold leading-[0.95] md:leading-[0.92] tracking-[-1.8px] md:tracking-[-4px] text-[#e8eaf0]">
               Your ads managed by
               <span className="hero-gradient"> AI that never sleeps</span>
             </h1>
           </div>
 
           {/* Subheadline */}
-          <p className="hero-fade-in hero-fade-d2 text-center text-base md:text-xl text-[#8b8fa8] max-w-[600px] mx-auto mb-8 md:mb-10 leading-relaxed px-2">
+          <p className="hero-fade-in hero-fade-d2 text-center text-[15px] md:text-xl text-[#8b8fa8] max-w-[540px] md:max-w-[600px] mx-auto mb-8 md:mb-10 leading-relaxed px-2">
             Launch, optimize, and report on Meta, Google, and TikTok campaigns — autonomously. Like a senior media buyer, around the clock.
           </p>
 
@@ -227,7 +232,12 @@ export default function LandingHero() {
             </Link>
           </div>
 
-          {/* Dashboard — clean, no floating chips */}
+          {/* Mobile: live decision cards (hero visual) */}
+          <div className="hero-fade-in hero-fade-d4 sm:hidden px-2 mb-10">
+            <MobileDecisionCards />
+          </div>
+
+          {/* Desktop: full dashboard with 3D tilt */}
           <div className="hero-fade-in hero-fade-d4 relative max-w-[960px] mx-auto hidden sm:block">
             <div
               ref={dashRef}
@@ -236,7 +246,6 @@ export default function LandingHero() {
               className="relative"
               style={{ perspective: 1400 }}
             >
-              {/* subtle glow behind */}
               <div className="absolute -inset-8 rounded-3xl pointer-events-none z-0 opacity-50"
                 style={{ background: "radial-gradient(ellipse at 50% 80%, rgba(245,166,35,0.1) 0%, transparent 60%)", filter: "blur(70px)" }} />
 
@@ -255,35 +264,35 @@ export default function LandingHero() {
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Clean stat row under the dashboard — Stripe/Linear style */}
-            <div className="hero-stat-row mt-14 md:mt-20 grid grid-cols-2 md:grid-cols-4 tabular-nums">
-              <div className="hero-stat-cell py-6 px-4 md:px-6">
-                <div className="text-[10px] uppercase tracking-[1.6px] text-[#6a6e82] font-medium mb-2">ROAS</div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-[26px] md:text-[32px] font-semibold text-[#e8eaf0] leading-none">4.2×</span>
-                  <span className="text-[11px] font-medium text-emerald-400">↑ 0.8</span>
-                </div>
+          {/* Stat row — always visible, 2x2 on mobile, 4-col on desktop */}
+          <div className="hero-fade-in hero-fade-d4 hero-stat-row max-w-[960px] mx-auto mt-8 sm:mt-14 md:mt-20 grid grid-cols-2 md:grid-cols-4 tabular-nums">
+            <div className="hero-stat-cell py-5 md:py-6 px-4 md:px-6">
+              <div className="text-[10px] uppercase tracking-[1.6px] text-[#6a6e82] font-medium mb-2">ROAS</div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-[26px] md:text-[32px] font-semibold text-[#e8eaf0] leading-none">4.2×</span>
+                <span className="text-[11px] font-medium text-emerald-400">↑ 0.8</span>
               </div>
-              <div className="hero-stat-cell py-6 px-4 md:px-6">
-                <div className="text-[10px] uppercase tracking-[1.6px] text-[#6a6e82] font-medium mb-2">Cost per lead</div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-[26px] md:text-[32px] font-semibold text-[#e8eaf0] leading-none">$22</span>
-                  <span className="text-[11px] font-medium text-emerald-400">↓ $3</span>
-                </div>
+            </div>
+            <div className="hero-stat-cell py-5 md:py-6 px-4 md:px-6">
+              <div className="text-[10px] uppercase tracking-[1.6px] text-[#6a6e82] font-medium mb-2">Cost per lead</div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-[26px] md:text-[32px] font-semibold text-[#e8eaf0] leading-none">$22</span>
+                <span className="text-[11px] font-medium text-emerald-400">↓ $3</span>
               </div>
-              <div className="hero-stat-cell py-6 px-4 md:px-6">
-                <div className="text-[10px] uppercase tracking-[1.6px] text-[#6a6e82] font-medium mb-2">Leads / week</div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-[26px] md:text-[32px] font-semibold text-[#e8eaf0] leading-none">847</span>
-                  <span className="text-[11px] font-medium text-emerald-400">↑ 12%</span>
-                </div>
+            </div>
+            <div className="hero-stat-cell py-5 md:py-6 px-4 md:px-6">
+              <div className="text-[10px] uppercase tracking-[1.6px] text-[#6a6e82] font-medium mb-2">Leads / week</div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-[26px] md:text-[32px] font-semibold text-[#e8eaf0] leading-none">847</span>
+                <span className="text-[11px] font-medium text-emerald-400">↑ 12%</span>
               </div>
-              <div className="hero-stat-cell py-6 px-4 md:px-6">
-                <div className="text-[10px] uppercase tracking-[1.6px] text-[#6a6e82] font-medium mb-2">Saved · 24h</div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-[26px] md:text-[32px] font-semibold text-[#e8eaf0] leading-none">$340</span>
-                </div>
+            </div>
+            <div className="hero-stat-cell py-5 md:py-6 px-4 md:px-6">
+              <div className="text-[10px] uppercase tracking-[1.6px] text-[#6a6e82] font-medium mb-2">Saved · 24h</div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-[26px] md:text-[32px] font-semibold text-[#e8eaf0] leading-none">$340</span>
               </div>
             </div>
           </div>
