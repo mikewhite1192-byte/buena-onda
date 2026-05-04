@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
   let token: string;
   try {
-    token = client_id ? await getClientToken(client_id) : (process.env.META_ACCESS_TOKEN ?? "");
+    token = client_id ? await getClientToken(userId, client_id) : (process.env.META_ACCESS_TOKEN ?? "");
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }

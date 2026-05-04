@@ -2,13 +2,14 @@ export const dynamic = 'force-dynamic'
 import { neon } from '@neondatabase/serverless'
 import { NextResponse } from 'next/server'
 import { exchangeTikTokCode, listTikTokAdvertisers } from '@/lib/tiktok-ads/client'
+import { verifyOAuthState } from '@/lib/oauth-state'
 
 const sql = neon(process.env.DATABASE_URL!)
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const authCode = searchParams.get('auth_code')
-  const state = searchParams.get('state') // userId or userId__clientId
+  const state = searchParams.get('state')
   const error = searchParams.get('error')
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://buenaonda.ai'
@@ -17,7 +18,21 @@ export async function GET(req: Request) {
     return NextResponse.redirect(`${appUrl}/dashboard/settings?tiktok_ads=error`)
   }
 
-  const [userId, clientId] = state.split('__')
+  // Verify HMAC-signed state — replaces the previous plaintext format that
+  // let an attacker forge a victim's userId and hijack the OAuth tokens.
+  let userId: string
+  let clientId: string | null
+  try {
+    const data = verifyOAuthState(state)
+    userId = data.userId as string
+    clientId = (data.clientId as string | null) ?? null
+  } catch {
+    return NextResponse.redirect(`${appUrl}/dashboard/settings?tiktok_ads=error`)
+  }
+  if (!userId) {
+    return NextResponse.redirect(`${appUrl}/dashboard/settings?tiktok_ads=error`)
+  }
+
   const redirectBase = clientId ? `${appUrl}/dashboard/clients` : `${appUrl}/dashboard/settings`
 
   try {

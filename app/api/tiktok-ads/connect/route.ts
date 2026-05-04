@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
+import { createOAuthState } from '@/lib/oauth-state'
 
 export async function GET(req: Request) {
   const { userId } = await auth()
@@ -13,7 +14,11 @@ export async function GET(req: Request) {
   const clientId = searchParams.get('clientId') ?? ''
 
   const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://buenaonda.ai'}/api/tiktok-ads/callback`
-  const state = clientId ? `${userId}__${clientId}` : userId
+
+  // HMAC-signed state. Plaintext `userId__clientId` let an attacker who
+  // tricks a victim into completing the callback forge an arbitrary userId
+  // and have the resulting OAuth tokens stored against that userId.
+  const state = createOAuthState({ userId, clientId: clientId || null })
 
   const url = new URL('https://business-api.tiktok.com/portal/auth')
   url.searchParams.set('app_id', appId)

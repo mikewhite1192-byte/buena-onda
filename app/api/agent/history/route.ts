@@ -16,6 +16,8 @@ export async function GET(req: NextRequest) {
   const filter = searchParams.get("status"); // 'all' | 'executed' | 'approved' | 'rejected' | 'flag_review'
   const actionType = searchParams.get("action_type"); // 'scale' | 'pause' | 'creative_brief' | 'flag_review'
 
+  // Tenant-scope through clients.owner_id; the previous LEFT JOIN exposed
+  // every tenant's history to every signed-in user.
   const actions = await sql`
     SELECT
       aa.id,
@@ -29,19 +31,20 @@ export async function GET(req: NextRequest) {
       aa.resolved_by,
       c.vertical
     FROM agent_actions aa
-    LEFT JOIN clients c ON c.meta_ad_account_id IS NOT NULL
-      AND c.meta_ad_account_id = aa.ad_account_id
-    WHERE
-      (${filter ?? "all"} = 'all' OR aa.status = ${filter ?? "all"})
+    JOIN clients c ON c.meta_ad_account_id = aa.ad_account_id
+    WHERE c.owner_id = ${userId}
+      AND (${filter ?? "all"} = 'all' OR aa.status = ${filter ?? "all"})
       AND (${actionType ?? "all"} = 'all' OR aa.action_type = ${actionType ?? "all"})
     ORDER BY aa.created_at DESC
     LIMIT ${limit} OFFSET ${offset}
   `;
 
   const countResult = await sql`
-    SELECT COUNT(*) as total FROM agent_actions aa
-    WHERE
-      (${filter ?? "all"} = 'all' OR aa.status = ${filter ?? "all"})
+    SELECT COUNT(*) as total
+    FROM agent_actions aa
+    JOIN clients c ON c.meta_ad_account_id = aa.ad_account_id
+    WHERE c.owner_id = ${userId}
+      AND (${filter ?? "all"} = 'all' OR aa.status = ${filter ?? "all"})
       AND (${actionType ?? "all"} = 'all' OR aa.action_type = ${actionType ?? "all"})
   `;
 

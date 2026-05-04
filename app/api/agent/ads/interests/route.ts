@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
   let token: string;
   try {
-    token = clientId ? await getClientToken(clientId) : (process.env.META_ACCESS_TOKEN ?? "");
+    token = clientId ? await getClientToken(userId, clientId) : (process.env.META_ACCESS_TOKEN ?? "");
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }

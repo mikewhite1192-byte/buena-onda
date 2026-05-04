@@ -2,18 +2,16 @@
 // Returns all ads with creative details + performance metrics
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { ownsAdAccount } from "@/lib/auth/owner-of";
+import { neon } from "@neondatabase/serverless";
+
+const sql = neon(process.env.DATABASE_URL!);
 
 const META_BASE = "https://graph.facebook.com/v21.0";
 
-function token() {
-  const t = process.env.META_ACCESS_TOKEN;
-  if (!t) throw new Error("Missing META_ACCESS_TOKEN");
-  return t;
-}
-
-async function metaGet<T>(path: string, params: Record<string, string> = {}): Promise<T> {
+async function metaGet<T>(path: string, accessToken: string, params: Record<string, string> = {}): Promise<T> {
   const url = new URL(`${META_BASE}${path}`);
-  url.searchParams.set("access_token", token());
+  url.searchParams.set("access_token", accessToken);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   const res = await fetch(url.toString(), { cache: "no-store" });
   const data = await res.json();
@@ -30,11 +28,25 @@ export async function GET(req: NextRequest) {
   const endDate = req.nextUrl.searchParams.get("endDate") ?? today();
 
   if (!adAccountId) return NextResponse.json({ error: "adAccountId required" }, { status: 400 });
+
+  if (!(await ownsAdAccount(userId, adAccountId))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const tokenRows = await sql`
+    SELECT meta_access_token FROM clients
+    WHERE owner_id = ${userId} AND meta_ad_account_id = ${adAccountId}
+    LIMIT 1
+  `;
+  const accessToken = tokenRows[0]?.meta_access_token as string | undefined;
+  if (!accessToken) {
+    return NextResponse.json({ error: "Client has no Meta token" }, { status: 400 });
+  }
+
   const accountId = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
 
   try {
     // 1. Fetch all ads (ACTIVE + PAUSED) with creative details
-    const adsRes = await metaGet<{ data: RawAd[]; paging?: { next?: string } }>(`/${accountId}/ads`, {
+    const adsRes = await metaGet<{ data: RawAd[]; paging?: { next?: string } }>(`/${accountId}/ads`, accessToken, {
       fields: "id,name,status,creative{body,title,image_url,thumbnail_url,object_story_spec},adset{name},campaign{name}",
       filtering: JSON.stringify([{ field: "effective_status", operator: "IN", value: ["ACTIVE", "PAUSED"] }]),
       limit: "100",
@@ -44,7 +56,7 @@ export async function GET(req: NextRequest) {
     if (ads.length === 0) return NextResponse.json({ creatives: [] });
 
     // 2. Fetch insights for all ads in bulk
-    const insightsRes = await metaGet<{ data: RawInsight[] }>(`/${accountId}/insights`, {
+    const insightsRes = await metaGet<{ data: RawInsight[] }>(`/${accountId}/insights`, accessToken, {
       fields: "ad_id,spend,impressions,clicks,ctr,frequency,actions,action_values,outbound_clicks",
       level: "ad",
       time_range: JSON.stringify({ since: startDate, until: endDate }),

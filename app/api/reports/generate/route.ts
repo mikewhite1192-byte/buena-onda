@@ -18,10 +18,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "clientId, startDate, endDate required" }, { status: 400 });
   }
 
-  // Fetch client info
+  // Fetch client info — owner-scope so an attacker can't pass another tenant's
+  // clientId and have us read their Meta token + email an Insights report to
+  // an attacker-supplied address.
   const [client] = await sql`
     SELECT name, vertical, meta_ad_account_id, meta_access_token
-    FROM clients WHERE id = ${clientId} LIMIT 1
+    FROM clients WHERE id = ${clientId} AND owner_id = ${userId} LIMIT 1
   `;
   if (!client) return NextResponse.json({ error: "Client not found" }, { status: 404 });
 

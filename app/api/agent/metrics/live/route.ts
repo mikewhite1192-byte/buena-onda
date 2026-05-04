@@ -18,18 +18,35 @@ export async function GET(req: NextRequest) {
 
   const sql = getDb();
 
-  // Get active ad set IDs from campaign briefs
+  // Tenant-scope: only consider briefs whose client is owned by the caller.
+  // Reject explicit ad_account_id values that don't belong to the caller.
+  if (adAccountId) {
+    const ownerCheck = await sql`
+      SELECT 1 FROM clients
+      WHERE owner_id = ${userId} AND meta_ad_account_id = ${adAccountId}
+      LIMIT 1
+    `;
+    if (ownerCheck.length === 0) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
   const briefs = await sql`
-    SELECT creative_asset_ids, ad_account_id
-    FROM campaign_briefs
-    WHERE status = 'active'
-      AND (${adAccountId}::text IS NULL OR ad_account_id = ${adAccountId})
+    SELECT cb.creative_asset_ids, cb.ad_account_id
+    FROM campaign_briefs cb
+    JOIN clients c ON c.id = cb.client_id
+    WHERE cb.status = 'active'
+      AND c.owner_id = ${userId}
+      AND (${adAccountId}::text IS NULL OR cb.ad_account_id = ${adAccountId})
   `;
 
   const adSetIds = [...new Set(briefs.flatMap((b) => b.creative_asset_ids as string[]))];
 
   const activeBriefs = await sql`
-    SELECT COUNT(*)::int AS count FROM campaign_briefs WHERE status = 'active'
+    SELECT COUNT(*)::int AS count
+    FROM campaign_briefs cb
+    JOIN clients c ON c.id = cb.client_id
+    WHERE cb.status = 'active' AND c.owner_id = ${userId}
   `;
   const activeBriefsCount = (activeBriefs[0] as { count: number }).count;
 

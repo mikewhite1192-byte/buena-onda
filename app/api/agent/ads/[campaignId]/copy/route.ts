@@ -3,18 +3,16 @@
 // Body: { adId: string, headline: string, body: string, adAccountId: string }
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { ownsAdAccount } from "@/lib/auth/owner-of";
+import { neon } from "@neondatabase/serverless";
+
+const sql = neon(process.env.DATABASE_URL!);
 
 const META_BASE = "https://graph.facebook.com/v21.0";
 
-function token() {
-  const t = process.env.META_ACCESS_TOKEN;
-  if (!t) throw new Error("Missing META_ACCESS_TOKEN");
-  return t;
-}
-
-async function metaGet<T>(path: string, params: Record<string, string> = {}): Promise<T> {
+async function metaGet<T>(path: string, accessToken: string, params: Record<string, string> = {}): Promise<T> {
   const url = new URL(`${META_BASE}${path}`);
-  url.searchParams.set("access_token", token());
+  url.searchParams.set("access_token", accessToken);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   const res = await fetch(url.toString(), { cache: "no-store" });
   const data = await res.json();
@@ -22,9 +20,9 @@ async function metaGet<T>(path: string, params: Record<string, string> = {}): Pr
   return data as T;
 }
 
-async function metaPost<T>(path: string, body: Record<string, unknown>): Promise<T> {
+async function metaPost<T>(path: string, accessToken: string, body: Record<string, unknown>): Promise<T> {
   const url = new URL(`${META_BASE}${path}`);
-  url.searchParams.set("access_token", token());
+  url.searchParams.set("access_token", accessToken);
   const res = await fetch(url.toString(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -51,17 +49,32 @@ export async function PATCH(
     adAccountId: string;
   };
 
-  if (!adId || !headline || !primaryText) {
-    return NextResponse.json({ error: "adId, headline, and primaryText required" }, { status: 400 });
+  if (!adId || !headline || !primaryText || !adAccountId) {
+    return NextResponse.json({ error: "adId, headline, primaryText, and adAccountId required" }, { status: 400 });
   }
 
-  const accountId = adAccountId?.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
+  // Require ownership of the ad account; use that client's token, never the
+  // platform-wide one. Otherwise anyone could rewrite any tenant's ad copy.
+  if (!(await ownsAdAccount(userId, adAccountId))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const tokenRows = await sql`
+    SELECT meta_access_token FROM clients
+    WHERE owner_id = ${userId} AND meta_ad_account_id = ${adAccountId}
+    LIMIT 1
+  `;
+  const accessToken = tokenRows[0]?.meta_access_token as string | undefined;
+  if (!accessToken) {
+    return NextResponse.json({ error: "Client has no Meta token" }, { status: 400 });
+  }
+
+  const accountId = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
 
   try {
     // 1. Get the current ad's creative + page info
     const adData = await metaGet<{
       creative: { id: string; object_story_spec?: ObjectStorySpec; image_hash?: string; thumbnail_url?: string };
-    }>(`/${adId}`, {
+    }>(`/${adId}`, accessToken, {
       fields: "creative{id,object_story_spec,image_hash,thumbnail_url,body,title}",
     });
 
@@ -99,12 +112,12 @@ export async function PATCH(
     }
 
     // 4. Create a new ad creative with updated copy
-    const newCreative = await metaPost<{ id: string }>(`/${accountId}/adcreatives`, {
+    const newCreative = await metaPost<{ id: string }>(`/${accountId}/adcreatives`, accessToken, {
       object_story_spec: newSpec,
     });
 
     // 5. Update the ad to use the new creative
-    await metaPost(`/${adId}`, { creative: { creative_id: newCreative.id } });
+    await metaPost(`/${adId}`, accessToken, { creative: { creative_id: newCreative.id } });
 
     return NextResponse.json({ ok: true, creative_id: newCreative.id });
   } catch (err) {

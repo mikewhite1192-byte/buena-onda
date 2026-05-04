@@ -77,12 +77,17 @@ export async function GET(req: Request) {
 
       if (clientLines.length === 0) continue;
 
-      // Get recent agent actions (last 7 days)
+      // Get recent agent actions (last 7 days) — scope to this user's
+      // ad accounts, otherwise every user receives the global most-recent
+      // 5 actions and other tenants' campaign decisions leak into their
+      // WhatsApp messages.
       const actions = await sql`
-        SELECT action_type, details, created_at
-        FROM agent_actions
-        WHERE created_at >= NOW() - INTERVAL '7 days'
-        ORDER BY created_at DESC
+        SELECT aa.action_type, aa.details, aa.created_at
+        FROM agent_actions aa
+        JOIN clients c ON c.meta_ad_account_id = aa.ad_account_id
+        WHERE c.owner_id = ${user.clerk_user_id}
+          AND aa.created_at >= NOW() - INTERVAL '7 days'
+        ORDER BY aa.created_at DESC
         LIMIT 5
       `;
 

@@ -16,6 +16,19 @@ export async function GET(
   const { searchParams } = new URL(req.url);
   const days = parseInt(searchParams.get("days") ?? "30");
 
+  // Verify the caller owns the ad account this ad set rolls up to. Without
+  // this, anyone could read any tenant's per-ad-set spend by guessing the ID.
+  const ownsRows = await sql`
+    SELECT 1
+    FROM ad_metrics m
+    JOIN clients c ON c.meta_ad_account_id = m.ad_account_id
+    WHERE m.ad_set_id = ${adSetId} AND c.owner_id = ${userId}
+    LIMIT 1
+  `;
+  if (ownsRows.length === 0) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   // All metric snapshots for this ad set in window
   const metrics = await sql`
     SELECT

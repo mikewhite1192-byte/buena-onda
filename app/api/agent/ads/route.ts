@@ -2,18 +2,16 @@
 // Returns campaigns (PAUSED + ACTIVE) with their ads and copy for the Ads Manager tab
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { ownsAdAccount } from "@/lib/auth/owner-of";
+import { neon } from "@neondatabase/serverless";
+
+const sql = neon(process.env.DATABASE_URL!);
 
 const META_BASE = "https://graph.facebook.com/v21.0";
 
-function token() {
-  const t = process.env.META_ACCESS_TOKEN;
-  if (!t) throw new Error("Missing META_ACCESS_TOKEN");
-  return t;
-}
-
-async function metaGet<T>(path: string, params: Record<string, string> = {}): Promise<T> {
+async function metaGet<T>(path: string, accessToken: string, params: Record<string, string> = {}): Promise<T> {
   const url = new URL(`${META_BASE}${path}`);
-  url.searchParams.set("access_token", token());
+  url.searchParams.set("access_token", accessToken);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   const res = await fetch(url.toString(), { cache: "no-store" });
   const data = await res.json();
@@ -28,11 +26,26 @@ export async function GET(req: NextRequest) {
   const adAccountId = req.nextUrl.searchParams.get("adAccountId");
   if (!adAccountId) return NextResponse.json({ error: "adAccountId required" }, { status: 400 });
 
+  // Tenant-scope: only the owning tenant may read this account's ads, and we
+  // call Meta with that client's token (never a shared service token).
+  if (!(await ownsAdAccount(userId, adAccountId))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const tokenRows = await sql`
+    SELECT meta_access_token FROM clients
+    WHERE owner_id = ${userId} AND meta_ad_account_id = ${adAccountId}
+    LIMIT 1
+  `;
+  const accessToken = tokenRows[0]?.meta_access_token as string | undefined;
+  if (!accessToken) {
+    return NextResponse.json({ error: "Client has no Meta token" }, { status: 400 });
+  }
+
   const accountId = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
 
   try {
     // Fetch campaigns (PAUSED + ACTIVE)
-    const campaigns = await metaGet<{ data: RawCampaign[] }>(`/${accountId}/campaigns`, {
+    const campaigns = await metaGet<{ data: RawCampaign[] }>(`/${accountId}/campaigns`, accessToken, {
       fields: "id,name,status,objective,daily_budget,created_time",
       filtering: JSON.stringify([{ field: "effective_status", operator: "IN", value: ["PAUSED", "ACTIVE"] }]),
       limit: "50",
@@ -44,12 +57,12 @@ export async function GET(req: NextRequest) {
     const enriched = await Promise.all(
       campaigns.data.map(async (campaign) => {
         try {
-          const adsRes = await metaGet<{ data: RawAd[] }>(`/${campaign.id}/ads`, {
+          const adsRes = await metaGet<{ data: RawAd[] }>(`/${campaign.id}/ads`, accessToken, {
             fields: "id,name,status,creative{body,title,image_url,thumbnail_url,object_story_spec}",
             limit: "10",
           });
 
-          const adsetsRes = await metaGet<{ data: RawAdSet[] }>(`/${campaign.id}/adsets`, {
+          const adsetsRes = await metaGet<{ data: RawAdSet[] }>(`/${campaign.id}/adsets`, accessToken, {
             fields: "id,name,status,daily_budget,targeting",
             limit: "10",
           });

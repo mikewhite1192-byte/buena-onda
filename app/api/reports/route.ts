@@ -34,6 +34,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
+  // Verify the caller owns this client before minting a public share token
+  // — otherwise the public /reports/[token] endpoint becomes a way to leak
+  // another tenant's metrics.
+  if (client_id) {
+    const owns = await sql`
+      SELECT 1 FROM clients WHERE id = ${client_id} AND owner_id = ${userId} LIMIT 1
+    `;
+    if (owns.length === 0) {
+      return NextResponse.json({ error: "Client not found" }, { status: 404 });
+    }
+  }
+
   const token = randomToken();
 
   await sql`

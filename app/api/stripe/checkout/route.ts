@@ -28,6 +28,12 @@ export async function POST(req: NextRequest) {
       success_url: `${BASE_URL}/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}&plan=${encodeURIComponent(planName ?? "")}`,
       cancel_url: `${BASE_URL}/#pricing`,
       allow_promotion_codes: true,
+      // Collect billing address + auto-calculate sales tax. Required for
+      // SaaS sales-tax compliance in the ~20 US states that tax SaaS, and
+      // to avoid the seller absorbing tax that should pass through.
+      automatic_tax: { enabled: true },
+      tax_id_collection: { enabled: true },
+      billing_address_collection: "required",
       ...(userId && { metadata: { clerk_user_id: userId } }),
     });
 

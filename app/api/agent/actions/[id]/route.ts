@@ -18,9 +18,15 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid decision" }, { status: 400 });
   }
 
-  // Fetch the action
+  // Fetch the action and verify the caller owns it. Without this join, any
+  // logged-in user could approve/execute another tenant's pending Meta action
+  // (pause/scale their ad sets) just by enumerating the action UUID.
   const rows = await sql`
-    SELECT * FROM agent_actions WHERE id = ${id} LIMIT 1
+    SELECT aa.*
+    FROM agent_actions aa
+    JOIN clients c ON c.meta_ad_account_id = aa.ad_account_id
+    WHERE aa.id = ${id} AND c.owner_id = ${userId}
+    LIMIT 1
   `;
   const action = rows[0];
   if (!action) return NextResponse.json({ error: "Not found" }, { status: 404 });

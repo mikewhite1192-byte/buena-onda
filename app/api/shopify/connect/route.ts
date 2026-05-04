@@ -3,8 +3,10 @@
 export const dynamic = 'force-dynamic'
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { createOAuthState } from '@/lib/oauth-state'
 
 const SCOPES = 'read_orders,read_products,read_customers,read_analytics,read_marketing_events'
+const SHOP_PATTERN = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i
 
 export async function GET(req: NextRequest) {
   const { userId } = await auth()
@@ -17,10 +19,20 @@ export async function GET(req: NextRequest) {
   const shop = searchParams.get('shop')
   if (!shop) return NextResponse.json({ error: 'shop param required (e.g. mystore.myshopify.com)' }, { status: 400 })
 
+  // Validate shop domain — without this, ?shop=evil.com would proxy the
+  // OAuth flow through an attacker-controlled domain.
+  if (!SHOP_PATTERN.test(shop)) {
+    return NextResponse.json({ error: 'shop must match *.myshopify.com' }, { status: 400 })
+  }
+
   const clientId = searchParams.get('clientId') ?? ''
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://buenaonda.ai'
   const redirectUri = `${appUrl}/api/shopify/callback`
-  const state = clientId ? `${userId}__${shop}__${clientId}` : `${userId}__${shop}`
+
+  // HMAC-signed state. Plaintext `userId__shop` would let an attacker
+  // complete OAuth and forge a victim's userId in the state, attaching
+  // the tokens to the victim's account.
+  const state = createOAuthState({ userId, shop, clientId: clientId || null })
 
   const url = new URL(`https://${shop}/admin/oauth/authorize`)
   url.searchParams.set('client_id', shopifyClientId)

@@ -7,7 +7,13 @@ import { getShopifyOrders } from '@/lib/shopify/client'
 
 const sql = neon(process.env.DATABASE_URL!)
 
-export async function GET() {
+export async function GET(req: Request) {
+  // Reject anyone without the cron bearer — without this, the public could
+  // trigger an unbounded fetch of every connected store's order history.
+  if (req.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   // Ensure metrics table exists
   await sql`
     CREATE TABLE IF NOT EXISTS shopify_metrics (

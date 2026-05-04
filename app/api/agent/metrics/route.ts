@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { neon } from "@neondatabase/serverless";
+import { ownsAdAccount } from "@/lib/auth/owner-of";
 
 const sql = neon(process.env.DATABASE_URL!);
 
@@ -13,39 +14,49 @@ export async function GET(req: NextRequest) {
   const days = parseInt(searchParams.get("days") ?? "7");
   const adAccountId = searchParams.get("ad_account_id");
 
-  // Latest metric snapshot per ad set within the window
+  // Always tenant-scope. Without an ad_account_id we restrict to accounts
+  // owned by the caller; with one, we verify ownership before returning rows.
+  if (adAccountId && !(await ownsAdAccount(userId, adAccountId))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Latest metric snapshot per ad set within the window — joined to clients
+  // so a missing ad_account_id filter still scopes to the caller's accounts.
   const adSets = await sql`
-    SELECT DISTINCT ON (ad_set_id)
-      ad_set_id,
-      ad_set_name,
-      ad_status,
-      campaign_id,
-      spend::numeric(10,2),
-      leads,
-      cpl::numeric(10,2),
-      ctr::numeric(10,4),
-      frequency::numeric(10,2),
-      impressions,
-      date_recorded
-    FROM ad_metrics
-    WHERE date_recorded >= NOW() - INTERVAL '1 day' * ${days}
-      AND (${adAccountId}::text IS NULL OR ad_account_id = ${adAccountId})
-    ORDER BY ad_set_id, date_recorded DESC
+    SELECT DISTINCT ON (m.ad_set_id)
+      m.ad_set_id,
+      m.ad_set_name,
+      m.ad_status,
+      m.campaign_id,
+      m.spend::numeric(10,2),
+      m.leads,
+      m.cpl::numeric(10,2),
+      m.ctr::numeric(10,4),
+      m.frequency::numeric(10,2),
+      m.impressions,
+      m.date_recorded
+    FROM ad_metrics m
+    JOIN clients c ON c.meta_ad_account_id = m.ad_account_id
+    WHERE c.owner_id = ${userId}
+      AND m.date_recorded >= NOW() - INTERVAL '1 day' * ${days}
+      AND (${adAccountId}::text IS NULL OR m.ad_account_id = ${adAccountId})
+    ORDER BY m.ad_set_id, m.date_recorded DESC
   `;
 
-  // 7-day trend per ad set (daily spend + leads)
   const trends = await sql`
     SELECT
-      ad_set_id,
-      DATE(date_recorded) AS day,
-      SUM(spend)::numeric(10,2) AS spend,
-      SUM(leads)::int AS leads,
-      AVG(cpl)::numeric(10,2) AS cpl
-    FROM ad_metrics
-    WHERE date_recorded >= NOW() - INTERVAL '1 day' * ${days}
-      AND (${adAccountId}::text IS NULL OR ad_account_id = ${adAccountId})
-    GROUP BY ad_set_id, DATE(date_recorded)
-    ORDER BY ad_set_id, day ASC
+      m.ad_set_id,
+      DATE(m.date_recorded) AS day,
+      SUM(m.spend)::numeric(10,2) AS spend,
+      SUM(m.leads)::int AS leads,
+      AVG(m.cpl)::numeric(10,2) AS cpl
+    FROM ad_metrics m
+    JOIN clients c ON c.meta_ad_account_id = m.ad_account_id
+    WHERE c.owner_id = ${userId}
+      AND m.date_recorded >= NOW() - INTERVAL '1 day' * ${days}
+      AND (${adAccountId}::text IS NULL OR m.ad_account_id = ${adAccountId})
+    GROUP BY m.ad_set_id, DATE(m.date_recorded)
+    ORDER BY m.ad_set_id, day ASC
   `;
 
   // Group trends by ad_set_id

@@ -3,13 +3,15 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
 import { exchangeShopifyCode, getShopInfo } from '@/lib/shopify/client'
+import { verifyOAuthState } from '@/lib/oauth-state'
 
 const sql = neon(process.env.DATABASE_URL!)
+const SHOP_PATTERN = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const code = searchParams.get('code')
-  const state = searchParams.get('state') // userId__shop or userId__shop__clientId
+  const state = searchParams.get('state')
   const shop = searchParams.get('shop')
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://buenaonda.ai'
 
@@ -17,12 +19,26 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${appUrl}/dashboard/settings?shopify=error`)
   }
 
-  const parts = state.split('__')
-  const userId = parts[0]
-  const clientId = parts[2] ?? null // present when connecting from client card
-  const redirectBase = clientId ? `${appUrl}/dashboard/clients` : `${appUrl}/dashboard/settings`
+  // Verify the HMAC-signed state and extract caller identity. The shop in
+  // state must match the shop in the callback to defuse the case where an
+  // attacker swaps shops mid-flow.
+  let userId: string
+  let stateShop: string
+  let clientId: string | null
+  try {
+    const data = verifyOAuthState(state)
+    userId = data.userId as string
+    stateShop = data.shop as string
+    clientId = (data.clientId as string | null) ?? null
+  } catch {
+    return NextResponse.redirect(`${appUrl}/dashboard/settings?shopify=error`)
+  }
 
-  if (!userId) return NextResponse.redirect(`${appUrl}/dashboard/settings?shopify=error`)
+  if (!userId || stateShop !== shop || !SHOP_PATTERN.test(shop)) {
+    return NextResponse.redirect(`${appUrl}/dashboard/settings?shopify=error`)
+  }
+
+  const redirectBase = clientId ? `${appUrl}/dashboard/clients` : `${appUrl}/dashboard/settings`
 
   try {
     await sql`
