@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
+import { encryptToken } from "@/lib/crypto/tokens";
 
 const sql = neon(process.env.DATABASE_URL!);
 const APP_ID = process.env.META_APP_ID!;
@@ -75,7 +76,7 @@ export async function GET(req: NextRequest) {
     if (activeAccounts.length === 1) {
       await sql`
         UPDATE clients SET
-          meta_access_token = ${longToken},
+          meta_access_token = ${encryptToken(longToken)},
           meta_token_expires_at = ${expiresAt.toISOString()},
           meta_ad_account_id = COALESCE(NULLIF(meta_ad_account_id, ''), ${activeAccounts[0].id}),
           meta_page_id = COALESCE(NULLIF(meta_page_id, ''), ${autoPageId})
@@ -84,7 +85,7 @@ export async function GET(req: NextRequest) {
     } else {
       await sql`
         UPDATE clients SET
-          meta_access_token = ${longToken},
+          meta_access_token = ${encryptToken(longToken)},
           meta_token_expires_at = ${expiresAt.toISOString()},
           meta_page_id = COALESCE(NULLIF(meta_page_id, ''), ${autoPageId})
         WHERE id = ${clientId}

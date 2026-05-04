@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
+import { decryptTokenOrNull, encryptToken } from "@/lib/crypto/tokens";
 
 const sql = neon(process.env.DATABASE_URL!);
 const APP_ID = process.env.META_APP_ID!;
@@ -28,8 +29,14 @@ export async function GET(req: NextRequest) {
 
   const results = await Promise.all(clients.map(async (client) => {
     try {
+      // Tokens may be stored encrypted (current) or legacy plaintext;
+      // decryptTokenOrNull handles both.
+      const currentToken = decryptTokenOrNull(client.meta_access_token as string);
+      if (!currentToken) {
+        return { id: client.id, status: "transient_error", error: "decrypt_failed" };
+      }
       const res = await fetch(
-        `https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${APP_ID}&client_secret=${APP_SECRET}&fb_exchange_token=${client.meta_access_token}`
+        `https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${APP_ID}&client_secret=${APP_SECRET}&fb_exchange_token=${currentToken}`
       );
       const data = await res.json();
       if (!data.access_token) {
@@ -44,7 +51,8 @@ export async function GET(req: NextRequest) {
         return { id: client.id, status: "transient_error", error: data.error?.message ?? "unknown" };
       }
       const expiresAt = new Date(Date.now() + ((data.expires_in as number) ?? 5184000) * 1000);
-      await sql`UPDATE clients SET meta_access_token = ${data.access_token}, meta_token_expires_at = ${expiresAt.toISOString()} WHERE id = ${client.id}`;
+      const encNew = encryptToken(data.access_token);
+      await sql`UPDATE clients SET meta_access_token = ${encNew}, meta_token_expires_at = ${expiresAt.toISOString()} WHERE id = ${client.id}`;
       return { id: client.id, status: "refreshed" };
     } catch (err) {
       // Network exception — leave the token in place, log, and retry next cycle.

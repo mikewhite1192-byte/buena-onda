@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
 import { exchangeSlackCode, sendSlackMessage } from '@/lib/slack/client'
 import { verifyOAuthState } from '@/lib/oauth-state'
+import { encryptToken } from '@/lib/crypto/tokens'
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -49,9 +50,17 @@ export async function GET(req: NextRequest) {
     const webhookUrl = tokenData.incoming_webhook?.url ?? null
     const webhookChannel = tokenData.incoming_webhook?.channel ?? null
 
+    // Validate the webhook URL came from Slack — rejects anything else
+    // accidentally returned by a malicious response middleman.
+    if (webhookUrl && !webhookUrl.startsWith("https://hooks.slack.com/services/")) {
+      console.error("[slack/callback] webhook_url not a Slack hook:", webhookUrl)
+      return NextResponse.redirect(`${appUrl}/dashboard/settings?slack=error&reason=bad_webhook`)
+    }
+
+    const encAccess = encryptToken(tokenData.access_token)
     await sql`
       INSERT INTO slack_connections (clerk_user_id, team_id, team_name, access_token, webhook_url, webhook_channel, updated_at)
-      VALUES (${userId}, ${tokenData.team.id}, ${tokenData.team.name}, ${tokenData.access_token}, ${webhookUrl}, ${webhookChannel}, now())
+      VALUES (${userId}, ${tokenData.team.id}, ${tokenData.team.name}, ${encAccess}, ${webhookUrl}, ${webhookChannel}, now())
       ON CONFLICT (clerk_user_id) DO UPDATE SET
         team_id         = EXCLUDED.team_id,
         team_name       = EXCLUDED.team_name,

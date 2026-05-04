@@ -11,6 +11,7 @@ import {
   listLeadForms, resolveGeoLocations,
 } from "@/lib/meta/actions";
 import { refreshGoogleAdsToken } from "@/lib/google-ads/client";
+import { decryptToken } from "@/lib/crypto/tokens";
 import { listCampaigns as listGoogleCampaigns } from "@/lib/google-ads/accounts";
 import {
   createCampaignBudget, createCampaign, createAdGroup,
@@ -325,7 +326,9 @@ async function executeTool(
   // (pause / scale / delete) on Meta IDs the calling user doesn't own,
   // because the platform-wide system token had access to multiple ad
   // accounts. Now: no client token = no Meta tool calls.
-  const metaToken: string | undefined = clientInfo?.meta_access_token ?? undefined;
+  const metaToken: string | undefined = clientInfo?.meta_access_token
+    ? decryptToken(clientInfo.meta_access_token)
+    : undefined;
   function requireMetaToken(): string | undefined {
     return metaToken;
   }
@@ -347,7 +350,8 @@ async function executeTool(
 
     let accessToken: string;
     try {
-      accessToken = await refreshGoogleAdsToken(refresh_token);
+      // Stored refresh tokens are encrypted; legacy plaintext rows pass through.
+      accessToken = await refreshGoogleAdsToken(decryptToken(refresh_token));
     } catch {
       return "Failed to refresh Google Ads token. Please reconnect in Settings.";
     }

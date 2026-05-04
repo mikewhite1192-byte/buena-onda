@@ -8,6 +8,7 @@ import { neon } from '@neondatabase/serverless'
 import { NextResponse } from 'next/server'
 import { refreshGoogleAdsToken } from '@/lib/google-ads/client'
 import { pauseCampaign, enableCampaign, updateCampaignBudget } from '@/lib/google-ads/campaigns'
+import { decryptToken } from '@/lib/crypto/tokens'
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -36,7 +37,7 @@ export async function PATCH(
   const campaignResourceName = `customers/${customerId.replace(/-/g, '')}/campaigns/${params.campaignId}`
 
   try {
-    const accessToken = await refreshGoogleAdsToken(conn[0].refresh_token as string)
+    const accessToken = await refreshGoogleAdsToken(decryptToken(conn[0].refresh_token as string))
 
     if (action === 'pause') {
       await pauseCampaign(accessToken, customerId, campaignResourceName, managerId)

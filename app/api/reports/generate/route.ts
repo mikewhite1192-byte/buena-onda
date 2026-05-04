@@ -29,7 +29,9 @@ export async function POST(req: NextRequest) {
 
   // Fetch campaign metrics for date range
   const adAccountId = client.meta_ad_account_id;
-  const token = client.meta_access_token ?? process.env.META_ACCESS_TOKEN;
+  const { decryptToken } = await import("@/lib/crypto/tokens");
+  const stored = client.meta_access_token as string | null | undefined;
+  const token = stored ? decryptToken(stored) : process.env.META_ACCESS_TOKEN;
 
   let campaigns: Array<Record<string, unknown>> = [];
   let adSets: Array<Record<string, unknown>> = [];

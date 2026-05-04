@@ -7,6 +7,7 @@ export const maxDuration = 60
 import { neon } from '@neondatabase/serverless'
 import { NextResponse } from 'next/server'
 import { refreshGoogleAdsToken, getCampaignMetrics } from '@/lib/google-ads/client'
+import { decryptToken, encryptToken } from '@/lib/crypto/tokens'
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -30,11 +31,13 @@ export async function GET(req: Request) {
       continue
     }
     try {
-      // Refresh access token
-      const accessToken = await refreshGoogleAdsToken(conn.refresh_token as string)
+      // Refresh access token (decrypt the stored refresh_token first; legacy
+      // plaintext rows pass through unchanged).
+      const refreshToken = decryptToken(conn.refresh_token as string)
+      const accessToken = await refreshGoogleAdsToken(refreshToken)
       await sql`
         UPDATE google_ads_connections
-        SET access_token = ${accessToken}, updated_at = NOW()
+        SET access_token = ${encryptToken(accessToken)}, updated_at = NOW()
         WHERE clerk_user_id = ${conn.clerk_user_id}
       `
 
@@ -104,6 +107,7 @@ export async function GET(req: Request) {
     }
   }
 
-  const debug = connections.map(c => ({ user: c.clerk_user_id, has_token: !!c.refresh_token, has_customer: !!c.customer_id }))
-  return NextResponse.json({ synced, errors, total: connections.length, debug })
+  // Don't echo per-user metadata in the response — anyone who sees the
+  // cron output (logs, monitor) gets a tenant census otherwise.
+  return NextResponse.json({ synced, errors, total: connections.length })
 }

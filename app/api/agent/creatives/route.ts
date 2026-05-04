@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { ownsAdAccount } from "@/lib/auth/owner-of";
 import { neon } from "@neondatabase/serverless";
+import { decryptToken } from "@/lib/crypto/tokens";
 
 const sql = neon(process.env.DATABASE_URL!);
 
@@ -37,10 +38,11 @@ export async function GET(req: NextRequest) {
     WHERE owner_id = ${userId} AND meta_ad_account_id = ${adAccountId}
     LIMIT 1
   `;
-  const accessToken = tokenRows[0]?.meta_access_token as string | undefined;
-  if (!accessToken) {
+  const stored = tokenRows[0]?.meta_access_token as string | undefined;
+  if (!stored) {
     return NextResponse.json({ error: "Client has no Meta token" }, { status: 400 });
   }
+  const accessToken = decryptToken(stored);
 
   const accountId = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
 

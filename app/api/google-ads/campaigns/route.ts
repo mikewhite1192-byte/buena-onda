@@ -9,6 +9,7 @@ import { neon } from '@neondatabase/serverless'
 import { NextResponse } from 'next/server'
 import { refreshGoogleAdsToken } from '@/lib/google-ads/client'
 import { listCampaigns } from '@/lib/google-ads/accounts'
+import { decryptToken } from '@/lib/crypto/tokens'
 import {
   createCampaignBudget,
   createCampaign,
@@ -36,7 +37,7 @@ export async function GET() {
   }
 
   try {
-    const accessToken = await refreshGoogleAdsToken(conn[0].refresh_token as string)
+    const accessToken = await refreshGoogleAdsToken(decryptToken(conn[0].refresh_token as string))
     const campaigns = await listCampaigns(accessToken, conn[0].customer_id as string, conn[0].manager_id as string | null)
     return NextResponse.json({ campaigns, connected: true })
   } catch (err) {
@@ -77,7 +78,7 @@ export async function POST(req: Request) {
   const managerId = conn[0].manager_id as string | null
 
   try {
-    const accessToken = await refreshGoogleAdsToken(conn[0].refresh_token as string)
+    const accessToken = await refreshGoogleAdsToken(decryptToken(conn[0].refresh_token as string))
 
     // 1. Create budget
     const budgetResourceName = await createCampaignBudget(

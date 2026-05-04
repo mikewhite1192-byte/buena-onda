@@ -28,13 +28,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ timeseries });
   }
 
-  // Resolve token
+  // Resolve token (stored encrypted; legacy plaintext rows pass through).
   let token = process.env.META_ACCESS_TOKEN ?? "";
   if (clientId) {
     const { neon } = await import("@neondatabase/serverless");
+    const { decryptToken } = await import("@/lib/crypto/tokens");
     const sql = neon(process.env.DATABASE_URL!);
-    const rows = await sql`SELECT meta_access_token FROM clients WHERE id = ${clientId} LIMIT 1`;
-    if (rows[0]?.meta_access_token) token = rows[0].meta_access_token as string;
+    const rows = await sql`SELECT meta_access_token FROM clients WHERE id = ${clientId} AND owner_id = ${userId} LIMIT 1`;
+    if (rows[0]?.meta_access_token) token = decryptToken(rows[0].meta_access_token as string);
   }
   if (!token) return NextResponse.json({ error: "Missing META_ACCESS_TOKEN" }, { status: 500 });
   if (!normalizedAccount) return NextResponse.json({ error: "ad_account_id required" }, { status: 400 });

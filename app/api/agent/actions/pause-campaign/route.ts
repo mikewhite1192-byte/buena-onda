@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { neon } from "@neondatabase/serverless";
 import { isDemoAccount } from "@/lib/demo-data";
 import { logAction } from "@/lib/action-log";
+import { decryptToken } from "@/lib/crypto/tokens";
 
 const sql = neon(process.env.DATABASE_URL!);
 
@@ -24,7 +25,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, campaignId, status: "PAUSED", demo: true });
   }
 
-  const token = (client.meta_access_token as string) ?? process.env.META_ACCESS_TOKEN;
+  const token = client.meta_access_token
+    ? decryptToken(client.meta_access_token as string)
+    : (process.env.META_ACCESS_TOKEN ?? "");
   if (!token) return NextResponse.json({ error: "No access token" }, { status: 400 });
 
   const res = await fetch(`https://graph.facebook.com/v21.0/${campaignId}`, {

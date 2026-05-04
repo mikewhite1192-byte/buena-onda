@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
 import { getShopifyOrders } from '@/lib/shopify/client'
+import { decryptToken } from '@/lib/crypto/tokens'
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -37,8 +38,9 @@ export async function GET(req: Request) {
 
   for (const conn of connections) {
     try {
-      // Fetch all orders (paginated)
-      const orders = await getShopifyOrders(conn.shop, conn.access_token)
+      // Decrypt the stored access token; legacy plaintext rows pass through.
+      const accessToken = decryptToken(conn.access_token as string)
+      const orders = await getShopifyOrders(conn.shop, accessToken)
 
       // Group orders by day
       const byDay: Record<string, { orders: number; revenue: number }> = {}

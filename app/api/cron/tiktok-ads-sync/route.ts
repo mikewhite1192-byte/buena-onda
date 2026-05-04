@@ -4,6 +4,7 @@ export const maxDuration = 60
 import { neon } from '@neondatabase/serverless'
 import { NextResponse } from 'next/server'
 import { refreshTikTokToken, getTikTokCampaignMetrics } from '@/lib/tiktok-ads/client'
+import { decryptToken, encryptToken } from '@/lib/crypto/tokens'
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -21,17 +22,22 @@ export async function GET(req: Request) {
   for (const conn of connections) {
     if (!conn.advertiser_id) continue
     try {
-      // Refresh token if expiring within 1 hour
-      let accessToken = conn.access_token as string
+      // Decrypt the stored access token; legacy plaintext rows pass through.
+      let accessToken = decryptToken(conn.access_token as string)
       const expiresAt = conn.token_expires_at ? new Date(conn.token_expires_at as string) : null
-      if (conn.refresh_token && expiresAt && expiresAt.getTime() - Date.now() < 3600000) {
-        const refreshed = await refreshTikTokToken(conn.refresh_token as string)
+      // Refresh if already expired OR within 1 hour of expiring (audit nudge).
+      const needsRefresh = !expiresAt || expiresAt.getTime() - Date.now() < 3600000
+      if (conn.refresh_token && needsRefresh) {
+        const refreshTok = decryptToken(conn.refresh_token as string)
+        const refreshed = await refreshTikTokToken(refreshTok)
         accessToken = refreshed.access_token
+        const encNewAccess = encryptToken(refreshed.access_token)
+        const encNewRefresh = refreshed.refresh_token ? encryptToken(refreshed.refresh_token) : (conn.refresh_token as string)
         const newExpiry = new Date(Date.now() + refreshed.expires_in * 1000).toISOString()
         await sql`
           UPDATE tiktok_ads_connections SET
-            access_token = ${accessToken},
-            refresh_token = ${refreshed.refresh_token ?? conn.refresh_token},
+            access_token = ${encNewAccess},
+            refresh_token = ${encNewRefresh},
             token_expires_at = ${newExpiry},
             updated_at = NOW()
           WHERE clerk_user_id = ${conn.clerk_user_id}

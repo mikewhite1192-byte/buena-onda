@@ -30,13 +30,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ campaigns: getDemoCampaigns(normalizedParam!, days) });
   }
 
-  // Resolve token — use client's stored token if available, fall back to env var
+  // Resolve token — use client's stored (encrypted) token if available, fall back to env var.
   let token = process.env.META_ACCESS_TOKEN ?? "";
   if (clientId) {
     const { neon } = await import("@neondatabase/serverless");
+    const { decryptToken } = await import("@/lib/crypto/tokens");
     const sql = neon(process.env.DATABASE_URL!);
-    const rows = await sql`SELECT meta_access_token FROM clients WHERE id = ${clientId} LIMIT 1`;
-    if (rows[0]?.meta_access_token) token = rows[0].meta_access_token as string;
+    const rows = await sql`SELECT meta_access_token FROM clients WHERE id = ${clientId} AND owner_id = ${userId} LIMIT 1`;
+    if (rows[0]?.meta_access_token) token = decryptToken(rows[0].meta_access_token as string);
   }
   if (!token) return NextResponse.json({ error: "Missing META_ACCESS_TOKEN" }, { status: 500 });
 

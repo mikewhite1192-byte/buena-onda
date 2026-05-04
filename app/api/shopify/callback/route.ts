@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
 import { exchangeShopifyCode, getShopInfo } from '@/lib/shopify/client'
 import { verifyOAuthState } from '@/lib/oauth-state'
+import { encryptToken } from '@/lib/crypto/tokens'
 
 const sql = neon(process.env.DATABASE_URL!)
 const SHOP_PATTERN = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i
@@ -63,9 +64,10 @@ export async function GET(req: NextRequest) {
       shopName = shopInfo.name
     } catch { /* ok */ }
 
+    const encAccess = encryptToken(tokenData.access_token)
     await sql`
       INSERT INTO shopify_connections (clerk_user_id, shop, shop_name, access_token, scope, updated_at)
-      VALUES (${userId}, ${shop}, ${shopName}, ${tokenData.access_token}, ${tokenData.scope}, now())
+      VALUES (${userId}, ${shop}, ${shopName}, ${encAccess}, ${tokenData.scope}, now())
       ON CONFLICT (clerk_user_id) DO UPDATE SET
         shop         = EXCLUDED.shop,
         shop_name    = EXCLUDED.shop_name,

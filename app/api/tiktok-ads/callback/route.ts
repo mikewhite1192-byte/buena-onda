@@ -3,6 +3,7 @@ import { neon } from '@neondatabase/serverless'
 import { NextResponse } from 'next/server'
 import { exchangeTikTokCode, listTikTokAdvertisers } from '@/lib/tiktok-ads/client'
 import { verifyOAuthState } from '@/lib/oauth-state'
+import { encryptToken } from '@/lib/crypto/tokens'
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -42,13 +43,15 @@ export async function GET(req: Request) {
 
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString()
 
-    // Save account-level connection
+    // Save account-level connection (tokens encrypted at rest).
+    const encAccess = encryptToken(tokens.access_token)
+    const encRefresh = tokens.refresh_token ? encryptToken(tokens.refresh_token) : null
     await sql`
       INSERT INTO tiktok_ads_connections (clerk_user_id, access_token, refresh_token, advertiser_id, token_expires_at)
-      VALUES (${userId}, ${tokens.access_token}, ${tokens.refresh_token ?? null}, ${advertiserId}, ${expiresAt})
+      VALUES (${userId}, ${encAccess}, ${encRefresh}, ${advertiserId}, ${expiresAt})
       ON CONFLICT (clerk_user_id) DO UPDATE SET
-        access_token     = ${tokens.access_token},
-        refresh_token    = ${tokens.refresh_token ?? null},
+        access_token     = ${encAccess},
+        refresh_token    = ${encRefresh},
         advertiser_id    = ${advertiserId},
         token_expires_at = ${expiresAt},
         updated_at       = NOW()

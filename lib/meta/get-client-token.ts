@@ -1,4 +1,5 @@
 import { neon } from "@neondatabase/serverless";
+import { decryptToken } from "@/lib/crypto/tokens";
 const sql = neon(process.env.DATABASE_URL!);
 
 /**
@@ -25,7 +26,9 @@ export async function getClientToken(userId: string, clientId: string): Promise<
   if (client.meta_access_token) {
     const exp = client.meta_token_expires_at as Date | null;
     if (exp && exp.getTime() < Date.now()) throw new Error("Meta token expired — client must reconnect Facebook");
-    return client.meta_access_token as string;
+    // Stored values may be encrypted (current) or plaintext (legacy rows);
+    // decryptToken passes plaintext through unchanged.
+    return decryptToken(client.meta_access_token as string);
   }
   const envToken = process.env.META_ACCESS_TOKEN;
   if (!envToken) throw new Error("No Meta token available");
