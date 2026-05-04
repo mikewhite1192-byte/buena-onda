@@ -30,7 +30,7 @@ export default function AffiliatesPage() {
 
   const referralLink = affiliateCode ? `${BASE_URL}/?ref=${affiliateCode}` : "";
 
-  const avgPlan = 197;
+  const avgPlan = 179;
   const month1 = Math.round(refs * avgPlan * 0.5);
   const monthly = Math.round(refs * avgPlan * 0.4);
   const annual = monthly * 12 + month1;
@@ -153,7 +153,7 @@ export default function AffiliatesPage() {
             </div>
 
             <div className="mt-3 text-[11px] text-[#5a5e72]">
-              Based on avg Growth plan ($197/mo). All plans earn commissions.
+              Estimate based on Growth plan ($179/mo). Actual payouts use the real amount Stripe charges — Starter ($97), Growth ($179), Agency ($1,499).
             </div>
           </div>
 

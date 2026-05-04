@@ -65,9 +65,15 @@ export async function GET(req: NextRequest) {
     .filter((p) => p.status === "paid")
     .reduce((sum: number, p) => sum + Number(p.amount), 0);
 
-  const pendingPayout = payouts
-    .filter((p) => p.status === "pending")
-    .reduce((sum: number, p) => sum + Number(p.amount), 0);
+  // Pending payout = sum of unpaid commissions accrued so far.
+  // This includes commissions not yet bundled into a payout row (between cron runs)
+  // plus any commissions on a payout that hasn't successfully transferred.
+  const pendingRows = await sql`
+    SELECT COALESCE(SUM(commission_amount), 0) AS pending
+    FROM referral_commissions
+    WHERE affiliate_code = ${affiliate_code} AND paid_to_affiliate = FALSE
+  `;
+  const pendingPayout = Number(pendingRows[0]?.pending ?? 0);
 
   // Milestone progress
   const nextMilestone = MILESTONES.find((m) => m > totalReferrals) ?? null;

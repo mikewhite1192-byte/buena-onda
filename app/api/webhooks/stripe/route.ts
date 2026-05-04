@@ -43,6 +43,9 @@ export async function POST(req: NextRequest) {
       case "customer.subscription.deleted":
         await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
         break;
+      case "invoice.paid":
+        await handleInvoicePaid(event.data.object as Stripe.Invoice);
+        break;
     }
   } catch (err) {
     console.error("Stripe webhook handler error:", err);
@@ -148,6 +151,56 @@ async function handleSubscriptionUpdated(sub: Stripe.Subscription) {
   await clerk.users.updateUserMetadata(clerkUserId, {
     publicMetadata: { subscription_status: status },
   });
+}
+
+// Fires whenever Stripe successfully bills the customer (first non-trial month, recurring renewals).
+// Records a commission row for the referring affiliate based on the actual amount captured.
+// 50% rate on the referral's first paid invoice; 40% on every subsequent paid invoice.
+async function handleInvoicePaid(invoice: Stripe.Invoice) {
+  const amountPaidCents = invoice.amount_paid ?? 0;
+  if (amountPaidCents <= 0) return; // skip $0 invoices (trial-end, fully discounted, etc.)
+
+  const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
+  if (!customerId) return;
+
+  // Map Stripe customer → Clerk user → referral row.
+  const referralRows = await sql`
+    SELECT r.id, r.affiliate_code
+    FROM referrals r
+    JOIN user_subscriptions us ON us.clerk_user_id = r.referred_user_id
+    WHERE us.stripe_customer_id = ${customerId}
+      AND r.status = 'active'
+    LIMIT 1
+  `;
+  if (referralRows.length === 0) return; // not a referred customer
+
+  const { id: referralId, affiliate_code } = referralRows[0];
+
+  // First paid invoice for this referral gets the 50% rate; everything after gets 40%.
+  const priorRows = await sql`
+    SELECT 1 FROM referral_commissions WHERE referral_id = ${referralId} LIMIT 1
+  `;
+  const isFirstPaidInvoice = priorRows.length === 0;
+  const rate = isFirstPaidInvoice ? 0.5 : 0.4;
+
+  const invoiceAmount = amountPaidCents / 100;
+  const commissionAmount = Math.round(invoiceAmount * rate * 100) / 100;
+  const paidAt = invoice.status_transitions?.paid_at
+    ? new Date(invoice.status_transitions.paid_at * 1000)
+    : new Date();
+
+  // UNIQUE(stripe_invoice_id) makes this idempotent against Stripe retries.
+  await sql`
+    INSERT INTO referral_commissions (
+      referral_id, affiliate_code, stripe_invoice_id,
+      invoice_amount, commission_rate, commission_amount, invoice_paid_at
+    )
+    VALUES (
+      ${referralId}, ${affiliate_code}, ${invoice.id},
+      ${invoiceAmount}, ${rate}, ${commissionAmount}, ${paidAt.toISOString()}
+    )
+    ON CONFLICT (stripe_invoice_id) DO NOTHING
+  `;
 }
 
 async function handleSubscriptionDeleted(sub: Stripe.Subscription) {

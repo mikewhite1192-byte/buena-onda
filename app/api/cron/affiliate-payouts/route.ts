@@ -1,13 +1,15 @@
 // app/api/cron/affiliate-payouts/route.ts
-// Runs monthly (1st of month) — calculates commissions for each affiliate,
-// creates payout records, and transfers funds via Stripe Connect.
+// Runs monthly (1st of month). For each affiliate, sums unpaid referral_commissions
+// (one row per Stripe invoice that actually got paid), creates a payout record,
+// and transfers funds via Stripe Connect.
 //
-// Commission structure:
-//   50% of plan_amount for referrals active < 30 days (month 1 bonus)
-//   40% of plan_amount for all other active referrals (recurring)
+// Commissions are recorded in real time by the Stripe webhook on invoice.paid —
+// 50% on the referral's first paid invoice, 40% on every subsequent one — using
+// the actual amount Stripe captured. That means cancellations, prorations, and
+// failed payments never produce phantom payouts.
 //
 // Only transfers to affiliates who have completed Stripe Connect onboarding.
-// Pending payouts are created for all affiliates regardless.
+// Pending payouts are created for un-onboarded affiliates so the dashboard reflects them.
 
 import { NextRequest, NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
@@ -16,6 +18,11 @@ import Stripe from "stripe";
 const sql = neon(process.env.DATABASE_URL!);
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-02-25.clover" });
 
+interface CommissionRow {
+  id: string;
+  commission_amount: string;
+}
+
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -23,11 +30,9 @@ export async function GET(req: NextRequest) {
   }
 
   const now = new Date();
-  const periodEnd = new Date(now.getFullYear(), now.getMonth(), 1); // 1st of current month
+  const periodEnd = new Date(now.getFullYear(), now.getMonth(), 1);   // 1st of current month (exclusive)
   const periodStart = new Date(periodEnd.getFullYear(), periodEnd.getMonth() - 1, 1); // 1st of previous month
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  // Get all active affiliates
   const affiliates = await sql`
     SELECT id, affiliate_code, name, email, stripe_account_id, stripe_onboarded
     FROM affiliate_applications
@@ -39,68 +44,66 @@ export async function GET(req: NextRequest) {
   for (const aff of affiliates) {
     const code = aff.affiliate_code;
 
-    // Check if payout already exists for this period (idempotent)
-    const existing = await sql`
+    // Idempotency — skip if a payout already exists for this period.
+    const existingPayout = await sql`
       SELECT id FROM affiliate_payouts
       WHERE affiliate_code = ${code}
         AND period_start = ${periodStart.toISOString().split("T")[0]}
         AND period_end = ${periodEnd.toISOString().split("T")[0]}
       LIMIT 1
     `;
-    if (existing.length > 0) {
+    if (existingPayout.length > 0) {
       results.push({ code, amount: 0, action: "already_exists" });
       continue;
     }
 
-    // Get active referrals for this affiliate
-    const referrals = await sql`
-      SELECT plan_amount, created_at, months_active
-      FROM referrals
-      WHERE affiliate_code = ${code} AND status = 'active'
-    `;
+    // Pull unpaid commissions whose underlying invoice was paid before the period close.
+    // (Late-arriving invoices from prior periods are picked up here too — they were never paid out.)
+    const commissions = (await sql`
+      SELECT id, commission_amount
+      FROM referral_commissions
+      WHERE affiliate_code = ${code}
+        AND paid_to_affiliate = FALSE
+        AND invoice_paid_at < ${periodEnd.toISOString()}
+    `) as CommissionRow[];
 
-    if (referrals.length === 0) {
-      results.push({ code, amount: 0, action: "no_active_referrals" });
+    if (commissions.length === 0) {
+      results.push({ code, amount: 0, action: "no_unpaid_commissions" });
       continue;
     }
 
-    // Calculate commission
-    let totalCommission = 0;
-    for (const ref of referrals) {
-      const amount = Number(ref.plan_amount);
-      const isMonth1 = new Date(ref.created_at) >= thirtyDaysAgo;
-      const rate = isMonth1 ? 0.5 : 0.4;
-      totalCommission += amount * rate;
-    }
+    const total = commissions.reduce((sum, c) => sum + Number(c.commission_amount), 0);
+    const totalRounded = Math.round(total * 100) / 100;
 
-    // Round to 2 decimal places
-    totalCommission = Math.round(totalCommission * 100) / 100;
-
-    if (totalCommission <= 0) {
+    if (totalRounded <= 0) {
       results.push({ code, amount: 0, action: "zero_commission" });
       continue;
     }
 
-    // Increment months_active for all active referrals
-    await sql`
-      UPDATE referrals
-      SET months_active = months_active + 1
-      WHERE affiliate_code = ${code} AND status = 'active'
-    `;
-
-    // Create payout record
     const payoutRows = await sql`
       INSERT INTO affiliate_payouts (affiliate_code, amount, period_start, period_end, status)
-      VALUES (${code}, ${totalCommission}, ${periodStart.toISOString().split("T")[0]}, ${periodEnd.toISOString().split("T")[0]}, 'pending')
+      VALUES (
+        ${code}, ${totalRounded},
+        ${periodStart.toISOString().split("T")[0]},
+        ${periodEnd.toISOString().split("T")[0]},
+        'pending'
+      )
       RETURNING id
     `;
     const payoutId = payoutRows[0].id;
 
-    // Transfer via Stripe Connect if onboarded
+    // Link commissions to the payout up-front so the books are consistent
+    // even if the transfer fails — the rows are still "owed".
+    const commissionIds = commissions.map((c) => c.id);
+    await sql`
+      UPDATE referral_commissions SET payout_id = ${payoutId}
+      WHERE id = ANY(${commissionIds}::uuid[])
+    `;
+
     if (aff.stripe_onboarded && aff.stripe_account_id) {
       try {
         const transfer = await stripe.transfers.create({
-          amount: Math.round(totalCommission * 100), // cents
+          amount: Math.round(totalRounded * 100), // cents
           currency: "usd",
           destination: aff.stripe_account_id,
           description: `BuenaOnda affiliate commission ${periodStart.toISOString().split("T")[0]} to ${periodEnd.toISOString().split("T")[0]}`,
@@ -111,14 +114,19 @@ export async function GET(req: NextRequest) {
           SET status = 'paid', stripe_transfer_id = ${transfer.id}, paid_at = NOW()
           WHERE id = ${payoutId}
         `;
+        await sql`
+          UPDATE referral_commissions
+          SET paid_to_affiliate = TRUE
+          WHERE id = ANY(${commissionIds}::uuid[])
+        `;
 
-        results.push({ code, amount: totalCommission, action: "paid" });
+        results.push({ code, amount: totalRounded, action: "paid" });
       } catch (err) {
         console.error(`[affiliate-payouts] Transfer failed for ${code}:`, err);
-        results.push({ code, amount: totalCommission, action: "transfer_failed" });
+        results.push({ code, amount: totalRounded, action: "transfer_failed" });
       }
     } else {
-      results.push({ code, amount: totalCommission, action: "pending_no_stripe" });
+      results.push({ code, amount: totalRounded, action: "pending_no_stripe" });
     }
   }
 

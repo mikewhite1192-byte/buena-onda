@@ -153,6 +153,27 @@ CREATE TABLE IF NOT EXISTS affiliate_payouts (
 CREATE INDEX IF NOT EXISTS idx_payouts_affiliate_code ON affiliate_payouts(affiliate_code);
 CREATE INDEX IF NOT EXISTS idx_payouts_status ON affiliate_payouts(status);
 
+-- Per-invoice affiliate commissions. One row per paid Stripe invoice for a referred customer.
+-- Rate is 0.50 for the referral's first paid invoice (month 1 promise) and 0.40 thereafter.
+-- Cron sums unpaid rows and bundles them into an affiliate_payouts transfer.
+CREATE TABLE IF NOT EXISTS referral_commissions (
+  id                   UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+  referral_id          UUID          NOT NULL REFERENCES referrals(id) ON DELETE CASCADE,
+  affiliate_code       TEXT          NOT NULL REFERENCES affiliate_applications(affiliate_code) ON DELETE CASCADE,
+  stripe_invoice_id    TEXT          NOT NULL UNIQUE,
+  invoice_amount       NUMERIC(10,2) NOT NULL,
+  commission_rate      NUMERIC(4,2)  NOT NULL,
+  commission_amount    NUMERIC(10,2) NOT NULL,
+  invoice_paid_at      TIMESTAMPTZ   NOT NULL,
+  payout_id            UUID          REFERENCES affiliate_payouts(id) ON DELETE SET NULL,
+  paid_to_affiliate    BOOLEAN       NOT NULL DEFAULT FALSE,
+  created_at           TIMESTAMPTZ   NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_commissions_affiliate_code ON referral_commissions(affiliate_code);
+CREATE INDEX IF NOT EXISTS idx_commissions_referral_id ON referral_commissions(referral_id);
+CREATE INDEX IF NOT EXISTS idx_commissions_unpaid ON referral_commissions(affiliate_code, paid_to_affiliate) WHERE paid_to_affiliate = FALSE;
+
 -- User subscriptions — tracks Stripe subscription status per Clerk user
 CREATE TABLE IF NOT EXISTS user_subscriptions (
   id                     UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
