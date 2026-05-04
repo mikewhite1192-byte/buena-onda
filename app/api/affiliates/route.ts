@@ -30,7 +30,9 @@ export async function POST(req: NextRequest) {
   // Return existing code if already signed up
   const existing = await sql`SELECT affiliate_code FROM affiliate_applications WHERE email = ${email} LIMIT 1`;
   if (existing.length > 0) {
-    return NextResponse.json({ affiliate_code: existing[0].affiliate_code });
+    const res = NextResponse.json({ affiliate_code: existing[0].affiliate_code });
+    setAffiliateCookie(res, email);
+    return res;
   }
 
   // Generate unique affiliate code
@@ -100,5 +102,17 @@ export async function POST(req: NextRequest) {
     });
   } catch { /* best-effort */ }
 
-  return NextResponse.json({ affiliate_code });
+  const res = NextResponse.json({ affiliate_code });
+  setAffiliateCookie(res, email);
+  return res;
+}
+
+function setAffiliateCookie(res: NextResponse, email: string) {
+  res.cookies.set("affiliate_email", email.trim().toLowerCase(), {
+    httpOnly: true,
+    secure: true,
+    sameSite: "strict",
+    maxAge: 60 * 60 * 24 * 7,
+    path: "/",
+  });
 }

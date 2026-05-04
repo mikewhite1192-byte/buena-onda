@@ -1,8 +1,10 @@
 // app/api/affiliates/connect/complete/route.ts
-// Called after Stripe Connect onboarding — verifies and marks affiliate as onboarded
+// Called after Stripe Connect onboarding — verifies and marks affiliate as onboarded.
+// Auth: requires affiliate_email cookie to match the body email.
 import { NextRequest, NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
 import Stripe from "stripe";
+import { requireAffiliate, isErrorResponse } from "@/lib/auth/affiliate";
 
 const sql = neon(process.env.DATABASE_URL!);
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-02-25.clover" });
@@ -10,6 +12,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-02
 export async function POST(req: NextRequest) {
   const { email } = await req.json();
   if (!email) return NextResponse.json({ error: "Missing email" }, { status: 400 });
+
+  const authResult = requireAffiliate(req, email);
+  if (isErrorResponse(authResult)) return authResult;
 
   const rows = await sql`
     SELECT stripe_account_id FROM affiliate_applications

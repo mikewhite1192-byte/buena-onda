@@ -1,13 +1,19 @@
 // app/api/affiliates/portal/route.ts
-// Returns affiliate stats for the portal — looked up by email, no auth required
+// Returns affiliate stats for the portal. Auth: requires affiliate_email cookie
+// to match the requested email — referral list contains PII (referred-customer
+// emails) and must not be accessible by email-only enumeration.
 import { NextRequest, NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
+import { requireAffiliate, isErrorResponse } from "@/lib/auth/affiliate";
 
 const sql = neon(process.env.DATABASE_URL!);
 
 export async function GET(req: NextRequest) {
   const email = req.nextUrl.searchParams.get("email");
   if (!email) return NextResponse.json({ error: "Missing email" }, { status: 400 });
+
+  const authResult = requireAffiliate(req, email);
+  if (isErrorResponse(authResult)) return authResult;
 
   const rows = await sql`
     SELECT affiliate_code, name, created_at

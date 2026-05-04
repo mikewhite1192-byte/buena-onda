@@ -1,6 +1,10 @@
 // app/api/affiliates/dashboard/route.ts
+// Auth: requires the affiliate_email cookie to match the requested email —
+// otherwise anyone with an email could read another affiliate's earnings,
+// referral list, and Stripe Connect account ID.
 import { NextRequest, NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
+import { requireAffiliate, isErrorResponse } from "@/lib/auth/affiliate";
 
 const sql = neon(process.env.DATABASE_URL!);
 
@@ -9,6 +13,9 @@ const MILESTONES = [1, 3, 10, 25, 50, 100];
 export async function GET(req: NextRequest) {
   const email = req.nextUrl.searchParams.get("email");
   if (!email) return NextResponse.json({ error: "Missing email" }, { status: 400 });
+
+  const authResult = requireAffiliate(req, email);
+  if (isErrorResponse(authResult)) return authResult;
 
   const rows = await sql`
     SELECT id, name, affiliate_code, created_at, stripe_account_id, stripe_onboarded, is_free_account, total_clicks, milestones_reached

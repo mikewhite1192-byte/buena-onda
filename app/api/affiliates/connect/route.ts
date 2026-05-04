@@ -1,8 +1,11 @@
 // app/api/affiliates/connect/route.ts
-// Initiates Stripe Connect Express onboarding for an affiliate
+// Initiates Stripe Connect Express onboarding for an affiliate.
+// Auth: requires the affiliate_email cookie to match the body email — without
+// this gate, anyone could redirect any affiliate's payouts to their own bank.
 import { NextRequest, NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
 import Stripe from "stripe";
+import { requireAffiliate, isErrorResponse } from "@/lib/auth/affiliate";
 
 const sql = neon(process.env.DATABASE_URL!);
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-02-25.clover" });
@@ -10,6 +13,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-02
 export async function POST(req: NextRequest) {
   const { email } = await req.json();
   if (!email) return NextResponse.json({ error: "Missing email" }, { status: 400 });
+
+  const authResult = requireAffiliate(req, email);
+  if (isErrorResponse(authResult)) return authResult;
 
   const rows = await sql`
     SELECT id, name, affiliate_code, stripe_account_id, stripe_onboarded

@@ -31,6 +31,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not a subscription session" }, { status: 400 });
   }
 
+  // Verify this session actually belongs to the calling user — without this
+  // gate, anyone with a valid checkout session ID could bind that subscription
+  // (and its billing-active status) to their own Clerk account.
+  const sessionClerkId = session.metadata?.clerk_user_id;
+  if (sessionClerkId) {
+    if (sessionClerkId !== userId) {
+      return NextResponse.json({ error: "Session does not belong to caller" }, { status: 403 });
+    }
+  } else {
+    // Anonymous-checkout fallback — match by email instead.
+    const sessionEmail = session.customer_details?.email?.toLowerCase() ?? null;
+    const clerk = await clerkClient();
+    const callerEmail = (await clerk.users.getUser(userId))
+      .emailAddresses[0]?.emailAddress?.toLowerCase() ?? null;
+    if (!sessionEmail || !callerEmail || sessionEmail !== callerEmail) {
+      return NextResponse.json({ error: "Session does not belong to caller" }, { status: 403 });
+    }
+  }
+
   const sub = session.subscription as Stripe.Subscription;
   const customerId = session.customer as string;
   const status = sub.status;

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Webhook } from "svix";
 import { neon } from "@neondatabase/serverless";
 import Stripe from "stripe";
+import { markWebhookProcessed } from "@/lib/webhook-idempotency";
 
 const sql = neon(process.env.DATABASE_URL!);
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-02-25.clover" });
@@ -45,6 +46,15 @@ export async function POST(req: NextRequest) {
     }) as ClerkWebhookEvent;
   } catch {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+  }
+
+  // Idempotency — Svix retries on 5xx and on slow handler responses. Without
+  // this guard, user.deleted retries would re-fire stripe.subscriptions.cancel
+  // and user.created retries could insert duplicate referral rows on the
+  // narrow window between the existence check and the insert below.
+  const isNew = await markWebhookProcessed("clerk", svixId);
+  if (!isNew) {
+    return NextResponse.json({ ok: true, duplicate: true });
   }
 
   // ── user.deleted: cancel Stripe subscription so they stop getting charged ──

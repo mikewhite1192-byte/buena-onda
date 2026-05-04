@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
+import { requireOwner, isErrorResponse } from "@/lib/auth/owner";
 
 // GET /api/meta/token
 // Exchanges the current META_ACCESS_TOKEN for a long-lived token (60 days).
-// Requires META_APP_ID and META_APP_SECRET to be set.
+// Owner-only — the response contains a long-lived Meta access token.
 // Call this once whenever you refresh your token — paste the result back into .env.local.
 
 export async function GET() {
+  const ownerCheck = await requireOwner();
+  if (isErrorResponse(ownerCheck)) return ownerCheck;
+
   const appId = process.env.META_APP_ID;
   const appSecret = process.env.META_APP_SECRET;
   const shortToken = process.env.META_ACCESS_TOKEN;

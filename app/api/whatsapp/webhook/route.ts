@@ -27,17 +27,24 @@ export async function GET(req: Request) {
 // ── POST — Incoming messages ───────────────────────────────────────────────────
 export async function POST(req: Request) {
   try {
-    // Verify Meta webhook signature (X-Hub-Signature-256)
+    // Verify Meta webhook signature (X-Hub-Signature-256). Required — without
+    // this, anyone can POST a forged WhatsApp payload and trigger the AI
+    // conversation handler. Fail closed if the signing secret isn't configured.
     const signature = req.headers.get('x-hub-signature-256')
     const appSecret = process.env.META_APP_SECRET
-    if (appSecret && signature) {
-      const crypto = await import('crypto')
-      const rawBody = await req.clone().text()
-      const expected = 'sha256=' + crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex')
-      if (signature !== expected) {
-        console.error('[whatsapp] Invalid webhook signature')
-        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
-      }
+    if (!appSecret) {
+      console.error('[whatsapp] META_APP_SECRET is not configured')
+      return NextResponse.json({ error: 'Server misconfigured' }, { status: 503 })
+    }
+    if (!signature) {
+      return NextResponse.json({ error: 'Missing signature' }, { status: 401 })
+    }
+    const crypto = await import('crypto')
+    const rawBody = await req.clone().text()
+    const expected = 'sha256=' + crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex')
+    if (signature !== expected) {
+      console.error('[whatsapp] Invalid webhook signature')
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
     }
 
     const body = await req.json()

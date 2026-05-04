@@ -19,7 +19,14 @@ export async function requireOwner(): Promise<
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (OWNER_IDS.length > 0 && !OWNER_IDS.includes(userId)) {
+  // Fail closed if OWNER_CLERK_USER_ID isn't set in env — without this guard,
+  // a missing env var on a redeploy would silently open the entire admin
+  // surface to every signed-in user.
+  if (OWNER_IDS.length === 0) {
+    console.error("[requireOwner] OWNER_CLERK_USER_ID is not configured");
+    return NextResponse.json({ error: "Server misconfigured" }, { status: 503 });
+  }
+  if (!OWNER_IDS.includes(userId)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   return { userId };
