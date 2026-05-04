@@ -9,9 +9,11 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { neon } from "@neondatabase/serverless";
 import { clerkClient } from "@clerk/nextjs/server";
+import { Resend } from "resend";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-02-25.clover" });
 const sql = neon(process.env.DATABASE_URL!);
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req: NextRequest) {
   const sig = req.headers.get("stripe-signature");
@@ -253,13 +255,34 @@ function getChargeInvoiceId(charge: Stripe.Charge): string | null {
 }
 
 // Customer's card got declined. Sync the subscription status so middleware
-// can drop dashboard access and downstream UI can show a "fix payment" CTA.
+// can drop dashboard access, then email the customer with a self-service link
+// to fix their payment method (otherwise they silently lose access).
 async function handlePaymentFailed(invoice: Stripe.Invoice) {
   const subscriptionId = getInvoiceSubscriptionId(invoice);
   if (!subscriptionId) return;
 
   const sub = await stripe.subscriptions.retrieve(subscriptionId);
   await handleSubscriptionUpdated(sub);
+
+  const customerEmail = invoice.customer_email
+    ?? (typeof invoice.customer === "object" ? (invoice.customer as Stripe.Customer)?.email : null);
+  if (!customerEmail) return;
+
+  const portalUrl = "https://buenaonda.ai/dashboard/settings";
+  await resend.emails.send({
+    from: "Buena Onda <support@buenaonda.ai>",
+    to: customerEmail,
+    subject: "Action needed — your Buena Onda payment didn't go through",
+    html: `
+      <div style="font-family: monospace; max-width: 560px; background: #0d0f14; color: #e8eaf0; padding: 32px; border-radius: 12px;">
+        <div style="background: linear-gradient(135deg,#f5a623,#f76b1c); display: inline-block; padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 13px; color: #fff; margin-bottom: 20px;">Buena Onda</div>
+        <h1 style="font-size: 20px; font-weight: 800; margin: 0 0 8px;">Payment failed</h1>
+        <p style="font-size: 14px; color: #8b8fa8; line-height: 1.6;">We couldn't charge your card for your latest Buena Onda invoice. Stripe will retry, but to avoid losing access please update your payment method:</p>
+        <a href="${portalUrl}" style="display: inline-block; margin: 16px 0 8px; padding: 12px 22px; background: linear-gradient(135deg, #f5a623, #f76b1c); color: #0d0f14; font-weight: 800; font-size: 14px; text-decoration: none; border-radius: 8px;">Update payment method</a>
+        <p style="font-size: 11px; color: #5a5e72; margin-top: 24px;">If you've already fixed this, ignore this email.</p>
+      </div>
+    `,
+  }).catch((err) => console.error("[stripe webhook] payment_failed email send error:", err));
 }
 
 // Stripe refunded a charge — reverse any commission tied to that invoice so

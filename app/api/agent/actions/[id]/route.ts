@@ -38,8 +38,9 @@ export async function PATCH(
   if (decision === "approved") {
     const result = await executeAction(action as Record<string, unknown>);
     if (!result.success) {
+      console.error("[agent/actions/:id] execute failed:", result.error);
       return NextResponse.json(
-        { error: `Meta API error: ${result.error}` },
+        { error: "Meta API error — check the action and try again" },
         { status: 502 }
       );
     }

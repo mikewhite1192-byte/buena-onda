@@ -3,7 +3,7 @@
 // app/checkout/page.tsx
 // Auto-fires Stripe checkout after sign-up so the user never has to click the pricing page twice.
 // URL: /checkout?priceId=price_xxx&planName=Starter
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
@@ -17,8 +17,15 @@ const T = {
 function CheckoutRedirect() {
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
+  // React 18 Strict Mode mounts effects twice in dev, and Suspense re-renders
+  // can re-fire on prop changes. A ref guard prevents two checkout sessions
+  // from being created for one click.
+  const fired = useRef(false);
 
   useEffect(() => {
+    if (fired.current) return;
+    fired.current = true;
+
     const priceId = searchParams.get("priceId");
     const planName = searchParams.get("planName") ?? "";
 
@@ -41,7 +48,7 @@ function CheckoutRedirect() {
         }
       })
       .catch(() => setError("Could not start checkout. Please try again."));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   return (
     <div style={{

@@ -2,6 +2,7 @@ import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+import CookieConsent from "./components/CookieConsent";
 
 export const metadata = {
   title: "Buena Onda — AI-Powered Ad Management Platform",
@@ -27,7 +28,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <ClerkProvider>
       <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
-        <body className="font-sans antialiased" style={{ background: "#080808", color: "#e8eaf0" }}>{children}</body>
+        <body className="font-sans antialiased" style={{ background: "#080808", color: "#e8eaf0" }}>
+          {children}
+          <CookieConsent />
+        </body>
       </html>
     </ClerkProvider>
   );

@@ -58,11 +58,14 @@ export async function handleIncomingMessage(from: string, message: string): Prom
       LIMIT 30
     ` : []
 
-    // Knowledge base
+    // Knowledge base — owner-scoped so one tenant's instructions never leak
+    // into another tenant's WhatsApp prompts. Legacy rows with NULL owner_id
+    // are excluded so the cross-tenant contamination stops immediately.
     let knowledgeBase: { content: string; category: string }[] = []
     try {
       knowledgeBase = await sql`
         SELECT content, category FROM knowledge_base
+        WHERE owner_id = ${clerkUserId}
         ORDER BY created_at DESC LIMIT 50
       ` as { content: string; category: string }[]
     } catch { /* non-fatal */ }
@@ -76,7 +79,7 @@ export async function handleIncomingMessage(from: string, message: string): Prom
 
     // ── 3. Check for knowledge update ────────────────────────────────────────
     if (/^(new rule|remember|update rule|add rule|forget|ignore rule)/i.test(message.trim())) {
-      await handleKnowledgeUpdate(message, from)
+      await handleKnowledgeUpdate(message, from, clerkUserId)
       return
     }
 
@@ -131,19 +134,23 @@ RULES:
 }
 
 // ── Knowledge base update ──────────────────────────────────────────────────────
-async function handleKnowledgeUpdate(message: string, from: string): Promise<void> {
+async function handleKnowledgeUpdate(message: string, from: string, ownerId: string): Promise<void> {
   try {
-    let category = 'general'
-    if (/cpl|cost per lead/i.test(message)) category = 'cpl'
-    else if (/frequency/i.test(message)) category = 'frequency'
-    else if (/ctr|click/i.test(message)) category = 'ctr'
-    else if (/budget|spend/i.test(message)) category = 'budget'
-    else if (/creative|hook|video|image/i.test(message)) category = 'creative'
-    else if (/audience|avatar|demo/i.test(message)) category = 'audience'
-    else if (/roas|return/i.test(message)) category = 'roas'
-    else if (/cpm/i.test(message)) category = 'cpm'
+    // Cap stored content at 500 chars so a malicious sender can't bloat the
+    // tenant's prompt context indefinitely.
+    const trimmed = message.trim().slice(0, 500)
 
-    await sql`INSERT INTO knowledge_base (content, category, source) VALUES (${message}, ${category}, 'whatsapp')`
+    let category = 'general'
+    if (/cpl|cost per lead/i.test(trimmed)) category = 'cpl'
+    else if (/frequency/i.test(trimmed)) category = 'frequency'
+    else if (/ctr|click/i.test(trimmed)) category = 'ctr'
+    else if (/budget|spend/i.test(trimmed)) category = 'budget'
+    else if (/creative|hook|video|image/i.test(trimmed)) category = 'creative'
+    else if (/audience|avatar|demo/i.test(trimmed)) category = 'audience'
+    else if (/roas|return/i.test(trimmed)) category = 'roas'
+    else if (/cpm/i.test(trimmed)) category = 'cpm'
+
+    await sql`INSERT INTO knowledge_base (content, category, source, owner_id) VALUES (${trimmed}, ${category}, 'whatsapp', ${ownerId})`
 
     await sendWhatsAppMessage(from,
       `✅ Got it. Saved to knowledge base under *${category}*.\n\n_"${message}"_\n\nThis will be applied on the next agent cycle.`

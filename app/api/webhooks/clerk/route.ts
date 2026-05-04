@@ -57,7 +57,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, duplicate: true });
   }
 
-  // ── user.deleted: cancel Stripe subscription so they stop getting charged ──
+  // ── user.deleted: cancel Stripe + purge tenant data ──────────────────────
+  // Privacy-policy section 10 promises 30-day deletion. The previous handler
+  // only cancelled Stripe and kept all PII. This one cascades through every
+  // clerk_user_id-scoped table so account closure actually deletes the data.
   if (event.type === "user.deleted") {
     const deletedUserId = event.data.id;
     try {
@@ -67,17 +70,51 @@ export async function POST(req: NextRequest) {
       `;
       for (const sub of subs) {
         if (sub.stripe_subscription_id) {
-          await stripe.subscriptions.cancel(sub.stripe_subscription_id);
+          await stripe.subscriptions.cancel(sub.stripe_subscription_id).catch((err) => {
+            console.error("[clerk webhook] sub cancel failed:", err);
+          });
         }
       }
-      await sql`
-        UPDATE user_subscriptions SET status = 'cancelled', updated_at = NOW()
-        WHERE clerk_user_id = ${deletedUserId}
-      `;
+
+      // Purge tenant-scoped tables. Order matters: delete child rows first,
+      // then parents. Wrap in try/catch per-table so a single missing table
+      // (e.g. legacy schema) doesn't abort the whole purge.
+      const purges = [
+        sql`DELETE FROM agent_learnings        WHERE owner_id      = ${deletedUserId}`,
+        sql`DELETE FROM agent_actions          WHERE owner_id      = ${deletedUserId}`,
+        sql`DELETE FROM client_rules           WHERE owner_id      = ${deletedUserId}`,
+        sql`DELETE FROM action_log             WHERE owner_id      = ${deletedUserId}`,
+        sql`DELETE FROM pending_campaigns      WHERE owner_id      = ${deletedUserId}`,
+        sql`DELETE FROM user_metric_presets    WHERE owner_id      = ${deletedUserId}`,
+        sql`DELETE FROM workspace_branding     WHERE owner_clerk_user_id = ${deletedUserId}`,
+        sql`DELETE FROM team_invites           WHERE owner_clerk_user_id = ${deletedUserId}`,
+        sql`DELETE FROM team_members           WHERE owner_clerk_user_id = ${deletedUserId} OR member_clerk_user_id = ${deletedUserId}`,
+        sql`DELETE FROM google_ads_connections WHERE clerk_user_id = ${deletedUserId}`,
+        sql`DELETE FROM google_ad_metrics      WHERE clerk_user_id = ${deletedUserId}`,
+        sql`DELETE FROM tiktok_ads_connections WHERE clerk_user_id = ${deletedUserId}`,
+        sql`DELETE FROM tiktok_ad_metrics      WHERE clerk_user_id = ${deletedUserId}`,
+        sql`DELETE FROM shopify_connections    WHERE clerk_user_id = ${deletedUserId}`,
+        sql`DELETE FROM shopify_metrics        WHERE clerk_user_id = ${deletedUserId}`,
+        sql`DELETE FROM slack_connections      WHERE clerk_user_id = ${deletedUserId}`,
+        sql`DELETE FROM support_tickets        WHERE clerk_user_id = ${deletedUserId}`,
+        sql`DELETE FROM feedback_submissions   WHERE clerk_user_id = ${deletedUserId}`,
+        sql`DELETE FROM knowledge_base         WHERE owner_id      = ${deletedUserId}`,
+        sql`DELETE FROM creatives              WHERE user_id       = ${deletedUserId}`,
+        sql`DELETE FROM reports                WHERE user_id       = ${deletedUserId}`,
+        // Mark referrals as deleted rather than dropping the row, so the
+        // affiliate's earnings history stays consistent with referral_commissions.
+        sql`UPDATE referrals SET status = 'deleted', referred_email = NULL WHERE referred_user_id = ${deletedUserId}`,
+        // clients last — campaign_briefs has FK CASCADE, ad_metrics cascades from there.
+        sql`DELETE FROM clients                WHERE owner_id      = ${deletedUserId} OR clerk_user_id = ${deletedUserId}`,
+        sql`DELETE FROM user_subscriptions     WHERE clerk_user_id = ${deletedUserId}`,
+      ];
+      for (const p of purges) {
+        await p.catch((err) => console.error("[clerk webhook] purge step failed:", err));
+      }
     } catch (err) {
-      console.error("Failed to cancel Stripe subscription on user delete:", err);
+      console.error("[clerk webhook] user.deleted handler error:", err);
     }
-    return NextResponse.json({ ok: true, action: "subscriptions_cancelled" });
+    return NextResponse.json({ ok: true, action: "purged" });
   }
 
   // ── user.created: record referral if bo_ref was set ──

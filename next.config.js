@@ -9,6 +9,20 @@ const nextConfig = {
       { source: "/legal/terms", destination: "/terms-of-service", permanent: false },
     ];
   },
+  async headers() {
+    // Baseline hardening. CSP intentionally permissive on inline (Next.js +
+    // Clerk both inject inline scripts) and on connect (Clerk telemetry,
+    // Anthropic, Stripe, Resend, Meta Graph). Tighten to a nonce-based CSP
+    // when there's time to enumerate every embed.
+    const securityHeaders = [
+      { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains; preload" },
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      { key: "X-Frame-Options", value: "SAMEORIGIN" },
+      { key: "Permissions-Policy", value: "geolocation=(), microphone=(), camera=()" },
+    ];
+    return [{ source: "/(.*)", headers: securityHeaders }];
+  },
   experimental: {
     turbo: {
       resolveAlias: {

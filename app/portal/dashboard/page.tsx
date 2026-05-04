@@ -85,41 +85,56 @@ function PortalDashboardInner() {
 
   useEffect(() => {
     async function load() {
-      // Check session
-      const meRes = await fetch("/api/client-portal/me");
-      const meData = await meRes.json();
-      if (!meData.client) {
+      try {
+        // Check session
+        const meRes = await fetch("/api/client-portal/me");
+        if (!meRes.ok) {
+          router.push("/portal/login");
+          return;
+        }
+        const meData = await meRes.json();
+        if (!meData.client) {
+          router.push("/portal/login");
+          return;
+        }
+
+        const brandingUrl = customDomain
+          ? `/api/client-portal/branding?domain=${encodeURIComponent(customDomain)}`
+          : "/api/client-portal/branding";
+
+        const [dataRes, brandRes] = await Promise.all([
+          fetch("/api/client-portal/data"),
+          fetch(brandingUrl),
+        ]);
+
+        if (!dataRes.ok) {
+          router.push("/portal/login");
+          return;
+        }
+
+        const data = await dataRes.json();
+        const brandData = await brandRes.json().catch(() => ({}));
+
+        if (data.error) {
+          router.push("/portal/login");
+          return;
+        }
+
+        setClient(data.client);
+        setCampaigns(data.campaigns ?? []);
+        setMetrics(data.metrics ?? []);
+        setSummary(data.summary ?? null);
+        if (brandData.branding) setBranding(brandData.branding);
+      } catch (err) {
+        // Network failure — surface a recoverable error rather than hanging on "Loading…".
+        console.error("[portal/dashboard] load failed:", err);
         router.push("/portal/login");
-        return;
+      } finally {
+        setLoading(false);
       }
-
-      // Load data + branding in parallel
-      // On custom domains, fetch branding by domain; otherwise by session cookie
-      const brandingUrl = customDomain
-        ? `/api/client-portal/branding?domain=${encodeURIComponent(customDomain)}`
-        : "/api/client-portal/branding";
-
-      const [dataRes, brandRes] = await Promise.all([
-        fetch("/api/client-portal/data"),
-        fetch(brandingUrl),
-      ]);
-      const data = await dataRes.json();
-      const brandData = await brandRes.json();
-
-      if (data.error) {
-        router.push("/portal/login");
-        return;
-      }
-
-      setClient(data.client);
-      setCampaigns(data.campaigns ?? []);
-      setMetrics(data.metrics ?? []);
-      setSummary(data.summary ?? null);
-      if (brandData.branding) setBranding(brandData.branding);
-      setLoading(false);
     }
     load();
-  }, [router]);
+  }, [router, customDomain]);
 
   async function handleLogout() {
     await fetch("/api/client-portal/me", { method: "DELETE" });

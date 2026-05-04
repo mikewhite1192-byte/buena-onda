@@ -32,7 +32,8 @@ export async function GET() {
   const res = await fetch(url.toString());
   const data = await res.json();
 
-  console.log("[meta/token] Raw response:", JSON.stringify(data, null, 2));
+  // Don't log the raw response — it contains the long-lived access token.
+  console.log("[meta/token] response keys:", Object.keys(data).join(","));
 
   if (data.error) {
     return NextResponse.json(

@@ -202,6 +202,39 @@ CREATE TABLE IF NOT EXISTS rate_limit_hits (
 
 CREATE INDEX IF NOT EXISTS idx_rate_limit_lookup ON rate_limit_hits(bucket, key, hit_at);
 
+-- Tenant-scope knowledge_base. Without owner_id, every user's WhatsApp "new
+-- rule" message landed in a global table that the agent loop and conversation
+-- handler read for every user — letting one tenant's instructions leak into
+-- another tenant's prompts.
+ALTER TABLE knowledge_base ADD COLUMN IF NOT EXISTS owner_id TEXT;
+CREATE INDEX IF NOT EXISTS idx_knowledge_base_owner ON knowledge_base(owner_id);
+
+-- Per-tenant daily spend cap on autonomous-agent budget changes. NULL = no cap.
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS agent_daily_spend_cap NUMERIC(10,2);
+
+-- ── Audit-fix: missing indexes on owner_id / client_id columns ──────────
+CREATE INDEX IF NOT EXISTS idx_creatives_client     ON creatives(client_id);
+CREATE INDEX IF NOT EXISTS idx_creatives_user       ON creatives(user_id);
+CREATE INDEX IF NOT EXISTS idx_client_rules_owner   ON client_rules(owner_id);
+CREATE INDEX IF NOT EXISTS idx_client_rules_client  ON client_rules(client_id);
+CREATE INDEX IF NOT EXISTS idx_pending_campaigns_client ON pending_campaigns(client_id);
+CREATE INDEX IF NOT EXISTS idx_agent_actions_owner  ON agent_actions(owner_id);
+CREATE INDEX IF NOT EXISTS idx_agent_actions_ad_set ON agent_actions(ad_set_id);
+CREATE INDEX IF NOT EXISTS idx_campaign_budget_changes_client ON campaign_budget_changes(client_id);
+CREATE INDEX IF NOT EXISTS idx_agent_learnings_client ON agent_learnings(client_id);
+CREATE INDEX IF NOT EXISTS idx_user_metric_presets_owner ON user_metric_presets(owner_id);
+CREATE INDEX IF NOT EXISTS idx_referrals_referred_user ON referrals(referred_user_id);
+
+-- Composite indexes on the metrics hot path. Every dashboard route filters
+-- by ad_account_id and date_recorded; without these, queries seq-scan.
+CREATE INDEX IF NOT EXISTS idx_ad_metrics_account_date ON ad_metrics(ad_account_id, date_recorded DESC);
+CREATE INDEX IF NOT EXISTS idx_ad_metrics_brief_date   ON ad_metrics(campaign_brief_id, date_recorded DESC);
+
+-- Reject obviously-bad commission rates at write time. The migrate runner
+-- already swallows "already exists" / "duplicate" errors, so re-running is safe.
+ALTER TABLE referral_commissions ADD CONSTRAINT commission_rate_chk
+  CHECK (commission_rate >= 0 AND commission_rate <= 1);
+
 -- User subscriptions — tracks Stripe subscription status per Clerk user
 CREATE TABLE IF NOT EXISTS user_subscriptions (
   id                     UUID        PRIMARY KEY DEFAULT gen_random_uuid(),

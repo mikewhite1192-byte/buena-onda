@@ -19,6 +19,7 @@ const isPublicRoute = createRouteMatcher([
   "/pricing(.*)",
   "/api/db/migrate",
   "/api/cron/(.*)",
+  "/api/health",
   "/api/whatsapp/webhook",
   "/api/auth/facebook/callback",
   "/api/demo(.*)",
@@ -140,8 +141,15 @@ export default clerkMiddleware(async (auth, req) => {
     }
   }
 
-  // Track page views on public pages (fire and forget)
+  // Cookie consent: only set non-essential cookies (analytics _bv, affiliate
+  // bo_ref) and only fire analytics if the visitor opted in. Strictly-necessary
+  // cookies (Clerk session, auth helpers) are exempt under ePrivacy.
+  const consent = req.cookies.get("bo_consent")?.value;
+  const allowNonEssential = consent === "all";
+
+  // Track page views on public pages (only with consent — analytics is non-essential).
   if (
+    allowNonEssential &&
     isPublicRoute(req) &&
     !path.startsWith("/api/") &&
     !path.startsWith("/_next/") &&
@@ -157,12 +165,10 @@ export default clerkMiddleware(async (auth, req) => {
       body: JSON.stringify({ path, referrer, userAgent, visitorId }),
     }).catch(() => {});
 
-    // Set visitor cookie if new
     if (!req.cookies.get("_bv")) {
       const res = NextResponse.next();
       res.cookies.set("_bv", visitorId, { httpOnly: true, secure: true, sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
 
-      // Also handle ref cookie if present
       if (ref && /^[a-z0-9-]{3,30}$/.test(ref)) {
         res.cookies.set("bo_ref", ref, { maxAge: 60 * 60 * 24 * 90, path: "/", sameSite: "lax", httpOnly: false });
       }
@@ -170,23 +176,26 @@ export default clerkMiddleware(async (auth, req) => {
     }
   }
 
-  // If a ?ref= param is present, set a 90-day cookie, track the click, and continue
+  // Affiliate referral cookie — also non-essential (functional enhancement).
+  // We still fire click tracking so server-side counters are accurate, but the
+  // 90-day attribution cookie only lands once the visitor consents.
   if (ref && /^[a-z0-9-]{3,30}$/.test(ref)) {
-    // Fire-and-forget click tracking — don't block the response
     fetch(`${req.nextUrl.origin}/api/affiliates/click`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code: ref }),
     }).catch(() => {});
 
-    const res = NextResponse.next();
-    res.cookies.set("bo_ref", ref, {
-      maxAge: 60 * 60 * 24 * 90,
-      path: "/",
-      sameSite: "lax",
-      httpOnly: false,
-    });
-    return res;
+    if (allowNonEssential) {
+      const res = NextResponse.next();
+      res.cookies.set("bo_ref", ref, {
+        maxAge: 60 * 60 * 24 * 90,
+        path: "/",
+        sameSite: "lax",
+        httpOnly: false,
+      });
+      return res;
+    }
   }
 });
 

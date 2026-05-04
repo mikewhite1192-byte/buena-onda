@@ -286,6 +286,9 @@ function SettingsInner() {
                 <button
                   disabled={cancelLoading}
                   onClick={async () => {
+                    // Double-click guard — disabled prop alone won't catch the
+                    // race between two events fired before React re-renders.
+                    if (cancelLoading) return;
                     setCancelLoading(true);
                     setCancelResult("");
                     try {

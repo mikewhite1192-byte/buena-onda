@@ -39,23 +39,27 @@ export async function makeDecisions(
   if (adSets.length === 0) return [];
 
   const clientRows = await sql`
-    SELECT vertical, name, cpl_target, roas_target FROM clients WHERE id = ${clientId} LIMIT 1
+    SELECT vertical, name, cpl_target, roas_target, owner_id FROM clients WHERE id = ${clientId} LIMIT 1
   `.catch(() => []);
   const client = (clientRows[0] ?? {}) as {
     vertical?: string;
     name?: string;
     cpl_target?: string;
     roas_target?: string;
+    owner_id?: string;
   };
   const vertical = (client.vertical ?? "leads") as Vertical;
 
-  // Load active learned rules for context
-  const learnings = await sql`
+  // Load active learned rules — scoped to this client first, then this owner's
+  // other clients in the same vertical. Without owner_id filter, every tenant's
+  // rules influenced every other tenant's decisions.
+  const learnings = client.owner_id ? await sql`
     SELECT pattern_description, rule_key, rule_value
     FROM agent_learnings
     WHERE vertical = ${vertical} AND is_active_rule = true
+      AND (client_id = ${clientId} OR owner_id = ${client.owner_id})
     ORDER BY confidence_score DESC LIMIT 5
-  `.catch(() => []);
+  `.catch(() => []) : [];
 
   const system = `You are an expert performance marketing AI with deep knowledge of Meta Ads optimization for ${vertical === "leads" ? "lead generation" : "e-commerce"} campaigns.
 
