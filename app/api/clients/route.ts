@@ -11,17 +11,10 @@ export async function GET() {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const effectiveUserId = await getEffectiveUserId(userId);
 
-  await sql`
-    ALTER TABLE clients
-      ADD COLUMN IF NOT EXISTS cpl_target           DECIMAL(10,2),
-      ADD COLUMN IF NOT EXISTS roas_target          DECIMAL(10,2),
-      ADD COLUMN IF NOT EXISTS monthly_budget       DECIMAL(12,2),
-      ADD COLUMN IF NOT EXISTS website_url          TEXT,
-      ADD COLUMN IF NOT EXISTS google_customer_id   TEXT,
-      ADD COLUMN IF NOT EXISTS tiktok_advertiser_id TEXT,
-      ADD COLUMN IF NOT EXISTS shopify_domain       TEXT
-  `;
-
+  // The columns this query reads are added by the migration script. Running
+  // ALTER TABLE on every dashboard load took an ACCESS EXCLUSIVE lock that
+  // briefly blocked all writers — bad at scale, irrelevant for correctness
+  // since the schema migration already adds them.
   const rows = await sql`
     SELECT id, name, meta_ad_account_id, meta_page_id, vertical, status,
            whatsapp_number, notes, created_at,

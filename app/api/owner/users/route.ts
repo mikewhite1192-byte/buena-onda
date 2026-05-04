@@ -13,25 +13,55 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const filter = searchParams.get('filter') ?? 'all' // all | at_risk | trial | active | churned
 
+  // Pre-aggregate each fact table separately, then join. The previous query
+  // multiplied agent_actions × ad_metrics rows per campaign_brief, so a user
+  // with 100 campaigns × 30 days of metrics × 50 agent_actions exploded into
+  // 150k rows before GROUP BY — Vercel function would time out at ~100 users.
   const users = await sql`
+    WITH
+      client_counts AS (
+        SELECT owner_id, COUNT(*)::int AS client_count FROM clients GROUP BY owner_id
+      ),
+      campaign_counts AS (
+        SELECT c.owner_id, COUNT(cb.id)::int AS campaign_count
+        FROM clients c LEFT JOIN campaign_briefs cb ON cb.client_id = c.id
+        GROUP BY c.owner_id
+      ),
+      action_stats AS (
+        SELECT c.owner_id,
+               COUNT(aa.id)::int AS action_count,
+               MAX(aa.created_at) AS last_action_at
+        FROM clients c
+        LEFT JOIN campaign_briefs cb ON cb.client_id = c.id
+        LEFT JOIN agent_actions aa ON aa.campaign_brief_id = cb.id
+        GROUP BY c.owner_id
+      ),
+      spend_stats AS (
+        SELECT c.owner_id,
+               COALESCE(SUM(m.spend), 0)::numeric(12,2) AS total_spend,
+               MAX(m.date) AS last_metric_date
+        FROM clients c
+        LEFT JOIN campaign_briefs cb ON cb.client_id = c.id
+        LEFT JOIN ad_metrics m ON m.campaign_brief_id = cb.id
+        GROUP BY c.owner_id
+      )
     SELECT
       us.clerk_user_id,
       us.status,
       us.plan_name,
-      us.created_at as subscribed_at,
+      us.created_at AS subscribed_at,
       us.current_period_end,
-      COUNT(DISTINCT c.id) as client_count,
-      COUNT(DISTINCT cb.id) as campaign_count,
-      COUNT(DISTINCT aa.id) as action_count,
-      COALESCE(SUM(m.spend), 0) as total_spend,
-      MAX(aa.created_at) as last_action_at,
-      MAX(m.date) as last_metric_date
+      COALESCE(cc.client_count, 0)   AS client_count,
+      COALESCE(camp.campaign_count, 0) AS campaign_count,
+      COALESCE(act.action_count, 0)  AS action_count,
+      COALESCE(sp.total_spend, 0)    AS total_spend,
+      act.last_action_at,
+      sp.last_metric_date
     FROM user_subscriptions us
-    LEFT JOIN clients c ON c.owner_id = us.clerk_user_id
-    LEFT JOIN campaign_briefs cb ON cb.client_id = c.id
-    LEFT JOIN agent_actions aa ON aa.campaign_brief_id = cb.id
-    LEFT JOIN ad_metrics m ON m.campaign_brief_id = cb.id
-    GROUP BY us.clerk_user_id, us.status, us.plan_name, us.created_at, us.current_period_end
+    LEFT JOIN client_counts   cc   ON cc.owner_id   = us.clerk_user_id
+    LEFT JOIN campaign_counts camp ON camp.owner_id = us.clerk_user_id
+    LEFT JOIN action_stats    act  ON act.owner_id  = us.clerk_user_id
+    LEFT JOIN spend_stats     sp   ON sp.owner_id   = us.clerk_user_id
     ORDER BY us.created_at DESC
   `.catch(() => [])
 

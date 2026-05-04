@@ -320,7 +320,16 @@ async function executeTool(
       return "Failed to remove rule.";
     }
   }
-  const metaToken = clientInfo?.meta_access_token ?? process.env.META_ACCESS_TOKEN;
+  // Require a per-client Meta token. The previous fallback to
+  // process.env.META_ACCESS_TOKEN let LLM tools take destructive actions
+  // (pause / scale / delete) on Meta IDs the calling user doesn't own,
+  // because the platform-wide system token had access to multiple ad
+  // accounts. Now: no client token = no Meta tool calls.
+  const metaToken: string | undefined = clientInfo?.meta_access_token ?? undefined;
+  function requireMetaToken(): string | undefined {
+    return metaToken;
+  }
+  const NO_TOKEN_MSG = "No Meta access token for this client — connect Facebook from Settings before running ad actions.";
 
   // ── Google Ads ────────────────────────────────────────────────────────────
   if (name === "list_google_campaigns" || name === "create_google_campaign" || name === "pause_google_campaign" || name === "enable_google_campaign" || name === "scale_google_campaign_budget") {
@@ -438,19 +447,25 @@ async function executeTool(
   }
 
   // ── Ad set ────────────────────────────────────────────────────────────────
+  // Every Meta-side tool requires a per-client token; the platform-wide
+  // fallback was removed deliberately to prevent prompt-injection-driven
+  // actions on accounts the caller doesn't own.
   if (name === "pause_ad_set") {
-    const r = await pauseAdSet(input.ad_set_id as string, metaToken);
+    const t = requireMetaToken(); if (!t) return NO_TOKEN_MSG;
+    const r = await pauseAdSet(input.ad_set_id as string, t);
     return r.ok ? `Paused ad set ${input.ad_set_id}.` : `Failed: ${r.error}`;
   }
 
   if (name === "enable_ad_set") {
-    const r = await enableAd(input.ad_set_id as string, metaToken);
+    const t = requireMetaToken(); if (!t) return NO_TOKEN_MSG;
+    const r = await enableAd(input.ad_set_id as string, t);
     return r.ok ? `Enabled ad set ${input.ad_set_id}.` : `Failed: ${r.error}`;
   }
 
   if (name === "scale_ad_set_budget") {
+    const t = requireMetaToken(); if (!t) return NO_TOKEN_MSG;
     const cents = Math.round((input.new_daily_budget as number) * 100);
-    const r = await scaleAdSet(input.ad_set_id as string, cents, metaToken);
+    const r = await scaleAdSet(input.ad_set_id as string, cents, t);
     return r.ok
       ? `Updated ad set ${input.ad_set_id} daily budget to $${(cents / 100).toFixed(2)}.`
       : `Failed: ${r.error}`;
@@ -458,18 +473,21 @@ async function executeTool(
 
   // ── Campaign ──────────────────────────────────────────────────────────────
   if (name === "pause_campaign") {
-    const r = await pauseCampaign(input.campaign_id as string, metaToken);
+    const t = requireMetaToken(); if (!t) return NO_TOKEN_MSG;
+    const r = await pauseCampaign(input.campaign_id as string, t);
     return r.ok ? `Paused campaign ${input.campaign_id}.` : `Failed: ${r.error}`;
   }
 
   if (name === "enable_campaign") {
-    const r = await enableCampaign(input.campaign_id as string, metaToken);
+    const t = requireMetaToken(); if (!t) return NO_TOKEN_MSG;
+    const r = await enableCampaign(input.campaign_id as string, t);
     return r.ok ? `Enabled campaign ${input.campaign_id}.` : `Failed: ${r.error}`;
   }
 
   if (name === "scale_campaign_budget") {
+    const t = requireMetaToken(); if (!t) return NO_TOKEN_MSG;
     const cents = Math.round((input.new_daily_budget as number) * 100);
-    const r = await scaleCampaignBudget(input.campaign_id as string, cents, metaToken);
+    const r = await scaleCampaignBudget(input.campaign_id as string, cents, t);
     return r.ok
       ? `Updated campaign ${input.campaign_id} daily budget to $${(cents / 100).toFixed(2)}.`
       : `Failed: ${r.error}`;
@@ -477,17 +495,23 @@ async function executeTool(
 
   // ── Ad ────────────────────────────────────────────────────────────────────
   if (name === "pause_ad") {
-    const r = await pauseAd(input.ad_id as string, metaToken);
+    const t = requireMetaToken(); if (!t) return NO_TOKEN_MSG;
+    const r = await pauseAd(input.ad_id as string, t);
     return r.ok ? `Paused ad ${input.ad_id}.` : `Failed: ${r.error}`;
   }
 
   if (name === "enable_ad") {
-    const r = await enableAd(input.ad_id as string, metaToken);
+    const t = requireMetaToken(); if (!t) return NO_TOKEN_MSG;
+    const r = await enableAd(input.ad_id as string, t);
     return r.ok ? `Enabled ad ${input.ad_id}.` : `Failed: ${r.error}`;
   }
 
   if (name === "delete_ad") {
-    const r = await deleteAd(input.ad_id as string, metaToken);
+    const t = requireMetaToken(); if (!t) return NO_TOKEN_MSG;
+    // Loud audit log for irreversible action — makes prompt-injection abuse
+    // visible post-hoc even before we add a UI confirmation step.
+    console.warn(`[chat tool] delete_ad userId=${context?.userId} clientId=${context?.clientId} ad_id=${input.ad_id}`);
+    const r = await deleteAd(input.ad_id as string, t);
     return r.ok ? `Deleted ad ${input.ad_id}. This cannot be undone.` : `Failed: ${r.error}`;
   }
 
@@ -797,32 +821,60 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No messages provided" }, { status: 400 });
   }
 
-  // Pull live context
+  // Tenant-ownership gate. Both clientId (body) and adAccountId (body) must
+  // belong to the calling user; without this, anyone could pass another
+  // tenant's client_id and have us load their Meta token + spend data into
+  // the LLM's working context.
+  if (clientId) {
+    const owns = await sql`
+      SELECT 1 FROM clients WHERE id = ${clientId} AND owner_id = ${userId} LIMIT 1
+    `;
+    if (owns.length === 0) {
+      return NextResponse.json({ error: "Client not found" }, { status: 404 });
+    }
+  }
+  if (adAccountId) {
+    const owns = await sql`
+      SELECT 1 FROM clients WHERE meta_ad_account_id = ${adAccountId} AND owner_id = ${userId} LIMIT 1
+    `;
+    if (owns.length === 0) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
+  // Pull live context — every query that touches tenant-scoped data joins
+  // through clients on owner_id (or filters owner_id directly).
   const [recentMetrics, recentActions, recentLearnings, client, clientRules] = await Promise.all([
     adAccountId ? sql`
-      SELECT ad_set_name, ad_set_id, spend, leads, cpl, ctr, frequency, impressions, ad_status, date_recorded
-      FROM ad_metrics
-      WHERE ad_account_id = ${adAccountId}
-        AND date_recorded >= NOW() - INTERVAL '7 days'
-      ORDER BY date_recorded DESC
+      SELECT m.ad_set_name, m.ad_set_id, m.spend, m.leads, m.cpl, m.ctr, m.frequency, m.impressions, m.ad_status, m.date_recorded
+      FROM ad_metrics m
+      JOIN clients c ON c.meta_ad_account_id = m.ad_account_id
+      WHERE m.ad_account_id = ${adAccountId}
+        AND c.owner_id = ${userId}
+        AND m.date_recorded >= NOW() - INTERVAL '7 days'
+      ORDER BY m.date_recorded DESC
       LIMIT 20
     ` : Promise.resolve([]),
     adAccountId ? sql`
-      SELECT action_type, details, status, created_at
-      FROM agent_actions
-      WHERE ad_account_id = ${adAccountId}
-      ORDER BY created_at DESC
+      SELECT aa.action_type, aa.details, aa.status, aa.created_at
+      FROM agent_actions aa
+      JOIN clients c ON c.meta_ad_account_id = aa.ad_account_id
+      WHERE aa.ad_account_id = ${adAccountId}
+        AND c.owner_id = ${userId}
+      ORDER BY aa.created_at DESC
       LIMIT 10
     ` : Promise.resolve([]),
     clientId ? sql`
       SELECT rule_key, rule_value, pattern_description, confidence_score, vertical
       FROM agent_learnings
       WHERE is_active_rule = true
+        AND (client_id = ${clientId}::uuid OR owner_id = ${userId})
       ORDER BY confidence_score DESC
       LIMIT 10
     ` : Promise.resolve([]),
     clientId ? sql`
-      SELECT name, vertical, meta_ad_account_id, meta_page_id, meta_access_token, website_url FROM clients WHERE id = ${clientId} LIMIT 1
+      SELECT name, vertical, meta_ad_account_id, meta_page_id, meta_access_token, website_url
+      FROM clients WHERE id = ${clientId} AND owner_id = ${userId} LIMIT 1
     ` : Promise.resolve([]),
     clientId ? sql`
       SELECT id, rule_text, category FROM client_rules

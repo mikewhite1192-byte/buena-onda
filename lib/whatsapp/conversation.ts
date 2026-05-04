@@ -10,7 +10,11 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const sql = neon(process.env.DATABASE_URL!)
 
 export async function handleIncomingMessage(from: string, message: string): Promise<void> {
-  console.log(`[whatsapp] Incoming from ${from}: ${message}`)
+  // Don't log full phone numbers / message bodies — Vercel logs are not
+  // customer-controlled and these are PII. Hash + length is enough for
+  // post-mortem.
+  const fromMasked = from ? `${from.slice(0, 3)}***${from.slice(-2)}` : "unknown"
+  console.log(`[whatsapp] Incoming from=${fromMasked} len=${message?.length ?? 0}`)
 
   try {
     // ── 1. Look up user by WhatsApp number ───────────────────────────────────

@@ -212,6 +212,15 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_base_owner ON knowledge_base(owner_id);
 -- Per-tenant daily spend cap on autonomous-agent budget changes. NULL = no cap.
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS agent_daily_spend_cap NUMERIC(10,2);
 
+-- Client targets/budget — previously added inline at every dashboard load.
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS cpl_target     DECIMAL(10,2);
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS roas_target    DECIMAL(10,2);
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS monthly_budget DECIMAL(12,2);
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS website_url    TEXT;
+-- Meta token columns (also previously added inline by integration routes).
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS meta_access_token     TEXT;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS meta_token_expires_at TIMESTAMPTZ;
+
 -- ── Audit-fix: missing indexes on owner_id / client_id columns ──────────
 CREATE INDEX IF NOT EXISTS idx_creatives_client     ON creatives(client_id);
 CREATE INDEX IF NOT EXISTS idx_creatives_user       ON creatives(user_id);

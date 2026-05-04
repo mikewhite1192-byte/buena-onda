@@ -103,25 +103,31 @@ export default function PrivacyPolicy() {
         <p style={{ color: "#8b8fa8" }}>While we strive to protect your information, no method of electronic transmission or storage is 100% secure. We cannot guarantee absolute security.</p>
 
         <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 36, color: "#f5a623" }}>12. Cookies and Tracking Technologies</h2>
-        <p style={{ color: "#8b8fa8" }}>We use cookies and similar technologies to:</p>
+        <p style={{ color: "#8b8fa8" }}>We use a small number of cookies. Strictly-necessary cookies (authentication, session) are set without consent because the Service cannot function without them. Non-essential cookies are only set after you accept via the cookie banner.</p>
         <ul>
-          <li style={{ color: "#8b8fa8" }}>Maintain your session and authenticate your identity</li>
-          <li style={{ color: "#8b8fa8" }}>Remember your preferences and settings</li>
-          <li style={{ color: "#8b8fa8" }}>Understand how you use the Service (analytics)</li>
-          <li style={{ color: "#8b8fa8" }}>Attribute referrals for our affiliate program</li>
+          <li style={{ color: "#8b8fa8" }}><strong style={{ color: "#e8eaf0" }}>Clerk session cookies</strong> (strictly necessary) — keep you signed in.</li>
+          <li style={{ color: "#8b8fa8" }}><strong style={{ color: "#e8eaf0" }}>bo_consent</strong> (strictly necessary) — records your cookie-banner choice. 180 days.</li>
+          <li style={{ color: "#8b8fa8" }}><strong style={{ color: "#e8eaf0" }}>bo_sub_grace</strong> (strictly necessary) — short-lived after Stripe checkout return so navigation works while the webhook lands. 10 minutes.</li>
+          <li style={{ color: "#8b8fa8" }}><strong style={{ color: "#e8eaf0" }}>affiliate_email</strong> (strictly necessary, when using the affiliate portal) — keeps you signed into your affiliate dashboard. 7 days.</li>
+          <li style={{ color: "#8b8fa8" }}><strong style={{ color: "#e8eaf0" }}>_bv</strong> (analytics, non-essential) — anonymous visitor identifier for understanding which marketing pages perform. 1 year. Only set after consent.</li>
+          <li style={{ color: "#8b8fa8" }}><strong style={{ color: "#e8eaf0" }}>bo_ref</strong> (functional, non-essential) — affiliate-attribution cookie set when you arrive via an affiliate referral link. 90 days. Only set after consent.</li>
         </ul>
-        <p style={{ color: "#8b8fa8" }}>You can disable cookies in your browser settings, though some features of the Service may not function correctly without them. We do not use cookies for third-party advertising or tracking across other websites.</p>
+        <p style={{ color: "#8b8fa8" }}>You can clear cookies from your browser settings at any time. We do not use cookies for third-party advertising or for tracking across other websites.</p>
 
-        <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 36, color: "#f5a623" }}>13. Third-Party Services</h2>
-        <p style={{ color: "#8b8fa8" }}>We use the following third-party services to operate the platform:</p>
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 36, color: "#f5a623" }}>13. Third-Party Services and Subprocessors</h2>
+        <p style={{ color: "#8b8fa8" }}>We use the following subprocessors to operate the platform. Each receives only the data needed to deliver its part of the Service:</p>
         <ul>
           <li style={{ color: "#8b8fa8" }}><strong style={{ color: "#e8eaf0" }}>Clerk</strong> — authentication and user management</li>
-          <li style={{ color: "#8b8fa8" }}><strong style={{ color: "#e8eaf0" }}>Stripe</strong> — payment processing and subscription management</li>
+          <li style={{ color: "#8b8fa8" }}><strong style={{ color: "#e8eaf0" }}>Stripe</strong> — payment processing, subscription management, Stripe Tax, and Stripe Connect for affiliate payouts</li>
           <li style={{ color: "#8b8fa8" }}><strong style={{ color: "#e8eaf0" }}>Neon</strong> — database hosting (PostgreSQL)</li>
           <li style={{ color: "#8b8fa8" }}><strong style={{ color: "#e8eaf0" }}>Vercel</strong> — hosting and infrastructure</li>
           <li style={{ color: "#8b8fa8" }}><strong style={{ color: "#e8eaf0" }}>Anthropic (Claude)</strong> — AI language model processing for campaign analysis and recommendations</li>
           <li style={{ color: "#8b8fa8" }}><strong style={{ color: "#e8eaf0" }}>Meta</strong> — Meta Ads API and WhatsApp Business API integration</li>
           <li style={{ color: "#8b8fa8" }}><strong style={{ color: "#e8eaf0" }}>Google</strong> — Google Ads API and Google Calendar API integration</li>
+          <li style={{ color: "#8b8fa8" }}><strong style={{ color: "#e8eaf0" }}>TikTok</strong> — TikTok Ads API integration</li>
+          <li style={{ color: "#8b8fa8" }}><strong style={{ color: "#e8eaf0" }}>Shopify</strong> — Shopify Admin API integration for revenue and order metrics</li>
+          <li style={{ color: "#8b8fa8" }}><strong style={{ color: "#e8eaf0" }}>Slack</strong> — workspace notifications via OAuth-installed app</li>
+          <li style={{ color: "#8b8fa8" }}><strong style={{ color: "#e8eaf0" }}>Resend</strong> — transactional email delivery (login links, payment notifications, weekly reports)</li>
           <li style={{ color: "#8b8fa8" }}><strong style={{ color: "#e8eaf0" }}>Slack</strong> — workspace notifications</li>
         </ul>
         <p style={{ color: "#8b8fa8" }}>Each provider processes data in accordance with their own privacy policies. We encourage you to review the privacy policies of these third-party services.</p>

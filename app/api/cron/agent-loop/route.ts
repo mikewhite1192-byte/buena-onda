@@ -385,6 +385,14 @@ async function executeAction(decision: Decision, brief: CampaignBrief): Promise<
   const { action: type, ad_set_id: adset_id, params } = decision;
   const new_budget = params?.new_budget as number | undefined;
 
+  // Defense against prompt-injection driving the LLM to return an ad set ID
+  // that doesn't belong to this brief. Without this, an attacker who pollutes
+  // metric/learning context could redirect a scale/pause to an unrelated ad set.
+  if (!brief.creative_asset_ids?.includes(adset_id)) {
+    console.warn(`[agent-loop] decision adset ${adset_id} not in brief ${brief.id} — skipping`);
+    return "skipped — adset not owned by brief";
+  }
+
   switch (type) {
     case "pause": {
       const res = await pauseAdSet(adset_id);
@@ -392,13 +400,32 @@ async function executeAction(decision: Decision, brief: CampaignBrief): Promise<
     }
 
     case "scale": {
-      if (!new_budget) return "skipped — no new_budget provided";
-      // Meta expects budget in cents
+      if (!new_budget || new_budget <= 0) return "skipped — no new_budget provided";
       const budgetCents = Math.round(new_budget * 100);
       const currentCents = Math.round(parseFloat(brief.daily_budget) * 100);
-      // Guard: never change more than 30%
-      const maxCents = Math.round(currentCents * 1.3);
-      const safeCents = Math.min(budgetCents, maxCents);
+
+      // Per-call relative cap: never change by more than 30% in a single cron tick.
+      const maxRelativeCents = Math.round(currentCents * 1.3);
+
+      // Per-client absolute daily cap (clients.agent_daily_spend_cap, NULL = no cap).
+      // Honors the operator's escape hatch when an account shouldn't ever scale
+      // past a known-safe number, regardless of what the LLM proposes.
+      let absoluteCapCents: number | null = null;
+      if (brief.client_id) {
+        try {
+          const sqlLocal = getDb();
+          const rows = await sqlLocal`
+            SELECT agent_daily_spend_cap FROM clients WHERE id = ${brief.client_id} LIMIT 1
+          `;
+          const cap = rows[0]?.agent_daily_spend_cap as string | number | null | undefined;
+          if (cap != null) absoluteCapCents = Math.round(Number(cap) * 100);
+        } catch { /* fall through to relative cap only */ }
+      }
+
+      let safeCents = Math.min(budgetCents, maxRelativeCents);
+      if (absoluteCapCents != null) safeCents = Math.min(safeCents, absoluteCapCents);
+      if (safeCents <= 0) return "skipped — capped to zero";
+
       const res = await scaleAdSet(adset_id, safeCents);
       return res.ok ? `scaled to $${(safeCents / 100).toFixed(2)}/day` : `scale failed: ${res.error}`;
     }
