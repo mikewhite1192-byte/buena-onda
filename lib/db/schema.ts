@@ -174,6 +174,34 @@ CREATE INDEX IF NOT EXISTS idx_commissions_affiliate_code ON referral_commission
 CREATE INDEX IF NOT EXISTS idx_commissions_referral_id ON referral_commissions(referral_id);
 CREATE INDEX IF NOT EXISTS idx_commissions_unpaid ON referral_commissions(affiliate_code, paid_to_affiliate) WHERE paid_to_affiliate = FALSE;
 
+-- Reverses a commission row when the underlying Stripe charge is refunded or
+-- disputed. The payout cron filters these out so we never pay out on
+-- charges Stripe later took back.
+ALTER TABLE referral_commissions ADD COLUMN IF NOT EXISTS refunded_at TIMESTAMPTZ;
+
+-- Webhook idempotency. Created here for completeness — the table already
+-- exists in prod via inline DDL in lib/webhook-idempotency.ts.
+CREATE TABLE IF NOT EXISTS processed_webhooks (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  provider    TEXT        NOT NULL,
+  event_id    TEXT        NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(provider, event_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_processed_webhooks_lookup ON processed_webhooks(provider, event_id);
+
+-- Rate limit hits, keyed by (bucket, key, window_start). Supports counting
+-- distinct request hits in a time window without external infra.
+CREATE TABLE IF NOT EXISTS rate_limit_hits (
+  id           BIGSERIAL    PRIMARY KEY,
+  bucket       TEXT         NOT NULL,
+  key          TEXT         NOT NULL,
+  hit_at       TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_rate_limit_lookup ON rate_limit_hits(bucket, key, hit_at);
+
 -- User subscriptions — tracks Stripe subscription status per Clerk user
 CREATE TABLE IF NOT EXISTS user_subscriptions (
   id                     UUID        PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
 import { Resend } from "resend";
+import { rateLimit, callerKey } from "@/lib/rate-limit";
 
 const sql = neon(process.env.DATABASE_URL!);
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -25,6 +26,13 @@ export async function POST(req: NextRequest) {
 
   if (!name || !email) {
     return NextResponse.json({ error: "Name and email are required." }, { status: 400 });
+  }
+
+  // Throttle: 10 signups per IP per hour. Affiliate signup sends 2 emails
+  // (welcome + admin notify), so this is a Resend-cost protection.
+  const limit = await rateLimit("affiliate-signup", callerKey(req), 10, 3600);
+  if (!limit.ok) {
+    return NextResponse.json({ error: "Too many requests, try again later." }, { status: 429 });
   }
 
   // Return existing code if already signed up

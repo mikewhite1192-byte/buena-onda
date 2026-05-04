@@ -1,6 +1,7 @@
 "use client";
 import { SignUp } from "@clerk/nextjs";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 
 function getCookie(name: string): string | null {
   if (typeof document === "undefined") return null;
@@ -8,7 +9,16 @@ function getCookie(name: string): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-export default function Page() {
+// Only allow same-origin paths so an open redirect can't be smuggled through.
+function safeRedirect(target: string | null): string | null {
+  if (!target) return null;
+  if (!target.startsWith("/") || target.startsWith("//")) return null;
+  return target;
+}
+
+function SignUpInner() {
+  const params = useSearchParams();
+  const redirectUrl = safeRedirect(params.get("redirect_url"));
   const [unsafeMetadata, setUnsafeMetadata] = useState<Record<string, string> | undefined>(undefined);
 
   useEffect(() => {
@@ -18,7 +28,18 @@ export default function Page() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-6">
-      <SignUp unsafeMetadata={unsafeMetadata} afterSignUpUrl="/#pricing" />
+      <SignUp
+        unsafeMetadata={unsafeMetadata}
+        afterSignUpUrl={redirectUrl ?? "/#pricing"}
+      />
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense>
+      <SignUpInner />
+    </Suspense>
   );
 }

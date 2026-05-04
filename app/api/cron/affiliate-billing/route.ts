@@ -44,13 +44,26 @@ export async function GET(req: NextRequest) {
 
     // ── Billing: pause if newly hit threshold, resume if dropped below ──
     if (active >= FREE_THRESHOLD && !aff.is_free_account) {
-      // Just hit 3+ referrals — pause billing
-      if (aff.stripe_subscription_id) {
-        try {
-          await stripe.subscriptions.update(aff.stripe_subscription_id, {
-            pause_collection: { behavior: "void" },
-          });
-        } catch { /* subscription may already be cancelled or paused */ }
+      // Just hit 3+ referrals — pause billing. Only flip is_free_account
+      // if Stripe actually accepted the pause; otherwise the affiliate would
+      // get the "your account is free" email while still being billed.
+      if (!aff.stripe_subscription_id) {
+        results.push({ email: aff.email, action: "skipped_no_subscription", active });
+        continue;
+      }
+      try {
+        const sub = await stripe.subscriptions.retrieve(aff.stripe_subscription_id);
+        if (sub.status === "canceled" || sub.status === "incomplete_expired") {
+          results.push({ email: aff.email, action: "skipped_sub_terminated", active });
+          continue;
+        }
+        await stripe.subscriptions.update(aff.stripe_subscription_id, {
+          pause_collection: { behavior: "void" },
+        });
+      } catch (err) {
+        console.error(`[affiliate-billing] pause failed for ${aff.email}:`, err);
+        results.push({ email: aff.email, action: "pause_failed", active });
+        continue;
       }
 
       await sql`
@@ -63,13 +76,21 @@ export async function GET(req: NextRequest) {
       results.push({ email: aff.email, action: "billing_paused", active });
 
     } else if (active < FREE_THRESHOLD && aff.is_free_account) {
-      // Dropped below threshold — resume billing
-      if (aff.stripe_subscription_id) {
-        try {
-          await stripe.subscriptions.update(aff.stripe_subscription_id, {
-            pause_collection: null,
-          });
-        } catch { /* best-effort */ }
+      // Dropped below threshold — resume billing. Same constraint: only flip
+      // is_free_account if Stripe accepts the resume.
+      if (!aff.stripe_subscription_id) {
+        await sql`UPDATE affiliate_applications SET is_free_account = FALSE WHERE id = ${aff.id}`;
+        results.push({ email: aff.email, action: "billing_resumed_no_sub", active });
+        continue;
+      }
+      try {
+        await stripe.subscriptions.update(aff.stripe_subscription_id, {
+          pause_collection: null,
+        });
+      } catch (err) {
+        console.error(`[affiliate-billing] resume failed for ${aff.email}:`, err);
+        results.push({ email: aff.email, action: "resume_failed", active });
+        continue;
       }
 
       await sql`

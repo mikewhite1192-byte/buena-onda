@@ -57,13 +57,16 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
-    // Pull unpaid commissions whose underlying invoice was paid before the period close.
-    // (Late-arriving invoices from prior periods are picked up here too — they were never paid out.)
+    // Pull unpaid, non-refunded commissions whose underlying invoice was paid
+    // before the period close. (Late-arriving invoices from prior periods are
+    // picked up here too — they were never paid out.) Refunded/disputed
+    // commissions are excluded so we don't pay out on revenue Stripe took back.
     const commissions = (await sql`
       SELECT id, commission_amount
       FROM referral_commissions
       WHERE affiliate_code = ${code}
         AND paid_to_affiliate = FALSE
+        AND refunded_at IS NULL
         AND invoice_paid_at < ${periodEnd.toISOString()}
     `) as CommissionRow[];
 
@@ -102,11 +105,16 @@ export async function GET(req: NextRequest) {
 
     if (aff.stripe_onboarded && aff.stripe_account_id) {
       try {
+        // Idempotency-Key keyed on payout ID — if the cron crashes after Stripe
+        // accepts the transfer but before we update our DB, the next attempt
+        // will receive the same transfer object instead of creating a second one.
         const transfer = await stripe.transfers.create({
           amount: Math.round(totalRounded * 100), // cents
           currency: "usd",
           destination: aff.stripe_account_id,
           description: `BuenaOnda affiliate commission ${periodStart.toISOString().split("T")[0]} to ${periodEnd.toISOString().split("T")[0]}`,
+        }, {
+          idempotencyKey: `payout-${payoutId}`,
         });
 
         await sql`

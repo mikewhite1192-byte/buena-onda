@@ -1,5 +1,8 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { neon } from "@neondatabase/serverless";
+
+const sqlIfConfigured = process.env.DATABASE_URL ? neon(process.env.DATABASE_URL) : null;
 
 const isPublicRoute = createRouteMatcher([
   "/",
@@ -97,7 +100,22 @@ export default clerkMiddleware(async (auth, req) => {
 
     if (!isDemo) {
       const { userId } = await auth();
-      const status = (sessionClaims?.metadata as Record<string, string> | undefined)?.subscription_status;
+      let status = (sessionClaims?.metadata as Record<string, string> | undefined)?.subscription_status;
+
+      // Fall back to DB when the JWT claim is missing — the Clerk session token
+      // has a ~60s TTL, so right after a webhook updates publicMetadata there's
+      // a window where the user's session is stale. Reading user_subscriptions
+      // closes that gap without forcing a Clerk API round-trip.
+      if (!status && userId && sqlIfConfigured) {
+        try {
+          const rows = await sqlIfConfigured`
+            SELECT status FROM user_subscriptions WHERE clerk_user_id = ${userId} LIMIT 1
+          `;
+          status = rows[0]?.status as string | undefined;
+        } catch {
+          // DB hiccup — fall through to the gate below, fail closed.
+        }
+      }
 
       // Hard gate: only active/trialing subscribers (or the owner) can access dashboard
       const isOwner = !!userId && OWNER_USER_IDS.includes(userId);

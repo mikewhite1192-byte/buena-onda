@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { Resend } from "resend";
 import { neon } from "@neondatabase/serverless";
+import { rateLimit } from "@/lib/rate-limit";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const sql = neon(process.env.DATABASE_URL!);
@@ -11,6 +12,13 @@ const sql = neon(process.env.DATABASE_URL!);
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Throttle: 10 feedback messages per user per hour. Even authed users can
+  // weaponize an outbound email channel against our Resend bill.
+  const limit = await rateLimit("feedback", userId, 10, 3600);
+  if (!limit.ok) {
+    return NextResponse.json({ error: "Too many submissions, try again later." }, { status: 429 });
+  }
 
   const user = await currentUser();
   const { message } = await req.json() as { message: string };

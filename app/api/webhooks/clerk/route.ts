@@ -101,13 +101,22 @@ export async function POST(req: NextRequest) {
 
   // Validate the affiliate code exists and is active
   const affiliate = await sql`
-    SELECT affiliate_code FROM affiliate_applications
+    SELECT affiliate_code, email FROM affiliate_applications
     WHERE affiliate_code = ${ref} AND status = 'active'
     LIMIT 1
   `;
 
   if (affiliate.length === 0) {
     return NextResponse.json({ ok: true, recorded: false, reason: "unknown code" });
+  }
+
+  // Reject self-referrals — without this, an affiliate can sign up a second
+  // Clerk account under the same (or related) email, refer themselves, and
+  // pocket 50%/40% commission on their own subscription.
+  const affiliateEmail = (affiliate[0].email as string)?.trim().toLowerCase();
+  const newUserEmail = email?.trim().toLowerCase() ?? null;
+  if (affiliateEmail && newUserEmail && affiliateEmail === newUserEmail) {
+    return NextResponse.json({ ok: true, recorded: false, reason: "self-referral blocked" });
   }
 
   // Idempotent — don't double-insert

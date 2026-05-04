@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
 import { Resend } from 'resend'
 import { randomBytes } from 'crypto'
+import { rateLimit, callerKey } from '@/lib/rate-limit'
 
 const sql = neon(process.env.DATABASE_URL!)
 const resend = new Resend(process.env.RESEND_API_KEY!)
@@ -11,6 +12,13 @@ const resend = new Resend(process.env.RESEND_API_KEY!)
 export async function POST(req: NextRequest) {
   const { email } = await req.json()
   if (!email?.trim()) return NextResponse.json({ error: 'Email required' }, { status: 400 })
+
+  // Throttle: 5 magic-link sends per 10 minutes, keyed on both IP and target
+  // email so an attacker can't blast a victim's inbox even from many IPs.
+  const ipLimit = await rateLimit('affiliate-login-request', callerKey(req), 5, 600)
+  if (!ipLimit.ok) return NextResponse.json({ error: 'Too many requests, try again later.' }, { status: 429 })
+  const emailLimit = await rateLimit('affiliate-login-request-email', email.trim().toLowerCase(), 5, 600)
+  if (!emailLimit.ok) return NextResponse.json({ error: 'Too many requests, try again later.' }, { status: 429 })
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://buenaonda.ai'
 

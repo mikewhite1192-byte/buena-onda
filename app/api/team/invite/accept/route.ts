@@ -30,17 +30,18 @@ export async function POST(req: NextRequest) {
   if (new Date(invite.expires_at) < new Date()) return NextResponse.json({ error: 'Invite expired' }, { status: 400 })
   if (invite.owner_clerk_user_id === userId) return NextResponse.json({ error: 'Cannot invite yourself' }, { status: 400 })
 
-  // Get the invitee's name/email from Clerk
-  let memberName: string | null = null
-  let memberEmail: string | null = invite.email
-  try {
-    const client = await clerkClient()
-    const user = await client.users.getUser(userId)
-    memberName = [user.firstName, user.lastName].filter(Boolean).join(' ') || null
-    memberEmail = user.emailAddresses[0]?.emailAddress ?? invite.email
-  } catch {
-    // ignore, use invite email
+  // Verify the joining user's primary email matches the invite — without this
+  // gate, anyone with the token URL could join the workspace as any role.
+  const client = await clerkClient()
+  const user = await client.users.getUser(userId)
+  const callerEmail = user.emailAddresses[0]?.emailAddress?.trim().toLowerCase()
+  const inviteEmail = (invite.email as string)?.trim().toLowerCase()
+  if (!callerEmail || !inviteEmail || callerEmail !== inviteEmail) {
+    return NextResponse.json({ error: 'This invite is for a different email address' }, { status: 403 })
   }
+
+  const memberName = [user.firstName, user.lastName].filter(Boolean).join(' ') || null
+  const memberEmail = user.emailAddresses[0]?.emailAddress ?? invite.email
 
   // Insert team member (upsert safe)
   await sql`

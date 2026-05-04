@@ -1,10 +1,14 @@
 // app/api/webhooks/stripe/route.ts
-// Handles Stripe subscription lifecycle — gates dashboard access
+// Handles Stripe subscription lifecycle, affiliate commissions, refunds,
+// disputes, payment failures, and Stripe Connect account state.
+//
+// Idempotency: claim-then-commit. The processed_webhooks row is only
+// inserted AFTER the handler succeeds, so a crash mid-handler results in
+// a 500 → Stripe retries → the handler runs to completion next time.
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { neon } from "@neondatabase/serverless";
 import { clerkClient } from "@clerk/nextjs/server";
-import { markWebhookProcessed } from "@/lib/webhook-idempotency";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-02-25.clover" });
 const sql = neon(process.env.DATABASE_URL!);
@@ -26,9 +30,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid webhook signature" }, { status: 400 });
   }
 
-  // Idempotency: skip if already processed (Stripe retries on 5xx)
-  const isNew = await markWebhookProcessed("stripe", event.id);
-  if (!isNew) {
+  // Skip if we already finished processing this event.
+  const completed = await sql`
+    SELECT 1 FROM processed_webhooks
+    WHERE provider = 'stripe' AND event_id = ${event.id}
+    LIMIT 1
+  `;
+  if (completed.length > 0) {
     return NextResponse.json({ received: true, duplicate: true });
   }
 
@@ -46,11 +54,33 @@ export async function POST(req: NextRequest) {
       case "invoice.paid":
         await handleInvoicePaid(event.data.object as Stripe.Invoice);
         break;
+      case "invoice.payment_failed":
+        await handlePaymentFailed(event.data.object as Stripe.Invoice);
+        break;
+      case "charge.refunded":
+        await handleChargeRefunded(event.data.object as Stripe.Charge);
+        break;
+      case "charge.dispute.created":
+        await handleDisputeCreated(event.data.object as Stripe.Dispute);
+        break;
+      case "account.updated":
+        await handleAccountUpdated(event.data.object as Stripe.Account);
+        break;
     }
   } catch (err) {
     console.error("Stripe webhook handler error:", err);
-    // Return 200 so Stripe doesn't retry — log the error and investigate
+    // Return 500 so Stripe retries — the processed_webhooks row was never
+    // inserted, so the next attempt will re-run from scratch.
+    return NextResponse.json({ error: "Handler failed" }, { status: 500 });
   }
+
+  // Mark this event finished. ON CONFLICT covers the rare case where two
+  // concurrent retries both finish before either could write the row.
+  await sql`
+    INSERT INTO processed_webhooks (provider, event_id)
+    VALUES ('stripe', ${event.id})
+    ON CONFLICT (provider, event_id) DO NOTHING
+  `;
 
   return NextResponse.json({ received: true });
 }
@@ -67,7 +97,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const sub = await stripe.subscriptions.retrieve(subscriptionId);
   const status = sub.status; // 'trialing' | 'active'
   const planName = sub.items.data[0]?.price?.nickname ?? sub.items.data[0]?.price?.id ?? "unknown";
-  
+  const planAmount = (sub.items.data[0]?.price?.unit_amount ?? 0) / 100;
 
   // Find Clerk user by ID (passed in metadata) or fall back to email lookup
   if (!clerkUserId && email) {
@@ -110,8 +140,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 
   // ── Activate referral if this user was referred by an affiliate ──
-  // Look up the referral by referred_user_id (set during Clerk user.created webhook)
-  const planAmount = getPlanAmount(planName);
+  // Use the actual Stripe price as the recorded plan_amount; the cron uses
+  // real invoice amounts for commission math, but plan_amount drives
+  // dashboard projections so it's worth getting right.
   const referralRows = await sql`
     UPDATE referrals
     SET status = 'active', plan = ${planName}, plan_amount = ${planAmount}
@@ -124,23 +155,15 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 }
 
-function getPlanAmount(planName: string): number {
-  const lower = (planName || "").toLowerCase();
-  if (lower.includes("starter")) return 97;
-  if (lower.includes("agency")) return 1499;
-  // Default to growth/pro
-  return 179;
-}
-
 async function handleSubscriptionUpdated(sub: Stripe.Subscription) {
   const customerId = sub.customer as string;
   const status = sub.status;
-  
 
   const rows = await sql`
     UPDATE user_subscriptions
-    SET status = ${status}, current_period_end = null, updated_at = NOW()
+    SET status = ${status}, updated_at = NOW()
     WHERE stripe_customer_id = ${customerId}
+      AND status != 'cancelled'
     RETURNING clerk_user_id
   `;
 
@@ -200,6 +223,85 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
       ${invoiceAmount}, ${rate}, ${commissionAmount}, ${paidAt.toISOString()}
     )
     ON CONFLICT (stripe_invoice_id) DO NOTHING
+  `;
+}
+
+// The webhook endpoint is configured at API version 2024-12-18.acacia, which
+// still ships `invoice.subscription` and `charge.invoice` on the event JSON.
+// The Stripe SDK types are aligned to a newer API version that dropped those
+// fields, so we declare the legacy shape explicitly here.
+type LegacyInvoiceFields = { subscription?: string | Stripe.Subscription };
+type LegacyChargeFields = { invoice?: string | Stripe.Invoice | null };
+
+function getInvoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
+  // Modern shape first.
+  const parent = invoice.parent;
+  if (parent?.type === "subscription_details" && parent.subscription_details) {
+    const sd = parent.subscription_details;
+    return typeof sd.subscription === "string" ? sd.subscription : sd.subscription?.id ?? null;
+  }
+  // Legacy shape (still present on 2024-12-18.acacia events).
+  const legacy = (invoice as Stripe.Invoice & LegacyInvoiceFields).subscription;
+  if (!legacy) return null;
+  return typeof legacy === "string" ? legacy : legacy.id;
+}
+
+function getChargeInvoiceId(charge: Stripe.Charge): string | null {
+  const legacy = (charge as Stripe.Charge & LegacyChargeFields).invoice;
+  if (!legacy) return null;
+  return typeof legacy === "string" ? legacy : legacy.id;
+}
+
+// Customer's card got declined. Sync the subscription status so middleware
+// can drop dashboard access and downstream UI can show a "fix payment" CTA.
+async function handlePaymentFailed(invoice: Stripe.Invoice) {
+  const subscriptionId = getInvoiceSubscriptionId(invoice);
+  if (!subscriptionId) return;
+
+  const sub = await stripe.subscriptions.retrieve(subscriptionId);
+  await handleSubscriptionUpdated(sub);
+}
+
+// Stripe refunded a charge — reverse any commission tied to that invoice so
+// the affiliate doesn't get paid for revenue we returned.
+async function handleChargeRefunded(charge: Stripe.Charge) {
+  const invoiceId = getChargeInvoiceId(charge);
+  if (!invoiceId) return;
+
+  await sql`
+    UPDATE referral_commissions
+    SET refunded_at = NOW()
+    WHERE stripe_invoice_id = ${invoiceId} AND refunded_at IS NULL
+  `;
+}
+
+// Customer disputed a charge (chargeback). Treat like a refund for commission
+// purposes — funds are clawed back from us and the affiliate cut should follow.
+async function handleDisputeCreated(dispute: Stripe.Dispute) {
+  const chargeId = typeof dispute.charge === "string" ? dispute.charge : dispute.charge?.id;
+  if (!chargeId) return;
+
+  const charge = await stripe.charges.retrieve(chargeId);
+  const invoiceId = getChargeInvoiceId(charge);
+  if (!invoiceId) return;
+
+  await sql`
+    UPDATE referral_commissions
+    SET refunded_at = NOW()
+    WHERE stripe_invoice_id = ${invoiceId} AND refunded_at IS NULL
+  `;
+}
+
+// Stripe Connect account status changed (compliance review, document expiry,
+// etc.). Sync stripe_onboarded so the payout cron stops attempting transfers
+// to a disabled account.
+async function handleAccountUpdated(account: Stripe.Account) {
+  const onboarded = !!(account.charges_enabled && account.payouts_enabled);
+
+  await sql`
+    UPDATE affiliate_applications
+    SET stripe_onboarded = ${onboarded}
+    WHERE stripe_account_id = ${account.id}
   `;
 }
 
